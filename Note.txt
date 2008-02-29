@@ -1,0 +1,7 @@
+Today is August 2nd 2008. I wanted to save a snapshot of MyOS, so I went ahead
+and gathered all of the MyOS folders scattered on my hard drive and made zips
+for them, too. It brings together a little history. The 2-29-08 snapshot is
+close to the beginning stage. I stopped on MyOS for a long time after the 5-2-08
+snapshot because on 5-3-08 I started working on vgui. I stopped for a long time,
+but when I got back from my dad's I finished Vgui, made my Spanish verb program,
+and started working on MyOS again.
