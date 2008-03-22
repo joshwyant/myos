@@ -1,0 +1,3 @@
+echo Building OSLDR...
+nasm osldr.asm -o../../OSLDR
+Echo Finished.

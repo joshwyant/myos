@@ -1,0 +1,6 @@
+FIXME:
+Support CHS addressing.
+Support FAT12, FAT16, and FAT32
+Read FAT and root directory correctly.
+TODO:
+Turn on paging

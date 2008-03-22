@@ -1,0 +1,32 @@
+export PATH=/usr/cross/i586-elf/bin:$PATH
+
+cd osldr
+echo building OSLDR...
+nasm osldr.asm -o../../OSLDR
+
+cd ../kernel
+echo building KERNEL.IMG...
+rm -r ./obj
+mkdir obj
+nasm crt0.S -O2 -felf -o./obj/crt0.o
+nasm isr.asm -O2 -felf -o./obj/isr.o
+gcc -c -O2 video.c -o ./obj/video.o
+gcc -c -O2 kernel.c -o ./obj/kernel.o
+ld --oformat binary -o ../../KERNEL.IMG -Ttext=0x100000 \
+ ./obj/crt0.o ./obj/kernel.o ./obj/video.o ./obj/isr.o
+
+cd ../shell
+echo building SHELL.ELF...
+gcc shell.c -o ../../SHELL.ELF
+
+cd ../bootsect
+rm -r ./bin
+mkdir bin
+echo compiling boot sector...
+nasm bootsect.asm -obin/bootsect
+echo writing boot sector...
+dd if=bin/bootsect of=/dev/sdb1
+
+cd ..
+echo Build Completed.
+

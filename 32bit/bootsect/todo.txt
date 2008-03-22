@@ -1,0 +1,3 @@
+Fall back to CHS if LBA is not supported.
+Support FAT12,FAT16, and FAT32
+Read the FAT and root directory correctly.

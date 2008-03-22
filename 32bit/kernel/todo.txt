@@ -1,0 +1,23 @@
+FIXME:
+-video:
+select video mode
+fix show,hide cursor
+count rows and columns (not hard-wired to 80x25)
+test for monochrome monitor
+
+TODO:
+Start in 24bit color, 1024x768, show loading screen
+disk i/o
+keyboard i/o
+processes
+exception handling
+video
+load drivers
+memory allocation
+paging
+swapfile
+task switching
+process sceduling
+loading,linking elfs
+file systems (load extras from drivers)
+...

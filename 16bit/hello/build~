@@ -1,0 +1,3 @@
+echo Building HELLO.RMF...
+nasm hello.asm -o../../hello.rmf
+echo Finished.
