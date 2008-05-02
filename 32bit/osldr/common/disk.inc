@@ -53,6 +53,9 @@ call halt
 ; returns next cluster in si
 ; ===================================
 ReadCluster:
+push bp
+mov bp,sp
+sub sp,2
 mov ax,si
 sub ax,2  ; Subtract unused sectors
 jb invcluster   ; Given cluster Must be >= 2!
@@ -63,11 +66,30 @@ adc dx,0         ; dx:ax = first sector of cluster
 call ReadSectors
 ; Find next sector
 push es
+pushad
 mov ax,1000h
 mov es,ax
+xor edi,edi
+xor dx,dx
 shl si,1 ; entry*2 = offset
+mov ax,si
+div word [BytesPerSector]
+add ax,[ReservedSectors] ; dx=offset, ax=sector
+push dx
+cmp ax,[FATSector]
+je .noreadfat
+mov [FATSector],ax
+xor dx,dx
+mov cx,1
+call ReadSectors
+.noreadfat:
+pop si ; was push dx
 mov si,[es:si] ; next cluster is in si
+mov [bp-2],si
+popad
 pop es
+mov si,[bp-2]
+leave
 ret
 invcluster:
 mov si,badclsstr
@@ -100,19 +122,27 @@ call halt
 ; cx will be first cluster or zero
 ; ================================
 lookup:
-push di
-xor di,di
-xor cx,cx
+push edi
 push es
 mov ax,2000h
 mov es,ax
-search:
+mov cx,[RootSectors]
+mov ax,[RootSector]
+mov dx,[RootSector+2]
+.read:
+xor edi,edi
+push cx
+mov cx,1
+call ReadSectors
+pop cx
+xor di,di
+.search:
 mov al,[es:di]
 test al,al
-jz notfound
+jz .notfound
 mov al,[es:di+11]
 test al,18h
-jnz cont
+jnz .cont
 push si
 push di
 push cx
@@ -121,13 +151,20 @@ rep cmpsb
 pop cx
 pop di
 pop si
-jz found
-cont:
+je .found
+.cont:
 add di,32
-jmp search
-found:
+cmp di,[BytesPerSector]
+je .looper
+jmp .search
+.found:
 mov cx,[es:di+26]
-notfound:
+.notfound:
 pop es
-pop di
+pop edi
 ret
+.looper:
+add ax,1
+adc dx,0
+loop .read
+jmp .notfound

@@ -28,9 +28,13 @@ PacketLBA48		dw 0
 
 FirstDataSector 	dw 0
 DriveNumber		db 0
+RootSector		dd 0
+RootSectors		dw 0
+FATSector		dw 0
 
 LBAFailStr: db "Error: No LBA support",0Dh,0Ah,0
 sectorErrStr: db "Error: Failed reading sector",0Dh,0Ah,0
+err_smap: db "Error: Failed to determine amount of RAM",0Dh,0Ah,0
 badclsstr: db "Error: Invalid cluster number",0Dh,0Ah,0
 nofilestr: db "Error: File not found",0Dh,0Ah,0
 a20err: db "Error: A20 enable failed",0Dh,0Ah,0
@@ -48,8 +52,7 @@ msg_a20:  db "Checking A20 gate...",0Dh,0Ah,0
 msg_unr:  db "Entering unreal mode...",0Dh,0Ah,0
 msg_dsk:  db "Initializing disk...",0Dh,0Ah,0
 msg_lba:  db "Testing LBA...",0Dh,0Ah,0
-msg_fat:  db "Reading FAT...",0Dh,0Ah,0
-msg_rtd:  db "Reading root directory...",0Dh,0Ah,0
+msg_mem:  db "Counting RAM...",0Dh,0Ah,0
 msg_knl:  db "Loading kernel...",0Dh,0Ah,0
 msg_jmp:  db "Starting MyOS...",0Dh,0Ah,0
 msg_dot:  db '.',0

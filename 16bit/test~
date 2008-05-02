@@ -1,4 +1,0 @@
-echo Running Qemu...
-# -snapshot
-qemu -boot c -full-screen -net nic -std-vga /dev/sdb
-echo Simulation terminated.

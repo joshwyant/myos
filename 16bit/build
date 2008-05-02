@@ -2,19 +2,19 @@ export PATH=/usr/cross/i586-elf/bin:$PATH
 
 cd osldr
 echo building OSLDR...
-nasm osldr.asm -o../../OSLDR
+nasm osldr.asm -o../bin/OSLDR
 
 cd ../myos
 echo building MYOS.RMF...
-nasm myos.asm -o../../MYOS.RMF
+nasm myos.asm -o../bin/MYOS.RMF
 
 cd ../hello
 echo building HELLO.RMF...
-nasm hello.asm -o../../HELLO.RMF
+nasm hello.asm -o../bin/HELLO.RMF
 
 cd ../edit
 echo building EDIT.RMF...
-nasm edit.asm -o../../EDIT.RMF
+nasm edit.asm -o../bin/EDIT.RMF
 
 cd ../kernel
 echo building KERNEL.IMG...
@@ -22,15 +22,13 @@ rm -r ./obj
 mkdir obj
 nasm crt0.S -felf -o./obj/crt0.o
 gcc -c kernel.c -o ./obj/kernel.o
-ld --oformat binary -o ../../KERNEL.IMG ./obj/crt0.o ./obj/kernel.o
+ld --oformat binary -o ../bin/KERNEL.IMG ./obj/crt0.o ./obj/kernel.o
 
 cd ../bootsect
-rm -r ./bin
-mkdir bin
 echo compiling boot sector...
-nasm bootsect.asm -obin/bootsect
-echo writing boot sector...
-dd if=bin/bootsect of=/dev/sdb1
+nasm bootsect.asm -o../bin/bootsect/bootsect
+#echo writing boot sector...
+#dd if=../bin/bootsect/bootsect of=/dev/sdb1
 
 cd ..
 echo Build Completed.

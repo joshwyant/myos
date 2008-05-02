@@ -1,8 +1,6 @@
 #ifndef __IO_H__
 #define __IO_H__
 
-#include "ktypes.h"
-
 struct IDTDescr
 {
    unsigned short offset_1; // offset bits 0..15
@@ -11,14 +9,6 @@ struct IDTDescr
    unsigned char type_attr; // type and attributes, see below
    unsigned short offset_2; // offset bits 16..31
 };
-
-struct IDTr
-{
-    unsigned short         alignment __attribute__ ((packed));
-    unsigned short         limit __attribute__ ((packed));
-    unsigned int           base __attribute__ ((packed));
-
-} __attribute__ ((aligned (4)));;
 
 static inline void outb(unsigned short port, unsigned char val)
 {
@@ -61,7 +51,12 @@ static inline void io_wait(void)
    asm volatile("outb %%al, $0x80" : : "a"(0));
 }
 
-static void lidt(void* base, unsigned int size /* limit+1 */)
+static inline void int86(unsigned char num)
+{
+   asm volatile("int %0"::"N"(num));
+}
+
+static inline void lidt(volatile void* base, unsigned int size /* limit+1 */)
 {
     volatile unsigned int i[2];
     i[0] = (size-1) << 16;
@@ -69,52 +64,45 @@ static void lidt(void* base, unsigned int size /* limit+1 */)
     asm volatile ("lidt %0" : : "m" (((char*)i)[2]));
 }
 
-static void lgdt(void *base, unsigned int size) {
-    unsigned int i[2];
- 
+static inline void lgdt(volatile void *base, unsigned int size) {
+    volatile unsigned int i[2];
     i[0] = (size-1) << 16;
     i[1] = (unsigned int) base;
-    asm volatile ("lgdt (%0)": :"p" (((char *) i)+2));
+    asm volatile ("lgdt %0" : : "m" (((char*)i)[2]));
 }
 
 static inline void cli() { asm volatile ("cli"); }
 
 static inline void sti() { asm volatile ("sti"); }
 
-static void PIC_remap(int offset1, int offset2)
+static inline void irq_unmask(char irq)
 {
-    unsigned char a1, a2;
-  
-    a1 = inb(0x21);                        // save masks
-    a2 = inb(0xa1);
- 
-    outb(0x20, 0x11);  // starts the initialization sequence
-    io_wait();
-    outb(0xa0, 0x11);
-    io_wait();
-    outb(0x21, offset1);                 // define the PIC vectors
-    io_wait();
-    outb(0xa1, offset2);
-    io_wait();
-    outb(0x21, 4);                       // continue initialization sequence
-    io_wait();
-    outb(0xa1, 2);
-    io_wait();
-    
-    outb(0x21, 1); // ICW4_8086
-    io_wait();
-    outb(0xa1, 1);
-    io_wait();
-    
-    outb(0x21, a1);   // restore saved masks.
-    outb(0xa1, a2);
-
+    unsigned short mask = (0xFFFE<<irq)|(0xFFFE>>(16-irq));
+    if (~(unsigned char)(mask&0xFF))
+      outb(0x21, inb(0x21)&(unsigned char)(mask));
+    else
+      outb(0xa1, inb(0xa1)&(unsigned char)(mask>>8));
 }
 
 static inline void eoi(int irq)
 {
     if (irq >= 8) outb(0xa0,0x20);
     outb(0x20,0x20);
+}
+
+static inline void invlpg(void* pg)
+{
+    asm volatile ("invlpg %0"::"m"(pg));
+}
+
+static inline void hlt()
+{
+    asm volatile ("hlt");
+}
+
+static inline void hang()
+{
+    asm volatile ("0: jmp 0b");
 }
 
 #endif

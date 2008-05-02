@@ -1,20 +1,17 @@
 #ifndef __video_h__
 #define __video_h__
 
-#include "io.h"
-#include "ktypes.h"
-
-unsigned short crtbaseio;
-char cursor_shown;
-unsigned short cursorpos;
-
 void init_video();
-inline void _print_char(char, unsigned char);
+void move_cursor(int);
 void print_char(char);
 void print(const char*);
-inline void update_cursor_index();
-inline void show_cursor(bool);
+void show_cursor(int);
 void cls();
 void printhexb(char x);
+void printhexw(short x);
+void printhexd(int x);
+void printdec(int x);
+void endl();
+volatile char* videomem;
 
 #endif

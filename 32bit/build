@@ -1,31 +1,49 @@
 export PATH=/usr/cross/i586-elf/bin:$PATH
+export DEFINES="-DFAT32"
+
+echo Build started.
+date 
 
 cd osldr
 echo building OSLDR...
-nasm osldr.asm -o../../OSLDR
+nasm osldr.asm $DEFINES -o../bin/OSLDR
 
 cd ../kernel
 echo building KERNEL.IMG...
 rm -r ./obj
 mkdir obj
-nasm crt0.S -O2 -felf -o./obj/crt0.o
-nasm isr.asm -O2 -felf -o./obj/isr.o
-gcc -c -O2 video.c -o ./obj/video.o
-gcc -c -O2 kernel.c -o ./obj/kernel.o
-ld --oformat binary -o ../../KERNEL.IMG -Ttext=0x100000 \
- ./obj/crt0.o ./obj/kernel.o ./obj/video.o ./obj/isr.o
+nasm startup.S $DEFINES -O2 -felf -o./obj/startup.o
+nasm isr.asm $DEFINES -O2 -felf -o./obj/isr.o
+gcc -c $DEFINES -O2 video.c -o ./obj/video.o
+gcc -c $DEFINES -O2 disk.c -o ./obj/disk.o
+gcc -c $DEFINES -O2 fat.c -o ./obj/fat.o
+gcc -c $DEFINES -O2 elf.c -o ./obj/elf.o
+gcc -c $DEFINES -O2 kernel.c -o ./obj/kernel.o
+ld -Tkernel.ld
 
 cd ../shell
 echo building SHELL.ELF...
-gcc shell.c -o ../../SHELL.ELF
+gcc shell.c -o ../bin/SHELL.ELF
 
 cd ../bootsect
-rm -r ./bin
-mkdir bin
 echo compiling boot sector...
-nasm bootsect.asm -obin/bootsect
+echo "(FAT12)"
+nasm bootsect.asm -DFAT12 -o../bin/bootsect/bootsect12
+echo "(FAT16)"
+nasm bootsect.asm -DFAT16 -o../bin/bootsect/bootsect16
+echo "(FAT32)"
+nasm bootsect.asm -DFAT32 -o../bin/bootsect/bootsect32
+echo "(Default)"
+nasm bootsect.asm $DEFINES -o../bin/bootsect/bootsect
 echo writing boot sector...
-dd if=bin/bootsect of=/dev/sdb1
+#dd if=../bin/bootsect/bootsect of=/dev/sdb1
+dd if=../bin/bootsect/bootsect \
+  of=../hda.img \
+  bs=512 count=1 conv=notrunc
+
+#cd ../diskimage
+#echo Creating disk image...
+#nasm diskimage.asm $DEFINES -o../hda.img
 
 cd ..
 echo Build Completed.
