@@ -1,0 +1,8 @@
+echo Running Qemu...
+"/cygdrive/c/Documents and Settings/Josh/Desktop/qemu/qemu" -boot c \
+-snapshot \
+-kernel-kqemu \
+-net nic -std-vga \
+  -std-vga -L "C:\Documents and Settings\Josh\Desktop\qemu" \
+  \\\\.\\PHYSICALDRIVE1:
+echo Simulation terminated.

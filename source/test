@@ -1,0 +1,11 @@
+echo Running Qemu...
+# -snapshot -full-screen -net nic
+if [ ! "$OS" == "Windows_NT" ] ; then
+  sleep 3s
+  qemu -snapshot -full-screen -boot c -std-vga /dev/hda3
+else
+  qemu -boot c -kernel-kqemu -net nic -std-vga \
+    -std-vga -L "C:\Program Files\Qemu\pc-bios" \
+    \\\\.\\PHYSICALDRIVE1
+fi
+echo Simulation terminated.
