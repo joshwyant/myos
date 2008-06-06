@@ -1,3 +1,0 @@
-echo Building MYOS.RMF...
-nasm myos.asm -o../../MYOS.RMF
-Finished.

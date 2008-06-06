@@ -1,5 +1,0 @@
-bits 32
-global _start
-extern kmain
-call kmain
-jmp $
