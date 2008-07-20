@@ -1,0 +1,14 @@
+%define BytesPerSector 		11
+%define SectorsPerCluster    	13
+%define ReservedSectors      	14
+%define NumFATs              	16
+%define RootEntries          	17
+%define TotalSectors16      	19
+%define MediaDescriptor     	21
+%define FATSectors16        	22
+%define SectorsPerTrack     	24
+%define NumHeads               	26
+%define HiddenSectors       	28
+%define TotalSectors32       	32
+%define FATSectors32		36
+%define RootCluster		44

@@ -1,0 +1,41 @@
+echo Build started.
+date
+
+export PATH=/usr/cross/i586-elf/bin:$PATH
+export DEFINES="-DFAT32 -DDEBUG"
+
+if [ ! -d bin ] ; then mkdir bin; fi
+
+cd osldr
+echo building osldr...
+nasm osldr.asm $DEFINES -o../bin/osldr
+
+cd ../kernel
+echo building KERNEL.IMG...
+if [ ! -d obj ] ; then mkdir obj; fi
+nasm startup.S $DEFINES -O2 -felf -o./obj/startup.o
+nasm isr.asm $DEFINES -O2 -felf -o./obj/isr.o
+gcc -c $DEFINES -O2 video.c -o ./obj/video.o
+gcc -c $DEFINES -O2 disk.c -o ./obj/disk.o
+gcc -c $DEFINES -O2 fat.c -o ./obj/fat.o
+gcc -c $DEFINES -O2 elf.c -o ./obj/elf.o
+gcc -c $DEFINES -O2 kernel.c -o ./obj/kernel.o
+ld -Tkernel.ld
+
+cd ../shell
+echo building shell.elf...
+gcc shell.c -o ../bin/shell.elf
+
+cd ../bootsect
+echo compiling boot sector...
+nasm bootsect.asm $DEFINES -o../bin/bootsect
+#echo writing boot sector...
+#dd if=../bin/bootsect of=/dev/sda3
+
+cd ..
+echo copying files...
+cp ./bin/osldr ../osldr
+cp ./bin/kernel.img ../kernel.img
+cp ./bin/shell.elf ../shell.elf
+echo Build Completed.
+
