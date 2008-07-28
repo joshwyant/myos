@@ -1,0 +1,3 @@
+cd /usr/src/myos
+./build
+./install+test

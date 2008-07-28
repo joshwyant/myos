@@ -1,0 +1,79 @@
+cd /usr/src/myos
+
+echo Build started.
+date
+
+export DISKTYPE=FAT32
+export DISKSIZE=33
+export PATH=/usr/cross/lib:/usr/cross/bin:/usr/src/myos/vgui:$PATH
+export DEFINES="-D"$DISKTYPE" -DDEBUG"
+if [ ! -d bin ] ; then mkdir bin; fi
+if [ -e myos.sym ] ; then rm myos.sym; fi
+
+cd bootsect
+echo compiling boot sector...
+if [ ! -d obj ] ; then mkdir obj; fi
+nasm bootsect.asm $DEFINES -felf -o./obj/bootsect
+i586-elf-ld -Ttext=0x7C00 --oformat=binary ./obj/bootsect -o../bin/bootsect
+objcopy --change-section-address .text=0x7C00 ./obj/bootsect
+nm -n ./obj/bootsect>>../myos.sym
+
+cd ../osldr
+echo building osldr...
+if [ ! -d obj ] ; then mkdir obj; fi
+nasm init.asm $DEFINES -felf -o./obj/init.o
+nasm isr.asm $DEFINES -O2 -felf -o./obj/isr.o
+i586-elf-gcc -c $DEFINES -O2 video.c -o ./obj/video.o
+i586-elf-gcc -c $DEFINES -O2 disk.c -o ./obj/disk.o
+i586-elf-gcc -c $DEFINES -O2 fat.c -o ./obj/fat.o
+i586-elf-gcc -c $DEFINES -O2 elf.c -o ./obj/elf.o
+i586-elf-gcc -c $DEFINES -O2 osldr.c -o ./obj/osldr.o -ffreestanding
+i586-elf-ld -Tosldr.ld
+objcopy ./obj/osldr ../bin/osldr -O binary
+nm -n ./obj/osldr>>../myos.sym
+
+cd ../kernel
+echo building kernel...
+if [ ! -d obj ] ; then mkdir obj; fi
+nasm startup.S $DEFINES -O2 -felf -o./obj/startup.o
+nasm isr.asm $DEFINES -O2 -felf -o./obj/isr.o
+i586-elf-gcc -c $DEFINES -O2 video.c -o ./obj/video.o
+i586-elf-gcc -c $DEFINES -O2 disk.c -o ./obj/disk.o
+i586-elf-gcc -c $DEFINES -O2 fat.c -o ./obj/fat.o
+i586-elf-gcc -c $DEFINES -O2 elf.c -o ./obj/elf.o
+i586-elf-gcc -c $DEFINES -O2 kernel.c -o ./obj/kernel.o
+i586-elf-gcc -c $DEFINES -O2 dictionary.c -o ./obj/dictionary.o
+i586-elf-ld -s -shared -Tkernel.ld
+i586-elf-ld -s -shared -Tkernel.ld -o ./obj/kernel -Ttext=0xC0000000
+nm -n -D ./obj/kernel>>../myos.sym
+
+cd ../vesadrvr
+echo building vesadrvr.o...
+if [ ! -d obj ] ; then mkdir obj; fi
+nasm $DEFINES -O2 -felf vesadrvr.asm -o./obj/vesa_asm.o
+i586-elf-gcc -c $DEFINES -O2 vesadrvr.c -o ./obj/vesa_c.o
+i586-elf-ld -i ./obj/vesa_c.o ./obj/vesa_asm.o -o ../bin/vesadrvr.o
+
+cd ../shell
+echo building shell...
+i586-elf-gcc shell.c -o ../bin/shell
+nm -n ../bin/shell>>../myos.sym
+
+cd ..
+echo creating disk image...
+vmkimg -i hdd.img -M $DISKSIZE -b bin/bootsect -t $DISKTYPE>>/dev/zero
+
+echo copying files...
+vput hdd.img ./bin/osldr /osldr
+vmkdir hdd.img /system/bin
+vput hdd.img ./bin/kernel /system/bin/kernel
+vput hdd.img ./bin/shell /system/bin/shell
+vput hdd.img ./bin/vesadrvr.o /system/bin/vesadrvr.o
+
+echo setting attributes...
+vattr hdd.img /osldr rhs
+vattr hdd.img /system/bin/kernel rs
+vattr hdd.img /system/bin/shell rs
+vattr hdd.img /system/bin/vesadrvr.o rs
+
+echo Build Completed.

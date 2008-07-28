@@ -1,0 +1,3 @@
+./install
+/cygdrive/c/qemu/qemu -L "C:\\qemu" -snapshot \
+-full-screen \\\\.\\PHYSICALDRIVE0

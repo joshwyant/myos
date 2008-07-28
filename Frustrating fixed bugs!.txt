@@ -1,0 +1,108 @@
+16bit/bootsect/bootsect.asm:
+forgot to initialize LBA Packet to 0s! Caused bochs to say:
+int13_harddisk: can't use 64bits LBA
+
+16bit/osldr/int21.inc: function Int21
+  The function tested a wrong register for an error,
+  exiting randomly!
+
+32bit/kernel/fat.c: function read_sector
+  Wrong pointer arithmetic! *((uint*)start+offset)
+  instead of *(uint*)(start+offset)
+
+32bit/kernel/kenrel.c: interrupts
+Interrupts were enabled after setting up the IDT. It worked fine like that
+for a while, but later, only in bochs, a triple fault started occuring
+on the instruction after sti. This wasn't obvious, because it was when I
+started testing file streams. I think this problem was also occuring earlier,
+and I just thought it had to do with a high ch0 PIT frequency? I may have moved
+the PIC initialization code right after the IDT init code and just didn't
+test it in bochs for a while. It works fine now, so this is my guess for 
+what the problem was.
+
+4-23-08
+32bit/kernel/fat.c: functions pop_cluster, push_cluster: Memory allocation bug
+Wouldn't update clusterstacksize, so would always allocate insufficient memory
+(clusterstacksize*2*sizeof(unsigned) is always 32, because clusterstacksize itself was never updated)
+Took a few days to track down!
+
+32bit/kernel/kernel.c: function page_map
+Just remember to invalidate new mapped page tables, along with the new page.
+
+32bit/kernel/kernel.c: function kfindrange
+I changed the initialization routines to non-static to make it easy to trace the bug in
+bochs, because the compiler doesn't optimize nonstatic functions a certain way. The
+bug was then easy to find: kfindrange looked through the page tables without checking
+if they existed first.
+
+32bit/osldr/init.inc: function load_kernel
+when later modifying this code to calculate the number of pages, I forgot all
+about my ES register being based at 0x0, so I forgot to use ES! Segmentation...
+
+32bit/kernel/kernel.c: function page_unmap
+Tried to free a physical page using its logical address (when freeing page tables)...
+
+8-1-08
+I just recently started on my OS again. 
+I got back from my dad's, finished my disk imaging tool, and modified my code
+to work with FAT32. I found out after a few days that the pages
+weren't being invalidated correctly, because I was getting the wrong data from the
+wrong page. I found out that my invlpg() function used inline asm incorrectly.
+It was: asm volatile ("invlpg %0"::"m"(pg)); I realized this was incorrect because
+it would generate code like:
+mov ss:[bp-32], ebx
+invlpg ss:[bp-32]
+which, for this instruction, the actual contents of the memory operand passed is meaningless.
+The old inline asm would always just invalidate the page that contained the variable
+holding the address of the page we really want to invalidate.
+I knew this but it wasn't apparent. Things seemed to be working for a while so I didn't
+realize it. The fixed function generates:
+mov ss:[bp-32], eax
+...
+mov ebx, ss:[bp-32]
+invlpg [ebx]
+
+kernel/disk.c:
+This took a long time to solve: The disk driver always worked fine but then it didn't work
+on my computer. I traced it down to a typo: (lba >> 16)*0xFF instead of (lba >> 16)&0xFF!
+
+kernel/elf.c function process_start:
+I caught this bug immediately:
+for (i = 768; i < 1023; i++) ((unsigned*)0xFFFFFC00)[i] = system_pdt[i];
+should have been:
+for (i = 0; i < 255; i++) ((unsigned*)0xFFFFFC00)[i] = system_pdt[768+i];
+or
+for (i = 768; i < 1023; i++) ((unsigned*)0xFFFFF000)[i] = system_pdt[i];
+but not both!
+
+8-8-08
+kernel/isr.asm: function irq0
+easy bug, but just put here for completeness:
+would load cr3 in function handle_timer, but that caused the stack to change
+before we could return from the function! Just an error I made getting multitasking
+working...
+
+BOCHS PIT timer bug?
+It seems that I get a random GPFault with error code 0x0000013B if the
+PIT frequency is too high...
+
+8-21-08
+After I changed the way the kernel was loaded, I had to initialize paging differently,
+too. Since then I had a bug that made the computer reset if RAM <= 16M.
+I decided to fix it today, and the problem was I forgot to mark the page tables as used.
+- a couple of days later: I still forgot to mark the stack! whoops...
+
+8-23-08
+OK, I was playing around with the timer, and I wanted to do irq 0 with an int.
+I was confused and couldn't figure out why I kept getting a 'divide error',
+but it turns out I should of used int 20h, not int 0! irqs start at 20h...
+- 8-26-08 It's for switching tasks voluntarily.
+
+8-26-08
+OK so I found out what was wrong after I made spinlocks:
+First I did an asm ("xchg".."m"(ptr)) instead of "m"(*ptr). Then,
+in kmalloc, when I was detecting if interrupts were enabled (for debugging,
+to make sure kmallocs weren't used in isrs), I realized that I disabled ints
+and restored them based on the flags, calling a function that used kmalloc.
+I changed the 'cli' to 'disable irqs.' I don't think it was really necessary,
+but I don't care.

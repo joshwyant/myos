@@ -1,0 +1,4 @@
+echo Running Qemu...
+export PATH=/cygdrive/c/Program\ Files\ \(x86\)/qemu-0.9.0-windows:$PATH
+qemu -L c:\\Program\ Files\ \(x86\)\\qemu-0.9.0-windows -snapshot c\:\\cygwin\\usr\\src\\myos\\hdd.img
+echo Simulation terminated.

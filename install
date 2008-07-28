@@ -1,0 +1,14 @@
+dd if=/dev/sda3 of=tr bs=512 count=1
+dd if=./bin/bootsect of=tr bs=1 count=3 conv=notrunc seek=0 skip=0
+dd if=./bin/bootsect of=tr bs=1 count=422 conv=notrunc seek=90 skip=90
+dd if=tr of=/dev/sda3 bs=512 count=1 conv=notrunc seek=0 skip=0
+dd if=tr of=/dev/sda3 bs=512 count=1 conv=notrunc seek=6 skip=0
+if [ -d /cygdrive/g/system ]; then rm -r /cygdrive/g/system; fi
+if [ -d /cygdrive/g/user ]; then rm -r /cygdrive/g/user; fi
+mkdir /cygdrive/g/system
+mkdir /cygdrive/g/system/bin
+cp ./bin/osldr /cygdrive/g/osldr
+cp ./bin/kernel /cygdrive/g/system/bin/kernel
+cp ./bin/vesadrvr.o /cygdrive/g/system/bin/vesadrvr.o
+cp ./bin/shell /cygdrive/g/system/bin/shell
+

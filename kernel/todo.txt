@@ -1,0 +1,36 @@
+-video-text:
+select video mode
+count rows and columns (not hard-wired to 80x25)
+test for monochrome monitor
+-disk:
+disk driver is very poor!
+fat driver is very poor!
+-paging
+Swapping
+
+TODO:
+Implement kmemcpy and use it in read_file
+Use APIC instead of PIC
+Use DMA for HD driver (+ fix alot of other things for HD)
+Design a driver system
+Start in 24bit color, 1024x768, show loading screen (Already acomplished!)
+better keyboard io
+handle all exceptions
+load drivers
+page swapping
+process sceduling (better, with priorities)
+process linking
+VM8086 Processes
+file systems (load extras from drivers)
+Video driver
+GUI
+mouse input
+API (Application Programming Interface)
+User disk drivers
+...
+
+NOTES:
+- Only one page table is given in the loader for the kernel, so keep it < 4MB.
+- The gdt is located in the boot loader, so don't overrwrite it before we load a new one.
+- The FAT initialization reads the boot sector at 0x7C00, so don't overwrite it before 
+  the initialization.

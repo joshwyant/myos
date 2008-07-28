@@ -1,6 +1,0 @@
-echo Running Qemu...
-sleep 3s
-/cygdrive/c/documents\ and\ settings/josh/desktop/qemu/qemu -snapshot \
--L ""C:\\Documents\ and\ Settings\\Josh\\Desktop\\qemu"" \
-\\\\.\\PHYSICALDRIVE0
-echo Simulation terminated.
