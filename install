@@ -7,8 +7,11 @@ if [ -d /cygdrive/g/system ]; then rm -r /cygdrive/g/system; fi
 if [ -d /cygdrive/g/user ]; then rm -r /cygdrive/g/user; fi
 mkdir /cygdrive/g/system
 mkdir /cygdrive/g/system/bin
+mkdir /cygdrive/g/user
+mkdir /cygdrive/g/user/Josh
+mkdir /cygdrive/g/user/Josh/docs
 cp ./bin/osldr /cygdrive/g/osldr
-cp ./bin/kernel /cygdrive/g/system/bin/kernel
-cp ./bin/vesadrvr.o /cygdrive/g/system/bin/vesadrvr.o
+cp ./bin/kernel /cygdrive/g/kernel
 cp ./bin/shell /cygdrive/g/system/bin/shell
-
+cp ./hello.txt /cygdrive/g/user/Josh/docs/hello.txt
+cp ./splash.bmp /cygdrive/g/system/bin/splash

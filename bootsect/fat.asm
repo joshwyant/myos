@@ -7,9 +7,8 @@
 ; 2000:0000 = Root directory
 ; 3000:0000 = OS loader
 ; ...
-bits 16
-global _start
-bootsect:
+
+org 0x7C00
 %include "const.inc"
 
 ; ========================
@@ -22,7 +21,7 @@ bootsect:
 ; Boot sector code
 ; ===================================
 
-_start:
+start:
 xor ax,ax ; ax = 0
 ; Setup stack
 cli

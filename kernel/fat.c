@@ -5,14 +5,14 @@ void fat_init()
 {
     // Copy BIOS parameter block from where the boot sector was loaded
     void* bootsect = kfindrange(0x1000)+0xC00;
-    page_map(bootsect, (void*)0x7000, PF_WRITE);
+    page_map(bootsect, (void*)0x7000);
     bpb = *(BPBMain*)bootsect;
     bpb16 = *(BPB16*)(bootsect+36);
     bpb32 = *(BPB32*)(bootsect+36);
     page_unmap(bootsect);
     page_free((void*)0x7000, 1);
     // make current directory the root directory
-    kstrcpy(current_dir, "/");
+    kstrcpy("/", current_dir);
     dir_info.cluster_low = 0; // cluster 0 directory is root
     // sector-based calculations
     root_start = bpb.RsvdSecCnt+(bpb.FATSz16 ? bpb.FATSz16 : bpb32.FATSz32)*bpb.NumFATs;
@@ -120,13 +120,16 @@ int file_seek(FileStream *fs, unsigned pos)
 {
     if (pos > fs->filesize) return 0;
     unsigned cluster = pos / cluster_size;
-    fs->position = pos;
     if (cluster == fs->data->stack_index)
+    {
+        fs->position = pos;
         return 1;
+    }
     while (fs->data->stack_index < cluster)
         push_cluster(fs);
     while (fs->data->stack_index > cluster)
         pop_cluster(fs);
+    fs->position = pos;
     // read in the buffer
     void* buffer = fs->data->buffer;
     if (fs->data->currentcluster) read_cluster(fs->data->currentcluster, &buffer);
@@ -179,7 +182,7 @@ int file_eof(FileStream *fs)
 int chdir(const char* dir)
 {
     if (!read_dir_info(dir)) return 0;
-    kstrcpy(current_dir, dir);
+    kstrcpy(dir,current_dir);
     cdir_info = dir_info;
     return 1;
 }
@@ -224,6 +227,16 @@ int directory_exists(const char* dirname)
 const char* current_directory()
 {
     return current_dir;
+}
+
+/* ************************************ */
+/* ********* STATIC FUNCTIONS ********* */
+/* ************************************ */
+
+
+static void kstrcpy(const char* src, char* dest)
+{
+    do { *dest++ = *src; } while (*src++);
 }
 
 static int streq(const char* str1, const char* str2)
@@ -330,6 +343,12 @@ static unsigned int next_cluster(int cluster)
         return *(unsigned*)(fat+(offset % bpb.BytsPerSec));
 }
 
+// Returns c in uppercase.
+static char ktoupper(char c)
+{
+    if ((c < 'a') || (c > 'z')) return c;
+    return c-'a'+'A';
+}
 
 // Takes a filename (without the directory)
 // and constructs the DOS 8.3 filename.

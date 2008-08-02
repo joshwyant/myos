@@ -8,21 +8,20 @@
 ; 3000:0000 = OS loader
 ; ...
 
-bits 16
-global _start
-bootsect:
+org 0x7C00
 %include "const.inc"
 
 ; ========================
 ; Boot Sector
 ; ========================
+
 %include "bpb.inc"
 
 ; ===================================
 ; Boot sector code
 ; ===================================
 
-_start:
+start:
 xor ax,ax ; ax = 0
 ; Setup stack
 cli
@@ -111,13 +110,13 @@ jmp err ; no more root clusters to read
 
 found:
 ; esi was pushed but, no need to get rid of it, the stack has reached the end of its life
-; copy "OSLDR" to 0000:8000
+; copy "OSLDR" to 3000:0000
 mov si,[es:bx+0x14] ; first cluster high
 shl esi,16
 mov si,[es:bx+0x1A] ; first cluster low
-xor ax,ax
+mov ax,3000h
 mov es,ax
-mov di,8000h
+xor di,di
 push es ; prepare retf
 push di ;
 found0:
