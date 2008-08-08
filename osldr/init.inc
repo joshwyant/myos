@@ -412,7 +412,7 @@ rep stosd
 ; Temporarily identity map first megabyte
 mov di,PgTbl0
 mov cx,256
-mov eax,0x00000003
+mov eax,0x00000000|PF_PRESENT|PF_WRITE
 paging1:
 stosd
 add eax,0x00001000
@@ -425,17 +425,17 @@ mov ecx,[dword es:0x00100010]
 add ecx,0x0FFF
 shr ecx,12
 ; poke in entries
-mov eax,0x00100003
+mov eax,0x00100000|PF_PRESENT|PF_WRITE|PF_LOCKED
 paging2:
 stosd
 add eax,0x00001000
 loop paging2
-mov dword [es:PgDir+0*4], PgTbl0|3 ; Identity map first megabyte (temporarily)
-mov dword [es:PgDir+768*4], PgTbl768|3 ; set 768th entry of PDT to address of its table
-mov dword [es:PgDir+960*4], PgTbl960|3 ; set 960th entry of PDT to address of its table
-mov dword [es:PgDir+1023*4], PgDir|3 ; map the page directory into itself
-mov dword [es:PgTbl960+0*4], KernelStackP|3 ; Map the stack to 0xF0000000
-mov dword [es:PgTbl960+1*4], SMAPPage|3 ; Map the system memory map to 0xF0001000
+mov dword [es:PgDir+0*4], PgTbl0|PF_WRITE|PF_PRESENT ; Identity map first megabyte (temporarily)
+mov dword [es:PgDir+768*4], PgTbl768|PF_WRITE|PF_PRESENT ; set 768th entry of PDT to address of its table
+mov dword [es:PgDir+960*4], PgTbl960|PF_WRITE|PF_PRESENT ; set 960th entry of PDT to address of its table
+mov dword [es:PgDir+1023*4], PgDir|PF_WRITE|PF_PRESENT|PF_LOCKED ; map the page directory into itself
+mov dword [es:PgTbl960+0*4], KernelStackP|PF_WRITE|PF_PRESENT|PF_LOCKED ; Map the stack to 0xF0000000
+mov dword [es:PgTbl960+1*4], SMAPPage|PF_WRITE|PF_PRESENT|PF_LOCKED ; Map the system memory map to 0xF0001000
 mov eax,PgDir
 mov cr3,eax ; load CR3 with address of page directory
 ; Get ready for protected mode

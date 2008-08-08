@@ -6,9 +6,10 @@ date
 
 export DISKTYPE=FAT32
 export DISKSIZE=1024
-export PATH=/usr/cross/i586-elf/bin:./vgui:$PATH
-export DEFINES="-D"$DISKTYPE" -DVESA -DXRES=1024 -DYRES=768"
+export PATH=/usr/cross/i586-elf/bin:$PATH
+export DEFINES="-D"$DISKTYPE" -DXRES=1024 -DYRES=768"
 if [ ! -d bin ] ; then mkdir bin; fi
+if [ -e myos.sym ] ; then rm myos.sym; fi
 
 cd osldr
 echo building osldr...
@@ -25,10 +26,29 @@ gcc -c $DEFINES -O2 fat.c -o ./obj/fat.o
 gcc -c $DEFINES -O2 elf.c -o ./obj/elf.o
 gcc -c $DEFINES -O2 kernel.c -o ./obj/kernel.o
 ld -Tkernel.ld
+nm -n ../bin/kernel>>../myos.sym
+objcopy -O binary ../bin/kernel
 
 cd ../shell
 echo building shell...
 gcc shell.c -o ../bin/shell
+nm -n ../bin/shell>>../myos.sym
+
+cd ../a
+echo building "A"...
+gcc a.c -o ../bin/a
+
+cd ../b
+echo building "B"...
+gcc b.c -o ../bin/b
+
+cd ../c
+echo building "C"...
+gcc c.c -o ../bin/c
+
+cd ../d
+echo building "D"...
+gcc d.c -o ../bin/d
 
 cd ../bootsect
 echo compiling boot sector...
@@ -53,6 +73,18 @@ vmkdir hdd.img /system/bin
 
 echo /system/bin/shell
 vput hdd.img ./bin/shell /system/bin/shell
+
+echo /system/bin/a
+vput hdd.img ./bin/a /system/bin/a
+
+echo /system/bin/b
+vput hdd.img ./bin/b /system/bin/b
+
+echo /system/bin/c
+vput hdd.img ./bin/c /system/bin/c
+
+echo /system/bin/d
+vput hdd.img ./bin/d /system/bin/d
 
 echo /system/bin/splash
 vput hdd.img splash.bmp /system/bin/splash

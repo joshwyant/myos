@@ -13,5 +13,9 @@ mkdir /cygdrive/g/user/Josh/docs
 cp ./bin/osldr /cygdrive/g/osldr
 cp ./bin/kernel /cygdrive/g/kernel
 cp ./bin/shell /cygdrive/g/system/bin/shell
+cp ./bin/a /cygdrive/g/system/bin/a
+cp ./bin/b /cygdrive/g/system/bin/b
+cp ./bin/c /cygdrive/g/system/bin/c
+cp ./bin/d /cygdrive/g/system/bin/d
 cp ./hello.txt /cygdrive/g/user/Josh/docs/hello.txt
 cp ./splash.bmp /cygdrive/g/system/bin/splash

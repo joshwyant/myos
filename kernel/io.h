@@ -110,8 +110,7 @@ static inline void hang()
 static inline void freeze()
 {
     cli();
-    freezelabel: hlt();
-    goto freezelabel;
+    while (1) hlt();
 }
 
 #endif

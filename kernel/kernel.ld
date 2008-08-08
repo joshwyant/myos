@@ -1,6 +1,6 @@
 /* kernel.ld for MyOS v0.0.1, Josh Wyant */
 OUTPUT(../bin/kernel)
-OUTPUT_FORMAT(binary)
+OUTPUT_FORMAT(elf32-i386)
 OUTPUT_ARCH(i386)
 /* Must be first in kernel image! */
 STARTUP("./obj/startup.o")

@@ -1,28 +1,20 @@
-FIXME:
-Move code that allocates new page tables from page fault handler to function page_map
 -video-text:
 select video mode
-fix show,hide cursor
 count rows and columns (not hard-wired to 80x25)
 test for monochrome monitor
 -disk:
 disk driver is very poor!
 fat driver is very poor!
 -paging
-Paging
 Swapping
 Protecting pages
--kmalloc
-merge free blocks
--GTD - URGENT!
-The GDT is temporary from the boot loader. Replace it! Also add tss entry?
 
 TODO:
 Implement kmemcpy and use it in read_file
 Use APIC instead of PIC
 Use DMA for HD driver (+ fix alot of other things for HD)
 Design a driver system
-Start in 24bit color, 1024x768, show loading screen
+Start in 24bit color, 1024x768, show loading screen (Already acomplished!)
 better keyboard io
 processes
 handle all exceptions
@@ -30,7 +22,7 @@ load drivers
 page swapping
 task switching
 process sceduling
-loading, linking elfs
+loading, linking elfs (loading, done)
 system calls
 VM8086 Processes
 support fat12, fat16, fat32

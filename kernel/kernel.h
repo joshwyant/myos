@@ -18,6 +18,7 @@ extern void int0(); // divide error isr
 extern void int8(); // double fault
 extern void intd(); // gpf
 extern void inte(); // pgf
+extern void int30(); // syscall
 extern char kernel[];
 extern char image_end[];
 extern void* kernel_end;
@@ -25,8 +26,7 @@ extern void* kernel_end;
 // main
 void kmain();
 // initialization
-void kernel_init(); // nonstatic so compiler doesn't optimize it, and we can jump right over it in bochs
-void init_paging();
+void init_paging(); // nonstatic so compiler doesn't optimize it, and we can jump right over it in bochs
 void init_heap();
 void init_idt();
 void init_exceptions();
@@ -34,18 +34,45 @@ void init_pic();
 void kbd_init();
 void init_timer();
 void init_processes();
-void swap_start();
+void init_tss();
+void init_syscalls();
+void start_shell();
+// syscalls
+void syscall(unsigned edi, unsigned esi, unsigned ebp, unsigned esp, unsigned ebx, unsigned edx, unsigned ecx, unsigned eax);
 // exceptions
-void divide_error();
-void gpfault();
-void pgfault(unsigned int errcode);
-void double_fault();
-static void dump_stack(const char*);
+void divide_error(unsigned edi, unsigned esi, unsigned ebp, unsigned esp, unsigned ebx, unsigned edx, unsigned ecx, unsigned eax, unsigned eip, unsigned cs, unsigned eflags);
+void gpfault(unsigned edi, unsigned esi, unsigned ebp, unsigned esp, unsigned ebx, unsigned edx, unsigned ecx, unsigned eax, unsigned errorcode, unsigned eip, unsigned cs, unsigned eflags);
+void pgfault(unsigned edi, unsigned esi, unsigned ebp, unsigned esp, unsigned ebx, unsigned edx, unsigned ecx, unsigned eax, unsigned errorcode, unsigned eip, unsigned cs, unsigned eflags);
+void dobule_fault(unsigned edi, unsigned esi, unsigned ebp, unsigned esp, unsigned ebx, unsigned edx, unsigned ecx, unsigned eax, unsigned errorcode, unsigned eip, unsigned cs, unsigned eflags);
+static void dump_stack(const char*, unsigned, unsigned, unsigned, unsigned, unsigned, unsigned, unsigned, unsigned, unsigned, unsigned);
+static void bsod(const char*);
+
 // Memory
 static inline void* palloc(int,void*,void*);
 static inline void  mark_pages(void*, int, int);
 static inline void  mark_page(void*, int);
 static int ksbrk(int);
+
+// Processes
+typedef struct _ProcessNode
+{
+    Process                  *process;
+    struct _ProcessNode      *prev;
+    struct _ProcessNode      *next;
+} ProcessNode;
+
+typedef struct
+{
+    ProcessNode      *first;
+    ProcessNode      *last;
+} ProcessQueue;
+
+ProcessQueue			processes;
+unsigned			process_inc;
+
+int		process_rotate();
+void		process_node_unlink(ProcessNode* n);
+void		process_node_link(ProcessNode* n);
 
 // keyboard data
 static const char kbd_lowercase[] = { 0,0,'1','2','3','4','5','6','7','8','9','0','-','=','\b','\t','q','w','e','r','t','y','u','i','o','p','[',']','\r',0,'a','s','d','f','g','h','j','k','l',';','\'','`',0,'\\','z','x','c','v','b','n','m',',','.','/',0,'*',0,'\x20',0,0,0,0,0,0,0,0,0,0,0,0,0,'7','8','9','-','4','5','6','+','1','2','3','0','.',0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 };
@@ -69,15 +96,50 @@ static void* heap_brk;
 static void* first_free;
 static void* last_free;
 
-// interrupt descriptor table
-static volatile unsigned int __attribute__ ((aligned(16))) gdt[] = {
-    0x00000000,0x00000000, // Unused
-    0x0000FFFF,0x00CF9A00, // Kernel code
-    0x0000FFFF,0x00CF9200, // Kernel data
-    0x00000000,0x00000000, // System TSS
+// global descriptor table
+static volatile unsigned int __attribute__ ((aligned(8))) gdt[] = {
+    0x00000000,0x00000000, // 0x0000 Unused - null descriptor
+    0x0000FFFF,0x00CF9A00, // 0x0008 DPL0 code - kernel
+    0x0000FFFF,0x00CF9200, // 0x0010 DPL0 data - kernel
+    0x0000FFFF,0x00CFBA00, // 0x0018 DPL1 code
+    0x0000FFFF,0x00CFB200, // 0x0020 DPL1 data
+    0x0000FFFF,0x00CFDA00, // 0x0028 DPL2 code
+    0x0000FFFF,0x00CFD200, // 0x0030 DPL2 data
+    0x0000FFFF,0x00CFFA00, // 0x0038 DPL3 code - user
+    0x0000FFFF,0x00CFF200, // 0x0040 DPL3 data - user
+    0x00000000,0x00000000, // 0x0048 System TSS (initialized later)
 };
 
-static volatile int __attribute__ ((aligned(16))) idt [512];
+struct TSS
+{
+    unsigned short	backlink, __blh;
+    unsigned int	esp0;
+    unsigned short	ss0, __ss0h;
+    unsigned int	esp1;
+    unsigned short	ss1, __ss1h;
+    unsigned int	esp2;
+    unsigned short	ss2, __ss2h;
+    unsigned int	cr3;
+    unsigned int	eip;
+    unsigned int	eflags;
+    unsigned int	eax, ecx, edx, ebx;
+    unsigned int	esp, ebp, esi, edi;
+    unsigned short	es, __esh;
+    unsigned short	cs, __csh;
+    unsigned short	ss, __ssh;
+    unsigned short	ds, __dsh;
+    unsigned short	fs, __fsh;
+    unsigned short	gs, __gsh;
+    unsigned short	ldt, __ldth;
+    unsigned short	trace, bitmap;
+// Intel manual says, if using paging, avoid letting TSS cross a page
+// boundary. The alignment is 128 here because it's the smallest number
+// bigger than 104 (sizeof(TSS)) that the page size (4096 bytes) is divisible by.
+} __attribute__ ((aligned(128))) system_tss;
+
+
+// interrupt descriptor table
+static volatile int __attribute__ ((aligned(8))) idt [512];
 
 
 typedef struct {
@@ -114,8 +176,8 @@ typedef struct {
 } DateTime;
 
 DateTime get_time();
-void print_datetime();
-int read_bitmap(Bitmap *b, char *filename);
+// void print_datetime();
+// int read_bitmap(Bitmap *b, char *filename);
 
 // Takes a tag and tells if it's free
 static inline int ktagisfree(unsigned tag)

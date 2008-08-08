@@ -1,131 +1,18 @@
 #include "kernel.h"
 
-static void demo();
-
 void kmain()
 {
-    // perform all initialization first
-    kernel_init();
-    // run demo
-    demo();
-}
-
-static void demo()
-{
-    // Clear the screen and display greeting (video driver).
-    cls();
-    print("Greetings from MyOS.\r\n");
-    print_datetime();
-
-    // Report amount of RAM.
-    printdec(total_memory>>20); print("MiB of RAM\r\n\n");
-
-    // Time to play with the file system.
-    // Print the size of file 'fname'
-    char* fname = "/user/Josh/docs/hello.txt";
-    print(fname);
-    print("\r\nFile size: ");
-    int size = file_size(fname);
-    printdec((size+1023)>>10); print("KiB\r\n\n");
-
-    // Read the file.
-    FileStream fs;
-    if (file_open(fname, &fs))
-    {
-        while (file_peekc(&fs) != '\xFF')
-            print_char(file_getc(&fs));
-        file_close(&fs);
-    }
-    else
-    {
-        print("Error: Could not find "); print(fname); print ("!\r\n");
-    }
-
-    // Load the shell
-    if (!process_start("/system/bin/shell"))
-    {
-        print("ERROR: Could not load the shell: ");
-        print(elf_last_error()); endl();
-    }
-    else
-    {
-        print("\r\nShell was successfully loaded.\r\n");
-    }
-    print("Type stuff: ____________________\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b");
-
-#ifdef VESA
-    void* vesa = kfindrange(4096);
-    void* vbemode = vesa+512;
-    page_map(vesa, (void*)0x00008000);
-    int xres, yres, bpp;
-    xres = (int)*(short*)(vbemode+18);
-    yres = (int)*(short*)(vbemode+20);
-    bpp = ((int)*(char*)(vbemode+25))/8;
-    unsigned char *ptr = *(unsigned char**)(vbemode+40);
-    page_unmap(vesa);
-    page_free((void*)0x00008000,1);
-    unsigned char *p = kfindrange(xres*yres*3);
-    int i;
-    for (i = 0; i < xres*yres*bpp+4095; i += 4096)
-        page_map(p+i,ptr+i);
-    Bitmap b;
-    print("\r\nVideo memory: 0x"); printhexd((unsigned)ptr); print(" mapped to 0x"); printhexd((unsigned)p); endl();
-    if (read_bitmap(&b, "/system/bin/splash"))
-    {
-        print("Bitmap read successfully.\r\n");
-        print("Width:  "); printdec(b.width); endl();
-        print("Height: "); printdec(b.height); endl();
-        print("BPP:    "); printdec(b.bpp); endl();
-        print("Buffer: 0x"); printhexd((unsigned)b.bits); endl();
-        print("Sample: "); printhexb(((char*)b.bits)[0]); print(" "); printhexb(((char*)b.bits)[1]); print(" "); printhexb(((char*)b.bits)[2]); endl();
-        while (1)
-        {
-            int screenstride = xres*bpp;
-            int bmpstride = b.width*(b.bpp/8);
-            int j;
-            float t;
-            for (t = 0.0f; t < 1.0f; t += 0.01f)
-            for (i = 0; i < yres && i < b.height; i++)
-            for (j = 0; j < xres && j < b.width; j++)
-            {
-                int q = b.width*b.height*(b.bpp/8)-(bmpstride*(i+1))+j*(b.bpp/8);
-                int r = i*screenstride+j*bpp;
-                p[r] = (unsigned char)(((float)((unsigned char*)b.bits)[q])*t);
-                p[r+1] = (unsigned char)(((float)((unsigned char*)b.bits)[q+1])*t);
-                p[r+2] = (unsigned char)(((float)((unsigned char*)b.bits)[q+2])*t);
-            }
-            for (t = 1.0f; t > 0.0f; t -= 0.01f)
-            for (i = 0; i < yres && i < b.height; i++)
-            for (j = 0; j < xres && j < b.width; j++)
-            {
-                int q = b.width*b.height*(b.bpp/8)-(bmpstride*(i+1))+j*(b.bpp/8);
-                int r = i*screenstride+j*bpp;
-                p[r] = (unsigned char)(((float)((unsigned char*)b.bits)[q])*t);
-                p[r+1] = (unsigned char)(((float)((unsigned char*)b.bits)[q+1])*t);
-                p[r+2] = (unsigned char)(((float)((unsigned char*)b.bits)[q+2])*t);
-            }
-        }
-    }
-    else
-    {
-        print("Bitmap could not be read.\r\n");
-        for (i = 0; i < XRES*YRES*3; i++) p[i] = 128;
-    }
-#endif
-}
-
-
-void kernel_init()
-{
-    lgdt(gdt, sizeof(gdt));
+    // System initialization
+    cli(); // Clear interrupt flag
+    lgdt(gdt, sizeof(gdt)); // Load global descriptor table
     // Initialize interrupt system
-    init_pic(); // Programmable Interrupt Controller
+    init_pic(); // Programmable Interrupt Controller - remap IRQs
     init_idt(); // Interrupt Descriptor Table
     sti(); // Allow interrupts
 
     // Initialize memory management
     init_paging(); // Now we must init exceptions, to enable page faults
-    init_heap();
+    init_heap(); // Initialize the heap
 
     // Initialize exceptions
     init_exceptions(); // Dependent on IDT; Start right after paging for page faults
@@ -142,21 +29,129 @@ void kernel_init()
 
     // Filestystem
     fat_init();
+    
+    // System TSS
+    init_tss();
 
-    // start page swapping service
-    swap_start();
+    // System call interface (int 0x30)
+    init_syscalls();
+
+    // Load the shell
+    start_shell();
+
+    // Unmask timer IRQ
+    irq_unmask(0);
+}
+
+void start_shell()
+{
+    cls(); // Clear the screen
+    // Load the shell
+    if (!process_start("/system/bin/shell"))
+    {
+        kprintf("Error: Could not load the shell: %s\r\n", elf_last_error());
+        freeze();
+    }
+}
+
+void syscall(unsigned edi, unsigned esi, unsigned ebp, unsigned esp, unsigned ebx, unsigned edx, unsigned ecx, unsigned eax)
+{
+    // eax = system call number.
+    // extra info normally in edx
+    // returns any return value in eax
+    switch (eax)
+    {
+        // End process
+        case 0:
+            process_node_unlink(processes.first);
+            break;
+        // Close a file.
+        case 1:
+            eax = 0;
+            break;
+        // Get environment variable count
+        case 2:
+            eax = 0;
+            break;
+        // Get the length of environment variable
+        case 3:
+            eax = 0;
+            break;
+        // Copy the environment variable number edx to ebx
+        case 4:
+            *((char*)ebx) = 0;
+            break;
+        // Get argument count
+        case 5:
+            eax = 0;
+            break;
+        // Get the length of an argument
+        case 6:
+            eax = 0;
+            break;
+        // Copy argument edx into location ebx
+        case 7:
+            *((char*)ebx) = 0;
+            break;
+        // Start a new process (ebx = *name, esi = **argv, edi = **env)
+        case 8:
+            eax = process_start((char*)ebx);
+            break;
+        // Get Process ID
+        case 9:
+            eax = current_process->pid;
+            break;
+        // Seek in a file (file edx to esi)
+        case 10:
+            eax = 0;
+            break;
+        // Read from a file (file edx, ptr edi, count ecx)
+        case 11:
+            eax = 0;
+            break;
+        // Write to a file (file edx, ptr esi, count ecx)
+        case 12:
+            if (edx == 0)
+            {
+                printlen((const char*)esi, ecx);
+                eax = ecx;
+            }
+            else
+            {
+                eax = 0;
+            }
+            break;
+        // Map address space (ptr edi, bytes ecx)
+        case 13:
+            eax = 0;
+            break;
+    }
+}
+
+void init_tss()
+{
+    kzeromem(&system_tss, sizeof(system_tss));
+    system_tss.ss0 = 16;
+    system_tss.esp0 = 0xC0000000;
+    gdt[18] = 0x00000067 | (((unsigned)&system_tss)<<16);
+    gdt[19] = 0x00008900 | (((unsigned)&system_tss&0x00FF0000)>>16) | ((unsigned)&system_tss&0xFF000000);
+    asm volatile("ltr %0"::"r"((unsigned short)0x48));
+}
+
+void init_syscalls()
+{
+    register_isr(0x30, 3, (void*)int30);
 }
 
 void init_processes()
 {
     processes.first = 0;
     processes.last = 0;
-    process_count = 0;
+    process_inc = 0;
     current_process = 0;
-    current_process_node = 0;
 }
 
-void page_map(void *logical, void *physical)
+void page_map(void *logical, void *physical, unsigned flags)
 {
     volatile unsigned* dir     = (volatile unsigned*)0xFFFFF000; // The page directory's address
     volatile unsigned* tbl     = (volatile unsigned*)0xFFC00000+(((unsigned)logical>>12)&~0x3FF); // The page table's address
@@ -167,14 +162,14 @@ void page_map(void *logical, void *physical)
     {
         // Page table
         void* ptr = page_alloc(1);
-        if (!ptr) dump_stack("Insufficient memory.");
-        dir[dir_ind] = (unsigned)ptr+3; // add to directory
+        if (!ptr) bsod("Insufficient memory.");
+        dir[dir_ind] = (unsigned)ptr+(PF_PRESENT|PF_WRITE|(logical < (void*)0xC0000000 ? PF_USER : 0)); // add to directory
         // wipe table (after we mapped it! stumped me for about 5 minutes...)
         int i;
         for (i = 0; i < 1024; i++) tbl[i] = 0;
         invlpg((void*)(unsigned)tbl);
     }
-    tbl[tbl_ind] = ((unsigned)physical&~0xFFF)+3;
+    tbl[tbl_ind] = ((unsigned)physical&~0xFFF)+(flags|PF_PRESENT);
     // Invalidate the page
     invlpg((void*)(((unsigned)logical)&~0xFFF));
 }
@@ -187,19 +182,27 @@ void page_unmap(void* logical)
     unsigned           tbl_ind = ((unsigned)logical>>12)&0x3FF; // The index into the page table
     if (!(dir[dir_ind]&1)) return; // Page table is not present, we needn't do any unmapping.
     tbl[tbl_ind] = 0; // Unmap it
-    int found = 0, i;
-    // If the table is empty, free the table.
-    for (i = 0; i < 1024; i++) if (tbl[i]&1) { found = 1; break; }
-    if (!found)
+    // Remove an empty page table if this is not a kernel page table (is below 0xC0000000).
+    // Do not remove empty kernel page tables, to make it easy to map the kernel in user processes,
+    // because we don't have to worry about a mapped page table becoming invalid because the kernel used
+    // a new page table in a different process! This can only make up to 1 megabyte of unused memory,
+    // and chances are, that memory will be used later.
+    if (logical < (void*)0xc0000000)
     {
-        // THE BUG: freed tbl instead of its physical address, and there was only the page_free call, besides the page_unmap.
-        // dir[dir_ind] = 0;
-        // page_free((void*)tbl, 1);
-        // invlpg((void*)(unsigned)tbl);
-        page_free((void*)(dir[dir_ind]&0xFFFFF000), 1);
-        page_unmap((void*)tbl);
-        dir[dir_ind] = 0;
-        invlpg((void*)(unsigned)tbl);
+        int found = 0, i;
+        // If the table is empty, free the table.
+        for (i = 0; i < 1024; i++) if (tbl[i]&1) { found = 1; break; }
+        if (!found)
+        {
+            // THE BUG: freed tbl instead of its physical address, and there was only the page_free call, besides the page_unmap.
+            // dir[dir_ind] = 0;
+            // page_free((void*)tbl, 1);
+            // invlpg((void*)(unsigned)tbl);
+            page_free((void*)(dir[dir_ind]&0xFFFFF000), 1);
+            page_unmap((void*)tbl);
+            dir[dir_ind] = 0;
+            invlpg((void*)(unsigned)tbl);
+        }
     }
     // Invalidate the page
     invlpg(logical);
@@ -291,7 +294,7 @@ void init_paging()
     unsigned tpages = (kend-0xC0000000+0xFFF)>>12;
     int i;
     for (i = kpages; i < tpages; i++)
-        page_map((void*)0xC0000000+(i<<12), (void*)0x100000+(i<<12));
+        page_map((void*)0xC0000000+(i<<12), (void*)0x100000+(i<<12), PF_LOCKED|PF_WRITE);
     // Initialize physical memory bitmap.
     // Number of pages in memory = mem/4k   = mem>>12
     // Number of uints in bitmap = pages/32 = mem>>17
@@ -337,6 +340,9 @@ void init_paging()
     // Free the system memory map
     page_unmap((void*)0xF0001000);
     page_free((void*)0x00002000, 1);
+    // Map a copy of the system's Page Directory Table
+    system_pdt = kfindrange(4096);
+    page_map((void*)system_pdt, (void*)0x00003000, PF_LOCKED|PF_WRITE);
 }
 
 void init_heap()
@@ -355,7 +361,7 @@ static int ksbrk(int n)
         if ((heap_brk + 4096) > (void*)0xE0000000) return i;
         void* pg = page_alloc(1);
         if (!pg) return i;
-        page_map(heap_brk, pg);
+        page_map(heap_brk, pg, PF_WRITE);
         heap_brk += 4096;
     }
     return i;
@@ -474,11 +480,6 @@ void kfree(void* ptr)
         ksettag(ptr2, kmaketag(s, 0, ktagisbegin(ktag(ptr2)), ktagisend(ktag(ptr3))));
         kptrlink(ptr2);
     }
-}
-
-// TODO: To be implemented...
-void swap_start()
-{
 }
 
 // Allocates a number of pages in the given range
@@ -600,14 +601,14 @@ void init_pic()
 }
 
 // Add a normal ISR to the IDT
-void register_isr(int num, void* offset)
+void register_isr(int num, int dpl, void* offset)
 {
     volatile struct IDTDescr* gate;
     gate=&(((struct IDTDescr*)idt)[num]);
     gate->offset_1  = (unsigned short)(unsigned int)offset;
     gate->selector  = 8;
     gate->zero      = 0;
-    gate->type_attr = 0x8E;
+    gate->type_attr = 0x8E|(dpl<<5);
     gate->offset_2  = (unsigned short)(((unsigned int)offset)>>16);
 }
 
@@ -639,20 +640,20 @@ void register_task(int num, unsigned short selector)
 void init_exceptions()
 {
     // Division error
-    register_trap(0x0,(void*)int0);
+    register_isr(0x0,0,(void*)int0);
     // Double fault
-    register_trap(0x8,(void*)int8);
+    register_isr(0x8,0,(void*)int8);
     // General protection fault
-    register_trap(0xd,(void*)intd);
+    register_isr(0xd,0,(void*)intd);
     // Page fault
-    register_trap(0xe,(void*)inte);
+    register_isr(0xe,0,(void*)inte);
 }
 
 // Keyboard initialization
 void kbd_init()
 {
     // fill descriptor 0x21 (irq 1) for keyboard handler
-    register_isr(0x21,(void*)irq1);
+    register_isr(0x21,0,(void*)irq1);
     // unmask IRQ
     irq_unmask(1);
     // Keyboard variables
@@ -664,51 +665,82 @@ void kbd_init()
 void init_timer()
 {
     outb(0x43, 0x34); // Channel 0: rate generator
-    outb(0x40, 3000&0xFF); // reload value lo byte channel 0
-    outb(0x40, 3000>>8); // reload value hi byte channel 0
+    // 17898 = roughly every 15ms
+    outb(0x40, 17898&0xFF); // reload value lo byte channel 0
+    outb(0x40, 17898>>8); // reload value hi byte channel 0
     // fill descriptor 0x20 (irq 0) for timer handler
-    register_isr(0x20,(void*)irq0);
-    // unmask IRQ
-    irq_unmask(0);
+    register_isr(0x20,0,(void*)irq0);
+    // unmask IRQ later
 }
 
 // Called when a divide exception occurs
-void divide_error()
+void divide_error(unsigned edi, unsigned esi, unsigned ebp, unsigned esp, unsigned ebx, unsigned edx, unsigned ecx, unsigned eax, unsigned eip, unsigned cs, unsigned eflags)
 {
-    dump_stack("A division error occured.");
+    dump_stack("A division error occured.", edi, esi, ebp, esp+12, ebx, edx, ecx, eax, eip, cs);
 }
 
 // Double fault handler
-void double_fault()
+void double_fault(unsigned edi, unsigned esi, unsigned ebp, unsigned esp, unsigned ebx, unsigned edx, unsigned ecx, unsigned eax, unsigned errorcode, unsigned eip, unsigned cs, unsigned eflags)
 {
-    dump_stack("A double fault occured.");
+    dump_stack("A double fault occured.", edi, esi, ebp, esp+16, ebx, edx, ecx, eax, eip, cs);
 }
 
 // General Protection Fault handler
-void gpfault()
+void gpfault(unsigned edi, unsigned esi, unsigned ebp, unsigned esp, unsigned ebx, unsigned edx, unsigned ecx, unsigned eax, unsigned errorcode, unsigned eip, unsigned cs, unsigned eflags)
 {
-    dump_stack("A general protection fault occured.");
+    char t[100];
+    ksprintf(t, "A general protection fault occurred with error code %l.", errorcode);
+    dump_stack(t, edi, esi, ebp, esp+16, ebx, edx, ecx, eax, eip, cs);
 }
 
-// Page fault handler
-void pgfault(unsigned int errcode)
+// Page fault handler, called after pusha in 'inte' handler
+void pgfault(unsigned edi, unsigned esi, unsigned ebp, unsigned esp, unsigned ebx, unsigned edx, unsigned ecx, unsigned eax, unsigned errorcode, unsigned eip, unsigned cs, unsigned eflags)
 {
     volatile unsigned int cr2;
     asm volatile ("mov %%cr2,%0":"=r"(cr2));
-    dump_stack("A page fault occurred.");
+    if ((errorcode & 1) == 0 && cr2 >= 0xc0000000)
+    {
+        unsigned t = cr2 >> 22;
+        if (!(process_pdt[t]&1))
+        {
+            if (system_pdt[t]&1)
+            {
+                process_pdt[t] = system_pdt[t];
+                invlpg((void*)cr2);
+                goto nodump;
+            }
+        }
+    }
+    char t[100];
+    ksprintf(t, "A page fault occurred at address %l, with error code %l.", cr2, errorcode);
+    dump_stack(t, edi, esi, ebp, esp+16, ebx, edx, ecx, eax, eip, cs);
+    nodump:
+    return;
+}
+
+static void bsod(const char* msg)
+{
+    int i;
+    cli();
+    show_cursor(0);
+    cls();
+    print(msg);
+    // Make the text display white on blue
+    for (i = 1; i < 4000; i += 2) videomem[i] = 0x1F;
+    do hlt(); while (1);
 }
 
 // Dump the stack
-static void dump_stack(const char* msg)
+static void dump_stack(const char* msg, unsigned edi, unsigned esi, unsigned ebp, unsigned esp, unsigned ebx, unsigned edx, unsigned ecx, unsigned eax, unsigned eip, unsigned cs)
 {
-
     cli();
+    show_cursor(0);
     cls();
     print(msg);
     print("\r\nDumping stack and halting CPU.\r\n");
     int i;
-    volatile int esp, ebp, esi, edi, eax, ebx, ecx, edx, cs, ds, es, fs, gs, ss;
-    asm volatile ("mov %%esp,%0":"=g"(esp));
+    volatile unsigned /*esp, ebp, esi, edi, eax, ebx, ecx, edx, cs,*/ ds, es, fs, gs, ss;
+  /*asm volatile ("mov %%esp,%0":"=g"(esp));
     asm volatile ("mov %%ebp,%0":"=g"(ebp));
     asm volatile ("mov %%esi,%0":"=g"(esi));
     asm volatile ("mov %%edi,%0":"=g"(edi));
@@ -716,20 +748,15 @@ static void dump_stack(const char* msg)
     asm volatile ("mov %%ebx,%0":"=g"(ebx));
     asm volatile ("mov %%ecx,%0":"=g"(ecx));
     asm volatile ("mov %%edx,%0":"=g"(edx));
-    asm volatile ("mov %%cs, %0":"=r"(cs));
+    asm volatile ("mov %%cs, %0":"=r"(cs));*/
     asm volatile ("mov %%ds, %0":"=r"(ds));
     asm volatile ("mov %%es, %0":"=r"(es));
     asm volatile ("mov %%fs, %0":"=r"(fs));
     asm volatile ("mov %%gs, %0":"=r"(gs));
     asm volatile ("mov %%ss, %0":"=r"(ss));
-    print("  ESP: 0x"); printhexd(esp);
-    print("  EBP: 0x"); printhexd(ebp);
-    print("  ESI: 0x"); printhexd(esi);
-    print("  EDI: 0x"); printhexd(edi); print("\r\n");
-    print("  EAX: 0x"); printhexd(eax);
-    print("  EBX: 0x"); printhexd(ebx);
-    print("  ECX: 0x"); printhexd(ecx);
-    print("  EDX: 0x"); printhexd(edx); print("\r\n");
+    kprintf("  ESP: %l  EBP: %l  ESI: %l  EDI: %l\r\n", esp, ebp, esi, edi);
+    kprintf("  EAX: %l  EBX: %l  ECX: %l  EDX: %l\r\n", eax, ebx, ecx, edx);
+    kprintf("  EIP: %l", eip);
     print("  CS: "); printhexw(cs);
     print("  DS: "); printhexw(ds);
     print("  ES: "); printhexw(es);
@@ -741,107 +768,69 @@ static void dump_stack(const char* msg)
     {
         int val;
         asm volatile("mov %%ss:(%1),%0":"=g"(val):"p"(esp));
-        print("\r\n  SS:"); printhexd((unsigned int)esp); print(" 0x"); printhexd(val);
+        kprintf("\r\n  SS:%l %l", esp, val);
     }
-    //show_cursor(0);
     // Make the text display white on blue
     for (i = 1; i < 4000; i += 2) videomem[i] = 0x1F;
-a:  hlt();
-    goto a;
+    do hlt(); while (1);
 }
 
 // called by wrapper irq0()
-void handle_timer()
+int handle_timer()
 {
-    
+    return process_rotate();
 }
 
-Process* process_create(char* name)
+Process* process_create(const char* name)
 {
     Process *p = kmalloc(sizeof(Process));
+    kstrcpy(p->name, name);
+    p->pid = process_inc++;
     return p;
-    // TODO:
-    // When process is killed, free all memory it uses,
-    // and all structures associated with it
 }
 
-void process_node_delete(ProcessNode* n)
+void process_enqueue(Process* p)
+{
+    ProcessNode *n = kmalloc(sizeof(ProcessNode));
+    n->process = p;
+    process_node_link(n);
+}
+
+int process_rotate()
+{
+    if (!processes.first) return 0;
+    if (current_process) // If we are already in a process
+    {
+        if (current_process->timeslice--)
+        {
+            return 0;
+        }
+        ProcessNode* n = processes.first;
+        process_node_unlink(n); // Take the node off the head of the queue
+        process_node_link(n);   // Put it on the rear of the queue
+    }
+    current_process = processes.first->process;
+    current_process->timeslice = 3-current_process->priority;
+    return 1;
+}
+
+void process_node_unlink(ProcessNode* n)
 {
     if (!n) return;
     if (n == processes.first) processes.first = n->next;
     if (n == processes.last) processes.last = n->prev;
     if (n->prev) n->prev->next = n->next;
     if (n->next) n->next->prev = n->prev;
-    kfree(n);
 }
 
-void process_node_after(Process* p, ProcessNode* prev)
+void process_node_link(ProcessNode* n)
 {
-    ProcessNode *n = kmalloc(sizeof(ProcessNode));
-    n->process = p;
-    n->next = prev ? prev->next : 0;
-    n->prev = prev;
-    if (prev->next) prev->next->prev = n;
-    if (prev) prev->next = n;
-    if (n->next == 0) processes.last = n;
-    if (n->prev == 0) processes.first = n;
-}
-
-void process_node_before(Process* p, ProcessNode* next)
-{
-    ProcessNode *n = kmalloc(sizeof(ProcessNode));
-    n->process = p;
-    n->next = next;
-    n->prev = next ? next->prev : 0;
-    if (next->prev) next->prev->next = n;
-    if (next) next->prev = n;
-    if (n->next == 0) processes.last = n;
-    if (n->prev == 0) processes.first = n;
-}
-
-void process_enqueue(Process* p)
-{
-    process_node_before(p, processes.first);
-}
-
-Process* process_dequeue()
-{
-    if (!processes.last) return 0;
-    Process* p = processes.last->process;
-    process_node_delete(processes.last);
-    return p;
-}
-
-Process* process_head()
-{
-    if (!processes.last) return 0;
-    return processes.last->process;
-}
-
-Process* process_tail()
-{
-    if (!processes.first) return 0;
-    return processes.first->process;
-}
-
-void process_switch()
-{
-    // TODO: kill processes
-    if (current_process && current_process->timeslice--) return; 
-    Process* p = process_head();
-    if (!p) return;
-    process_dequeue();
-    process_enqueue(p);
-    current_process = p;
-    current_process->timeslice = 1;
-    asm volatile ("mov %0,%%cr3"::"a"(current_process->cr3));
-    // isr pops registers and returns to last instruction
-}
-
-void killme()
-{
-    current_process->killme = 1;
-    for (;;);
+    if (!n) return;
+    if (processes.last) processes.last->next = n;
+    n->prev = processes.last;
+    n->next = 0;
+    processes.last = n;
+    if (!processes.first) processes.first = n;
 }
 
 // called by wrapper irq1()
@@ -850,16 +839,45 @@ void handle_keyboard()
     char scancode = inb(0x60);
     int escaped = kbd_escaped;
     kbd_escaped = 0;
+    static int c = 0;
     if (escaped)
     {
     }
     else switch ((unsigned char)scancode)
     {
     case 0x0E:
-        print("\b\x20\b");
+        // print("\b\x20\b");
         break;
     case 0x1C:
-        endl();
+        switch (c++)
+        {
+        case 0:
+            process_start("/system/bin/a");
+            break;
+        case 1:
+            process_start("/system/bin/b");
+            break;
+        case 2:
+            process_start("/system/bin/c");
+            break;
+        case 3:
+            process_start("/system/bin/d");
+            break;
+        default:
+            if (!kstrcmp(current_process->name,"/system/bin/shell"))
+            {
+                if (processes.first != processes.last)
+                    process_node_unlink(processes.last);
+            }
+            else
+            {
+                process_node_unlink(processes.first);
+            }
+            if (processes.first == processes.last)
+                c = 0;
+            break;
+        }
+        // endl();
         break;
     case 0x2A:
     case 0x36:
@@ -875,8 +893,8 @@ void handle_keyboard()
     default:
         if (!(scancode&0x80))
         {
-            char c = kbd_shift?kbd_uppercase[scancode]:kbd_lowercase[scancode];
-            print_char(c);
+            char c = kbd_shift? kbd_uppercase[scancode] : kbd_lowercase[scancode];
+            // print_char(c);
         }
         break;
     }
@@ -918,7 +936,158 @@ DateTime get_time()
     return dt;
 }
 
-void print_datetime()
+const char* kstrcpy(char* dest, const char* src)
+{
+    const char* destorig = dest;
+    do *dest++ = *src; while (*src++);
+    return destorig;
+}
+int kstrlen(char* str)
+{
+    int c = 0;
+    while (*str++) c++;
+    return c;
+}
+const char* sprinthexb(char* str, char c)
+{
+    str[0] = '0'+((c&0xF0)>>4);
+    str[1] = '0'+(c&0xF);
+    str[2] = 0;
+    if (str[0] > '9') str[0] += 7;
+    if (str[1] > '9') str[1] += 7;
+    return str;
+}
+
+const char* sprinthexw(char* str, short w)
+{
+    sprinthexb(str, w>>8);
+    sprinthexb(str+2, w);
+    return str;
+}
+
+const char* sprinthexd(char* str, int d)
+{
+    sprinthexw(str, d>>16);
+    sprinthexw(str+4, d);
+    return str;
+}
+
+const char* sprintdec(char* str, int x)
+{
+    if (x == (int)0x80000000)
+    {
+        kstrcpy(str, "-2147483648");
+        return;
+    }
+    int temp = x < 0 ? -x : x;
+    int div;
+    int mod;
+    char str2[11];
+    char *strptr = str;
+    char *strptr2 = str2;
+    if (x < 0)
+    {
+        str[0] = '-';
+        strptr++;
+    }
+    do
+    {
+        div = temp/10;
+        mod = temp%10;
+        temp = div;
+        *strptr = '0'+mod;
+        strptr++;
+    } while (temp != 0);
+    *strptr = 0;
+    do
+    {
+        strptr--;
+        *strptr2 = *strptr;
+        strptr2++;
+    } while (strptr != str);
+    *strptr2 = 0;
+    return str;
+}
+
+const char* kstrcat(char* dest, const char* src)
+{
+    return kstrcpy(dest+kstrlen(dest), src);
+}
+
+int kstrcmp(const char* a, const char* b)
+{
+    while ((*a && *b) && (*a == *b)) a++, b++;
+    return *a - *b;
+}
+
+const char* ksprintf(char* dest, const char* format, ...)
+{
+    const char* destorig = dest;
+    int arg = 0;
+    while (*format)
+    {
+        volatile unsigned val;
+        // Skip 4 items on the stack at %ebp: prev %epb, %eip, $dest, and $format.
+        asm volatile ("movl (%%ebp,%1), %0":"=r"(val):"r"((arg+4)*4));
+        if (*format == '%')
+        {
+            switch (*++format)
+            {
+                case 'd':
+                    arg++;
+                    sprintdec(dest, val);
+                    while (*dest) dest++;
+                    break;
+                case 's':
+                    arg++;
+                    kstrcpy(dest, (const char*)val);
+                    while (*dest) dest++;
+                    break;
+                case 'c':
+                    arg++;
+                    *dest++ = (char)val;
+                    break;
+                case 'b':
+                    arg++;
+                    kstrcpy(dest, "0x");
+                    dest += 2;
+                    sprinthexb(dest, val);
+                    dest += 2;
+                    break;
+                case 'w':
+                    arg++;
+                    kstrcpy(dest, "0x");
+                    dest += 2;
+                    sprinthexw(dest, val);
+                    dest += 4;
+                    break;
+                case 'l':
+                    arg++;
+                    kstrcpy(dest, "0x");
+                    dest += 2;
+                    sprinthexd(dest, val);
+                    dest += 8;
+                    break;
+                case '%':
+                    *dest++ = '%';
+                    break;
+                default:
+                    *dest++ = '%';
+                    *dest++ = *format;
+                    break;
+            }
+        }
+        else
+        {
+            *dest++ = *format;
+        }
+        format++;
+    }
+    *dest = 0;
+    return destorig;
+}
+
+/*void print_datetime()
 {
     DateTime dt = get_time();
 again:
@@ -1020,4 +1189,4 @@ int read_bitmap(Bitmap *b, char *filename)
        b->bits = buffer;
        b->bpp = bc.bcBitCount;
        return 1;
-}
+}*/

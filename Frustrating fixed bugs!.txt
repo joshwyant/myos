@@ -60,8 +60,28 @@ realize it. The fixed function generates:
 mov ss:[bp-32], eax
 ...
 mov ebx, ss:[bp-32]
-invlpg (ebx)
+invlpg [ebx]
 
 kernel/disk.c:
-This took a long time to solve: The disk driver always worked fine but it didn't work
+This took a long time to solve: The disk driver always worked fine but then it didn't work
 on my computer. I traced it down to a typo: (lba >> 16)*0xFF instead of (lba >> 16)&0xFF!
+
+kernel/elf.c function process_start:
+I caught this bug immediately:
+for (i = 768; i < 1023; i++) ((unsigned*)0xFFFFFC00)[i] = system_pdt[i];
+should have been:
+for (i = 0; i < 255; i++) ((unsigned*)0xFFFFFC00)[i] = system_pdt[768+i];
+or
+for (i = 768; i < 1023; i++) ((unsigned*)0xFFFFF000)[i] = system_pdt[i];
+but not both!
+
+8-8-08
+kernel/isr.asm: function irq0
+easy bug, but just put here for completeness:
+would load cr3 in function handle_timer, but that caused the stack to change
+before we could return from the function! Just an error I made getting multitasking
+working...
+
+BOCHS PIT timer bug?
+It seems that I get a random GPFault with error code 0x0000013B if the
+PIT frequency is too high...

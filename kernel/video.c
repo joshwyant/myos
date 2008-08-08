@@ -12,10 +12,10 @@ void init_video()
 {
     // Map video memory
     videomem = kfindrange(4000);
-    page_map((void*)videomem,(void*)0xB8000);
+    page_map((void*)videomem,(void*)0xB8000, PF_WRITE|PF_LOCKED);
     // save CRT base IO port (map BDA first)
     void* bda = kfindrange(0x465);
-    page_map(bda,0);
+    page_map(bda,0,PF_READ);
     crtbaseio = *((volatile unsigned short*)(bda+0x0463));
     page_unmap(bda);
     // get cursor position:
@@ -27,7 +27,7 @@ void init_video()
     cursorpos |= inb(crtbaseio+1)<<8;
     // check if cursor is hidden
     outb(crtbaseio, 0xA);
-    cursor_shown = inb(crtbaseio+1)&0x20;
+    cursor_shown = !(inb(crtbaseio+1)&0x20); // It seems the ! fixes it, but I need to look this up to be sure
 }
 
 void move_cursor(int pos)
@@ -76,14 +76,26 @@ void print_char(char c)
 
 void print(const char* str)
 {
-    //show_cursor(0);
+    int s = cursor_shown;
+    if (s)
+        show_cursor(0);
     while (*str != 0)
     {
         _print_char(*str,7);
         str++;
     }
     update_cursor_index();
-    //show_cursor(1);
+    if (s)
+        show_cursor(1);
+}
+
+void printlen(const char* str, int len)
+{
+    int s = cursor_shown;
+    if (s) show_cursor(0);
+    while (len--) _print_char(*str++,7);
+    update_cursor_index();
+    if (s) show_cursor(1);
 }
 
 static void update_cursor_index()
@@ -96,12 +108,13 @@ static void update_cursor_index()
 
 void show_cursor(int show)
 {
-    // TODO: Doesn't work?
     if (show?cursor_shown?0:1:cursor_shown?1:0)
     {
         cursor_shown = show;
         outb(crtbaseio,0xA);
-        outb(crtbaseio+1, show ? inb(crtbaseio+1)|0x20 : inb(crtbaseio+1)&0xDF);
+        char c = show ? inb(crtbaseio+1)&0xDF : inb(crtbaseio+1)|0x20;
+        //outb(crtbaseio,0xA); // Is this necessary?
+        outb(crtbaseio+1, c);
     }
 }
 
@@ -170,6 +183,67 @@ void printdec(int x)
     } while (strptr != str);
     *strptr2 = 0;
     print(str2);
+}
+
+void kprintf(const char* format, ...)
+{
+    int s = cursor_shown;
+    if (s)
+        show_cursor(0);
+    int arg = 0;
+    while (*format)
+    {
+        volatile unsigned val;
+        // Skip 3 items on the stack at %ebp: prev %epb, %eip, and $format.
+        asm volatile ("movl (%%ebp,%1), %0":"=r"(val):"r"((arg+3)*4));
+        if (*format == '%')
+        {
+            switch (*++format)
+            {
+                case 'd':
+                    arg++;
+                    printdec(val);
+                    break;
+                case 's':
+                    arg++;
+                    print((const char*)val);
+                    break;
+                case 'c':
+                    arg++;
+                    print_char((char)val);
+                    break;
+                case 'b':
+                    arg++;
+                    print("0x");
+                    printhexb(val);
+                    break;
+                case 'w':
+                    arg++;
+                    print("0x");
+                    printhexw(val);
+                    break;
+                case 'l':
+                    arg++;
+                    print("0x");
+                    printhexd(val);
+                    break;
+                case '%':
+                    print_char('%');
+                    break;
+                default:
+                    print_char('%');
+                    print_char(*format);
+                    break;
+            }
+        }
+        else
+        {
+            print_char(*format);
+        }
+        format++;
+    }
+    if (s)
+        show_cursor(1);
 }
 
 void endl()
