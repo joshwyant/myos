@@ -39,20 +39,20 @@ typedef struct
 // Functions
 
 // exceptions
-void register_isr(int num, int dpl, void* offset);
-void register_trap(int num, void* offset);
-void register_task(int num, unsigned short selector);
+extern void register_isr(int num, int dpl, void* offset);
+extern void register_trap(int num, void* offset);
+extern void register_task(int num, unsigned short selector);
 // Memory
-void  page_free(void*, int);
-void* page_alloc(int);
-void* extended_alloc(int);
-void* base_alloc(int);
-void  page_map(void *logical,void *physical,unsigned flags);
-void  page_unmap(void *logical);
-void* kmalloc(int);
-void  kfree(void*);
-void* kfindrange(int size);
-void* get_physaddr(void* logical);
+extern void  page_free(void*, int);
+extern void* page_alloc(int);
+extern void* extended_alloc(int);
+extern void* base_alloc(int);
+extern void  page_map(void *logical,void *physical,unsigned flags);
+extern void  page_unmap(void *logical);
+extern void* kmalloc(int);
+extern void  kfree(void*);
+extern void* kfindrange(int size);
+extern void* get_physaddr(void* logical);
 static inline void kmemcpy(void* dest, const void* src, unsigned bytes)
 {
     asm volatile (
@@ -70,8 +70,8 @@ static inline void kzeromem(void* dest, unsigned bytes)
     );
 }
 // processes
-Process*	process_create(const char* name);
-void		process_enqueue(Process* p);
+extern Process*	process_create(const char* name);
+extern void		process_enqueue(Process* p);
 // various
 static inline char ktoupper(char c)
 {
@@ -84,23 +84,23 @@ static inline char ktolower(char c)
     return c-'A'+'a';
 }
 int kstrlen(char* str);
-const char* ksprintf(char* dest, const char* format, ...);
-const char* sprinthexb(char*, char);
-const char* sprinthexw(char*, short);
-const char* sprinthexd(char*, int);
-const char* sprintdec(char*, int);
-const char* kstrcpy(char*, const char*);
-const char* kstrcat(char*, const char*);
-int kstrcmp(const char*, const char*);
+extern const char* ksprintf(char* dest, const char* format, ...);
+extern const char* ksprinthexb(char*, char);
+extern const char* ksprinthexw(char*, short);
+extern const char* ksprinthexd(char*, int);
+extern const char* ksprintdec(char*, int);
+extern const char* kstrcpy(char*, const char*);
+extern const char* kstrcat(char*, const char*);
+extern int kstrcmp(const char*, const char*);
 
 // Globals
 
-Process				*current_process;
-volatile unsigned*		system_pdt;
-#define				process_pdt ((unsigned*)0xFFFFF000)
+extern Process				*current_process;
+extern volatile unsigned*		system_pdt;
+extern volatile unsigned*		process_pdt;
 
 // elf.c
-int process_start(char* filename);
-char *elf_last_error();
+extern int process_start(char* filename);
+extern char *elf_last_error();
 
 #endif

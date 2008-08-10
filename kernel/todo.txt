@@ -7,7 +7,6 @@ disk driver is very poor!
 fat driver is very poor!
 -paging
 Swapping
-Protecting pages
 
 TODO:
 Implement kmemcpy and use it in read_file
@@ -16,16 +15,12 @@ Use DMA for HD driver (+ fix alot of other things for HD)
 Design a driver system
 Start in 24bit color, 1024x768, show loading screen (Already acomplished!)
 better keyboard io
-processes
 handle all exceptions
 load drivers
 page swapping
-task switching
-process sceduling
-loading, linking elfs (loading, done)
-system calls
+process sceduling (better, with priorities)
+process linking
 VM8086 Processes
-support fat12, fat16, fat32
 file systems (load extras from drivers)
 Video driver
 GUI

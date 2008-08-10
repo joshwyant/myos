@@ -1,4 +1,4 @@
-jmp short start
+jmp short _start
 nop
 oemname                 db      "MYOS    "
 biosParameterBlock:

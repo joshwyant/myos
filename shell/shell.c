@@ -1,8 +1,10 @@
 #include "shell.h"
+#include "../kernel/klib.h"
 
 int main()
 {
-    print("It's the shell!\r\n");
+    cls();
+    print("MyOS shell\n");
     while (1) ; // loop forever
     return 0;
 }

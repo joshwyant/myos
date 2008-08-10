@@ -421,7 +421,7 @@ loop paging1
 mov di,PgTbl768
 ; number of pages in kernel: (kernel_end-0xC0000000+0xFFF)/0x1000
 ; THE BUG: USE ES REGISTER!
-mov ecx,[dword es:0x00100010]
+mov ecx,[dword es:0x00100080]
 add ecx,0x0FFF
 shr ecx,12
 ; poke in entries

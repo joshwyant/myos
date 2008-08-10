@@ -4,6 +4,14 @@
 #include "klib.h"
 #include "fat.h"
 
+typedef struct
+{
+    char *name;
+    void *ptr;
+} kernel_symbol;
+
+extern const kernel_symbol kernel_symbols[];
+
 #define EI_MAG0        0
 #define EI_MAG1        1
 #define EI_MAG2        2

@@ -1,7 +1,8 @@
 #include "klib.h"
 #include "video.h"
 
-static inline void _print_char(char, unsigned char);
+static inline void __print_char(char, unsigned char);
+static void _print_char(char, unsigned char);
 static inline void update_cursor_index();
 
 static unsigned short crtbaseio;
@@ -34,6 +35,14 @@ void move_cursor(int pos)
 {
     cursorpos = pos;
     update_cursor_index();
+}
+
+static inline void __print_char(char c, unsigned char color)
+{
+    if (c == '\r') return;
+    if (c == '\n')
+      _print_char('\r', color);
+    _print_char(c, color);
 }
 
 static void _print_char(char c, unsigned char color)
@@ -70,7 +79,7 @@ static void _print_char(char c, unsigned char color)
 
 void print_char(char c)
 {
-    _print_char(c, 7);
+    __print_char(c, 7);
     update_cursor_index();
 }
 
@@ -81,7 +90,7 @@ void print(const char* str)
         show_cursor(0);
     while (*str != 0)
     {
-        _print_char(*str,7);
+        __print_char(*str,7);
         str++;
     }
     update_cursor_index();
@@ -93,7 +102,7 @@ void printlen(const char* str, int len)
 {
     int s = cursor_shown;
     if (s) show_cursor(0);
-    while (len--) _print_char(*str++,7);
+    while (len--) __print_char(*str++,7);
     update_cursor_index();
     if (s) show_cursor(1);
 }
@@ -248,5 +257,5 @@ void kprintf(const char* format, ...)
 
 void endl()
 {
-    print("\r\n");
+    print("\n");
 }

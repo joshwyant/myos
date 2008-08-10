@@ -8,20 +8,21 @@
 ; 3000:0000 = OS loader
 ; ...
 
-org 0x7C00
+bits 16
+global _start
+bootsect:
 %include "const.inc"
 
 ; ========================
 ; Boot Sector
 ; ========================
-
 %include "bpb.inc"
 
 ; ===================================
 ; Boot sector code
 ; ===================================
 
-start:
+_start:
 xor ax,ax ; ax = 0
 ; Setup stack
 cli

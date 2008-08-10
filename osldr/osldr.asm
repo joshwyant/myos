@@ -1,7 +1,13 @@
 ; MyOS version 0.0.1 Loader
 ; Copyright 2008 Josh Wyant
 
+bits 16
+
 %include "defines.inc"
+
+global _start
+
+_start:
 
 ; Setup stack frame (SS:SP = 0000:7C00)
 cli

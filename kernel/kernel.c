@@ -45,11 +45,10 @@ void kmain()
 
 void start_shell()
 {
-    cls(); // Clear the screen
     // Load the shell
     if (!process_start("/system/bin/shell"))
     {
-        kprintf("Error: Could not load the shell: %s\r\n", elf_last_error());
+        kprintf("Error: Could not load the shell: %s\n", elf_last_error());
         freeze();
     }
 }
@@ -124,6 +123,10 @@ void syscall(unsigned edi, unsigned esi, unsigned ebp, unsigned esp, unsigned eb
         // Map address space (ptr edi, bytes ecx)
         case 13:
             eax = 0;
+            break;
+        // Clear the screen
+        case 14:
+            cls();
             break;
     }
 }
@@ -737,7 +740,7 @@ static void dump_stack(const char* msg, unsigned edi, unsigned esi, unsigned ebp
     show_cursor(0);
     cls();
     print(msg);
-    print("\r\nDumping stack and halting CPU.\r\n");
+    print("\nDumping stack and halting CPU.\n");
     int i;
     volatile unsigned /*esp, ebp, esi, edi, eax, ebx, ecx, edx, cs,*/ ds, es, fs, gs, ss;
   /*asm volatile ("mov %%esp,%0":"=g"(esp));
@@ -754,8 +757,8 @@ static void dump_stack(const char* msg, unsigned edi, unsigned esi, unsigned ebp
     asm volatile ("mov %%fs, %0":"=r"(fs));
     asm volatile ("mov %%gs, %0":"=r"(gs));
     asm volatile ("mov %%ss, %0":"=r"(ss));
-    kprintf("  ESP: %l  EBP: %l  ESI: %l  EDI: %l\r\n", esp, ebp, esi, edi);
-    kprintf("  EAX: %l  EBX: %l  ECX: %l  EDX: %l\r\n", eax, ebx, ecx, edx);
+    kprintf("  ESP: %l  EBP: %l  ESI: %l  EDI: %l\n", esp, ebp, esi, edi);
+    kprintf("  EAX: %l  EBX: %l  ECX: %l  EDX: %l\n", eax, ebx, ecx, edx);
     kprintf("  EIP: %l", eip);
     print("  CS: "); printhexw(cs);
     print("  DS: "); printhexw(ds);
@@ -768,7 +771,7 @@ static void dump_stack(const char* msg, unsigned edi, unsigned esi, unsigned ebp
     {
         int val;
         asm volatile("mov %%ss:(%1),%0":"=g"(val):"p"(esp));
-        kprintf("\r\n  SS:%l %l", esp, val);
+        kprintf("\n  SS:%l %l", esp, val);
     }
     // Make the text display white on blue
     for (i = 1; i < 4000; i += 2) videomem[i] = 0x1F;
@@ -839,7 +842,6 @@ void handle_keyboard()
     char scancode = inb(0x60);
     int escaped = kbd_escaped;
     kbd_escaped = 0;
-    static int c = 0;
     if (escaped)
     {
     }
@@ -849,34 +851,6 @@ void handle_keyboard()
         // print("\b\x20\b");
         break;
     case 0x1C:
-        switch (c++)
-        {
-        case 0:
-            process_start("/system/bin/a");
-            break;
-        case 1:
-            process_start("/system/bin/b");
-            break;
-        case 2:
-            process_start("/system/bin/c");
-            break;
-        case 3:
-            process_start("/system/bin/d");
-            break;
-        default:
-            if (!kstrcmp(current_process->name,"/system/bin/shell"))
-            {
-                if (processes.first != processes.last)
-                    process_node_unlink(processes.last);
-            }
-            else
-            {
-                process_node_unlink(processes.first);
-            }
-            if (processes.first == processes.last)
-                c = 0;
-            break;
-        }
         // endl();
         break;
     case 0x2A:
@@ -948,7 +922,7 @@ int kstrlen(char* str)
     while (*str++) c++;
     return c;
 }
-const char* sprinthexb(char* str, char c)
+const char* ksprinthexb(char* str, char c)
 {
     str[0] = '0'+((c&0xF0)>>4);
     str[1] = '0'+(c&0xF);
@@ -958,21 +932,21 @@ const char* sprinthexb(char* str, char c)
     return str;
 }
 
-const char* sprinthexw(char* str, short w)
+const char* ksprinthexw(char* str, short w)
 {
-    sprinthexb(str, w>>8);
-    sprinthexb(str+2, w);
+    ksprinthexb(str, w>>8);
+    ksprinthexb(str+2, w);
     return str;
 }
 
-const char* sprinthexd(char* str, int d)
+const char* ksprinthexd(char* str, int d)
 {
-    sprinthexw(str, d>>16);
-    sprinthexw(str+4, d);
+    ksprinthexw(str, d>>16);
+    ksprinthexw(str+4, d);
     return str;
 }
 
-const char* sprintdec(char* str, int x)
+const char* ksprintdec(char* str, int x)
 {
     if (x == (int)0x80000000)
     {
@@ -1035,7 +1009,7 @@ const char* ksprintf(char* dest, const char* format, ...)
             {
                 case 'd':
                     arg++;
-                    sprintdec(dest, val);
+                    ksprintdec(dest, val);
                     while (*dest) dest++;
                     break;
                 case 's':
@@ -1051,21 +1025,21 @@ const char* ksprintf(char* dest, const char* format, ...)
                     arg++;
                     kstrcpy(dest, "0x");
                     dest += 2;
-                    sprinthexb(dest, val);
+                    ksprinthexb(dest, val);
                     dest += 2;
                     break;
                 case 'w':
                     arg++;
                     kstrcpy(dest, "0x");
                     dest += 2;
-                    sprinthexw(dest, val);
+                    ksprinthexw(dest, val);
                     dest += 4;
                     break;
                 case 'l':
                     arg++;
                     kstrcpy(dest, "0x");
                     dest += 2;
-                    sprinthexd(dest, val);
+                    ksprinthexd(dest, val);
                     dest += 8;
                     break;
                 case '%':

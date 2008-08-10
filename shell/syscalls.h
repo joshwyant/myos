@@ -15,6 +15,11 @@ inline int write(int file, const char* ptr, int len)
     return retval;
 }
 
+inline void cls()
+{
+    asm volatile ("int $0x30"::"a"(14));
+}
+
 inline void print(const char* msg) {
     write(0, msg, _strlen(msg));
 }

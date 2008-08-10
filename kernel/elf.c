@@ -54,7 +54,7 @@ int process_start(char* filename)
     if (ehdr.e_ident[EI_DATA] != K_ELF_DATA)
     {
         file_close(&elf);
-        elf_error = "Unsupported ELF data encoding.\r\n";
+        elf_error = "Unsupported ELF data encoding.";
         return 0;
     }
     // Allocate a page directory for the process

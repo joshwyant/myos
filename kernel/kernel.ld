@@ -22,8 +22,9 @@ SECTIONS
     kernel = . ;
     .text : { *(.text) }
     .data : { *(.data) }
-    .rodata : { *(.rodata) }
+    _bstart = . ;
     .bss : { *(.bss) }
+    _bend = . ;
     /* end of binary image, marks start of free space */
     image_end = . ;
 }

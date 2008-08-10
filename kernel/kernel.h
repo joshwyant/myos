@@ -5,6 +5,7 @@
 #include "fat.h"
 #include "disk.h"
 #include "klib.h"
+#include "kernel_symbols.h"
 
 #ifndef XRES
 #define XRES 1024
@@ -174,6 +175,10 @@ typedef struct {
     int Month;
     int Year;
 } DateTime;
+
+Process				*current_process;
+volatile unsigned*		system_pdt;
+volatile unsigned*		process_pdt = (unsigned*)0xFFFFF000;
 
 DateTime get_time();
 // void print_datetime();
