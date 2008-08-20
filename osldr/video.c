@@ -11,13 +11,9 @@ static unsigned short cursorpos;
 void init_video()
 {
     // Map video memory
-    videomem = kfindrange(4000);
-    page_map((void*)videomem, (void*)0xB8000, PF_WRITE);
+    videomem = (void*)0xB8000;
     // save CRT base IO port (map BDA first)
-    void* bda = kfindrange(0x465);
-    page_map(bda, 0, PF_WRITE);
-    crtbaseio = *(volatile unsigned short*)(bda+0x0463);
-    page_unmap(bda);
+    crtbaseio = *((volatile unsigned short*)0x0463);
     // get cursor position:
     //   get lo port from index register
     outb(crtbaseio, 0xF);

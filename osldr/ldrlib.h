@@ -3,7 +3,7 @@
 
 // Include inline IO functions with klib
 #include "io.h"
-#include "elf.h"
+#include "loader_info.h"
 
 // defines
 #define PF_NONE		0
@@ -27,34 +27,19 @@
 
 // Structures
 
-typedef struct
-{
-    unsigned int     esp;       // kernel esp
-    unsigned short   ss, __ssh; // kernel ss
-    unsigned int     cr3;       // process cr3
-    unsigned int     pid;       // process id
-    unsigned int     timeslice; // Amount of time to run
-    unsigned int     priority;  // Process priority
-    unsigned char    name[64];  // Name of process
-} Process;
+
 
 // Functions
 
+// (crude) memory management
+void* kmalloc(int);
+void kfree(void*);
+void* findpage();
+
 // exceptions
-extern void register_isr(int num, int dpl, void* offset);
+extern void register_isr(int num, void* offset);
 extern void register_trap(int num, void* offset);
 extern void register_task(int num, unsigned short selector);
-// Memory
-extern void  page_free(void*, int);
-extern void* page_alloc(int);
-extern void* extended_alloc(int);
-extern void* base_alloc(int);
-extern void  page_map(void *logical,void *physical,unsigned flags);
-extern void  page_unmap(void *logical);
-extern void* kmalloc(int);
-extern void  kfree(void*);
-extern void* kfindrange(int size);
-extern void* get_physaddr(void* logical);
 static inline void kmemcpy(void* dest, const void* src, unsigned bytes)
 {
     asm volatile (
@@ -71,9 +56,6 @@ static inline void kzeromem(void* dest, unsigned bytes)
         "c"(bytes),"D"(dest),"a"(0)
     );
 }
-// processes
-extern Process*	process_create(const char* name);
-extern void		process_enqueue(Process* p);
 // various
 static inline char ktoupper(char c)
 {
@@ -85,7 +67,7 @@ static inline char ktolower(char c)
     if ((c < 'A') || (c > 'Z')) return c;
     return c-'A'+'a';
 }
-extern int kstrlen(char* str);
+int kstrlen(char* str);
 extern const char* ksprintf(char* dest, const char* format, ...);
 extern const char* ksprinthexb(char*, char);
 extern const char* ksprinthexw(char*, short);
@@ -104,22 +86,16 @@ typedef struct {
     int Year;
 } DateTime;
 
+DateTime get_time();
+void ksprintdatetime(char* dest, DateTime dt);\
+
+extern void* pgdir;
+extern void* next_page;
+
 // Globals
 
-extern Process				*current_process;
-extern volatile unsigned*		system_pdt;
-extern volatile unsigned*		process_pdt;
-extern unsigned*		kernel_hashtable;
-extern unsigned			kernel_nbucket;
-extern unsigned			kernel_nchain;
-extern unsigned*		kernel_bucket;
-extern unsigned*		kernel_chain;
-extern Elf32_Sym*		kernel_symtab;
-extern char*			kernel_strtab;
-extern Elf32_Dyn*		kernel_dynamic;
-
 // elf.c
-extern int process_start(char* filename);
+extern int load_kernel(loader_info *li);
 extern char *elf_last_error();
 
 #endif

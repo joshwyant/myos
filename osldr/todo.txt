@@ -1,4 +1,0 @@
-TODO:
-Support CHS addressing.
-BUGS:
-Does LOOKUP not return 0 in CX??? Check all versions...

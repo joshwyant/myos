@@ -4,6 +4,9 @@
 # ifndef __elf_h__
 # define __elf_h__
 
+#include "ldrlib.h"
+#include "fat.h"
+
 /* Book I: Executable and Linking Format (ELF) */
 
 /* 32-Bit Data Types */
@@ -153,9 +156,9 @@ typedef struct {
 } Elf32_Sym;
 
 // st_info
-#define ELF32_ST_BIND(i) ((i)>>4)
-#define ELF32_ST_TYPE(i) ((i)&0xf)
-#define ELF32_ST_INFO(b,t) (((b)<<4)+((t)&0xf))
+#define ELF32_ST_BIND (i) ((i)>>4)
+#define ELF32_ST_TYPE (i) ((i)&0xf)
+#define ELF32_ST_INFO (b,t) (((b)<<4)+((t)&0xf))
 
 // Symbol Binding, ELF32_ST_BIND
 #define STB_LOCAL	0

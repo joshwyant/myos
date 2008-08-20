@@ -1,7 +1,7 @@
 #ifndef __video_h__
 #define __video_h__
 
-#include "klib.h"
+#include "ldrlib.h"
 
 void init_video();
 void move_cursor(int);

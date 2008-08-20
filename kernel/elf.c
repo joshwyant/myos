@@ -2,9 +2,26 @@
 // An address BELOW 0xC0000000 is only used by the CURRENT process, and may include NON-USER pages, such as the KERNEL STACK
 
 #include "elf.h"
+#include "fat.h"
+#include "klib.h"
 
 static void* getpage(unsigned* pgdir, void* vaddr, int, int);
 static void* pmapmem(unsigned* pgdir, void* vaddr, unsigned size, int, int);
+
+static char* elf_error;
+
+unsigned long elf_hash(const unsigned char *name)
+{
+    unsigned long h = 0, g;
+    while (*name)
+    {
+        h = (h << 4) + *name++;
+        if (g = h & 0xf0000000)
+            h ^= g >> 24;
+        h &= ~g;
+    }
+    return h;
+}
 
 int process_start(char* filename)
 {

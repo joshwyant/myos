@@ -1,7 +1,13 @@
 #include "kernel.h"
+#include "elf.h"
 
-void kmain()
+void demo();
+
+void kmain(loader_info *li)
 {
+    // Make a local copy of li
+    loader_info _li = *li;
+    li = &_li;
     // System initialization
     cli(); // Clear interrupt flag
     lgdt(gdt, sizeof(gdt)); // Load global descriptor table
@@ -11,11 +17,14 @@ void kmain()
     sti(); // Allow interrupts
 
     // Initialize memory management
-    init_paging(); // Now we must init exceptions, to enable page faults
+    init_paging(li); // Now we must init exceptions, to enable page faults
     init_heap(); // Initialize the heap
 
     // Initialize exceptions
     init_exceptions(); // Dependent on IDT; Start right after paging for page faults
+    
+    // Initialize symbol table
+    init_symbols(li);
     
     // Initialize video so we can display errors
     init_video(); // Dependent on paging, Dependent on IDT (Page faults) (Maps video memory)
@@ -36,11 +45,98 @@ void kmain()
     // System call interface (int 0x30)
     init_syscalls();
 
+    //demo();
+
     // Load the shell
     start_shell();
 
     // Unmask timer IRQ
     irq_unmask(0);
+}
+
+void init_symbols(loader_info *li)
+{
+    kernel_dynamic = _DYNAMIC; // _DYNAMIC is the ELF symbol for the .dyn section
+    int i;
+    // Get the hash, string, and symbol tables
+    for (i = 0; _DYNAMIC[i].d_tag != DT_NULL; i++)
+    {
+        void* ptr = li->loaded + _DYNAMIC[i].d_un.d_val;
+        switch (_DYNAMIC[i].d_tag)
+        {
+            case DT_SYMTAB:
+                kernel_symtab = ptr;
+                break;
+            case DT_STRTAB:
+                kernel_strtab = ptr;
+                break;
+            case DT_HASH:
+                kernel_hashtable = ptr;
+                break;
+        }
+    }
+    kernel_nbucket = kernel_hashtable[0];
+    kernel_nchain = kernel_hashtable[1];
+    kernel_bucket = &kernel_hashtable[2];
+    kernel_chain = &kernel_bucket[kernel_nbucket];
+}
+
+Elf32_Sym *find_symbol(const char* name)
+{
+    // Use the ELF hash table to find the symbol.
+    int i = kernel_bucket[elf_hash(name)%kernel_nbucket];
+    while (i != SHN_UNDEF)
+    {
+        if (kstrcmp(kernel_strtab + kernel_symtab[i].st_name, name) == 0)
+            return kernel_symtab + i;
+        i = kernel_chain[i];
+    }
+    return 0;
+}
+
+// Calls the function with the given name. Pretty useless, but neat.
+void invoke(const char* function)
+{
+    Elf32_Sym *s = find_symbol(function);
+    if (s && (ELF32_ST_TYPE (s->st_info) == STT_FUNC))
+        asm volatile("call *%0"::"g"(s->st_value));
+    else
+        kprintf("Function '%s' not found\n", function);
+}
+
+void hello()
+{
+    kprintf("Hello!");
+}
+
+void demo()
+{
+    cls();
+
+    /*// Print all the kernel's symbols!!!
+    int i;
+    for (i = 1; i < kernel_nchain; i++)
+    {
+        kprintf("%l %s\n", kernel_symtab[i].st_value, kernel_strtab + kernel_symtab[i].st_name);
+    }
+    */
+
+    /*
+    char* const n = "file_exists";
+    Elf32_Sym *s = find_symbol(n);
+    if (s)
+    {
+        kprintf("%l %s\n", s->st_value, kernel_strtab + s->st_name);
+    }
+    else
+    {
+        kprintf("Symbol '%s' not found\n", n);
+    }
+    */
+
+    invoke("hello");
+
+    while (1) ;
 }
 
 void start_shell()
@@ -246,12 +342,17 @@ void* kfindrange(int size)
 // Gets the physical address represented by the given virtual address
 void* get_physaddr(void* logical)
 {
-    unsigned val = ((unsigned)*((volatile void* volatile*)0xFFC00000+((unsigned int)logical>>12)));
-    if (!(val&1)) return 0;
-    return (void*)((val&~0xFFF)+((unsigned)logical)&0xFFF);
+    unsigned pgdir_index = (unsigned)logical>>22;
+    unsigned pgtbl_index = ((unsigned)logical>>12)&0x3FF;
+    unsigned offset = (unsigned)logical&0xFFF;
+    unsigned* pgdir = (unsigned*)0xFFFFF000;
+    if (!(pgdir[pgdir_index]&1)) return 0;
+    unsigned* pgtbl = (unsigned*)(0xFFC00000+0x1000*pgdir_index);
+    if (!(pgtbl[pgtbl_index]&1)) return 0;
+    return (void*)((pgtbl[pgtbl_index]&0xFFFFF000)|offset);
 };
 
-void init_paging()
+void init_paging(loader_info *li)
 {
     // The system memory map was stored by the kernel loader,
     // using the BIOS, at address 0xF0001000. It marks free
@@ -267,7 +368,7 @@ void init_paging()
     //   uint64 size;
     //   uint32 type;
     //   uint32 flags;
-    volatile unsigned int* x = (volatile unsigned int*)0xF0001000, *px = x; // pointer to memory map
+    volatile unsigned int* x = (volatile unsigned int*)li->memmap, *px = x; // pointer to memory map
     void* ptr;
     total_memory = 0;
     // determine maximum amount of free memory.
@@ -287,17 +388,17 @@ void init_paging()
         px += 6;
     }
     px = x;
-    page_bitmap = (void*)(((unsigned int)image_end+3)&~3);
+    page_bitmap = (void*)(((unsigned int)li->loaded+li->memsize+3)&~3);
     page_bitmap_size = total_memory >> 15;
     // Cautiously (right now it's safe to do) map in the pages needed for the page bitmap.
     // It's safe because most likely, page_map wont't allocate a new page table. We have
     // to extend the image beyond the 1MB mark instead of using palloc right now.
     unsigned kend = (unsigned)page_bitmap+page_bitmap_size;
-    unsigned kpages = ((unsigned)kernel_end-0xC0000000+0xFFF)>>12;
+    unsigned kpages = (li->memsize+0xFFF)>>12;
     unsigned tpages = (kend-0xC0000000+0xFFF)>>12;
     int i;
     for (i = kpages; i < tpages; i++)
-        page_map((void*)0xC0000000+(i<<12), (void*)0x100000+(i<<12), PF_LOCKED|PF_WRITE);
+        page_map((void*)0xC0000000+(i<<12), li->freemem+((i-kpages)<<12), PF_LOCKED|PF_WRITE);
     // Initialize physical memory bitmap.
     // Number of pages in memory = mem/4k   = mem>>12
     // Number of uints in bitmap = pages/32 = mem>>17
@@ -328,24 +429,21 @@ void init_paging()
     }
     // PAGING is now stable enough AT THIS POINT to MARK PAGES:
     // Mark other pages as used:
-    //   IVT-BDB-Free-Stack-SMAP-PD-PT1-PT2-bootsect-VESAinfo
-    mark_pages(0,9,1);
-    //   Video memory-vga rom-bios rom
+    //   IVT, BDA, Free
+    mark_page(0,1);
+    //   Video memory, vga rom, bios rom
     mark_pages((void*)0xA0000,96,1);
-    //   kernel image-page bitmap
-    ptr = (void*)0x100000;
-    for (i = 0; ptr < (void*)((unsigned int)page_bitmap-(unsigned int)kernel)+page_bitmap_size+0x100000; i++, ptr += 0x1000)
-        mark_page(ptr,1);
-    // PAGING is now stable enough AT THIS POINT to ALLOCATE AND FREE PAGES, AND MAPPING (MAPPING MAY ALLOCATE OR FREE PAGE TABLES):
+    //   kernel image, page bitmap
+    ptr = li->loaded;
+    for (i = 0; i < tpages; i++, ptr += 0x1000)
+        mark_page(get_physaddr(ptr), 1);
+    // PAGING is now setup enough AT THIS POINT to ALLOCATE AND FREE PAGES, AND MAPPING (MAPPING MAY ALLOCATE OR FREE PAGE TABLES):
     // Unmap first megabyte
     for (ptr = (void*)0x00000000; ptr < (void*)0x00100000; ptr+=0x1000)
         page_unmap(ptr);
-    // Free the system memory map
-    page_unmap((void*)0xF0001000);
-    page_free((void*)0x00002000, 1);
     // Map a copy of the system's Page Directory Table
     system_pdt = kfindrange(4096);
-    page_map((void*)system_pdt, (void*)0x00003000, PF_LOCKED|PF_WRITE);
+    page_map((void*)system_pdt, get_physaddr((void*)0xFFFFF000), PF_LOCKED|PF_WRITE);
 }
 
 void init_heap()
@@ -948,14 +1046,9 @@ const char* ksprinthexd(char* str, int d)
 
 const char* ksprintdec(char* str, int x)
 {
-    if (x == (int)0x80000000)
-    {
-        kstrcpy(str, "-2147483648");
-        return;
-    }
-    int temp = x < 0 ? -x : x;
-    int div;
-    int mod;
+    unsigned temp = (unsigned)(x < 0 ? -x : x);
+    unsigned div;
+    unsigned mod;
     char str2[11];
     char *strptr = str;
     char *strptr2 = str2;

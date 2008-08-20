@@ -4,13 +4,10 @@
 #include "video.h"
 #include "fat.h"
 #include "disk.h"
+#include "../osldr/loader_info.h"
 #include "klib.h"
-#include "kernel_symbols.h"
+#include "elf.h"
 
-#ifndef XRES
-#define XRES 1024
-#define YRES 768
-#endif
 
 // externals
 extern void irq0(); // kerboard isr
@@ -20,14 +17,12 @@ extern void int8(); // double fault
 extern void intd(); // gpf
 extern void inte(); // pgf
 extern void int30(); // syscall
-extern char kernel[];
-extern char image_end[];
-extern void* kernel_end;
 
 // main
-void kmain();
+void kmain(loader_info *li);
 // initialization
-void init_paging(); // nonstatic so compiler doesn't optimize it, and we can jump right over it in bochs
+void init_paging(loader_info *li); // nonstatic so compiler doesn't optimize it, and we can jump right over it in bochs
+void init_symbols(loader_info *li);
 void init_heap();
 void init_idt();
 void init_exceptions();
@@ -53,6 +48,11 @@ static inline void* palloc(int,void*,void*);
 static inline void  mark_pages(void*, int, int);
 static inline void  mark_page(void*, int);
 static int ksbrk(int);
+
+// Misc
+Elf32_Sym *find_symbol(const char* name);
+void invoke(const char* function); // random fun test function (invoke("kmain"))
+
 
 // Processes
 typedef struct _ProcessNode
@@ -167,18 +167,17 @@ typedef struct __attribute__ ((__packed__)) {
 	unsigned int	bfOffBits;
 } BITMAPFILEHEADER,*LPBITMAPFILEHEADER,*PBITMAPFILEHEADER;
 
-typedef struct {
-    int Second;
-    int Minute;
-    int Hour;
-    int Day;
-    int Month;
-    int Year;
-} DateTime;
-
 Process				*current_process;
 volatile unsigned*		system_pdt;
 volatile unsigned*		process_pdt = (unsigned*)0xFFFFF000;
+unsigned*			kernel_hashtable;
+unsigned			kernel_nbucket;
+unsigned			kernel_nchain;
+unsigned*			kernel_bucket;
+unsigned*			kernel_chain;
+Elf32_Sym*			kernel_symtab;
+char*				kernel_strtab;
+Elf32_Dyn*			kernel_dynamic;
 
 DateTime get_time();
 // void print_datetime();

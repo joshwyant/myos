@@ -111,13 +111,13 @@ jmp err ; no more root clusters to read
 
 found:
 ; esi was pushed but, no need to get rid of it, the stack has reached the end of its life
-; copy "OSLDR" to 3000:0000
+; copy "OSLDR" to 0000:8000
 mov si,[es:bx+0x14] ; first cluster high
 shl esi,16
 mov si,[es:bx+0x1A] ; first cluster low
-mov ax,3000h
+xor ax,ax
 mov es,ax
-xor di,di
+mov di,8000h
 push es ; prepare retf
 push di ;
 found0:
