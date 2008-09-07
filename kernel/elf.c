@@ -8,7 +8,10 @@
 static void* getpage(unsigned* pgdir, void* vaddr, int, int);
 static void* pmapmem(unsigned* pgdir, void* vaddr, unsigned size, int, int);
 
-static char* elf_error;
+static char* elf_error; // FIXME: FIX FOR MULTITHREADING
+static void* driver_end = (void*)0xE0000000; // FIXME: FIX FOR MULTITHREADING
+
+void* vm8086_gpfault;
 
 unsigned long elf_hash(const unsigned char *name)
 {
@@ -140,8 +143,192 @@ int process_start(char* filename)
     p->cr3 = (unsigned)pgdir_p;
     p->esp = 0xBFFFFFBC;
     p->priority = 3;
+    p->vm8086 = 0;
     process_enqueue(p);
     return 1;
+}
+
+int load_driver(char* filename)
+{
+    int ret = 0;
+    elf_error = "";
+    FileStream elf;
+    Elf32_Ehdr ehdr;
+    int i;
+    if (!file_open(filename, &elf))
+    {
+        elf_error = "Could not locate executable.";
+        return 0;
+    }
+    if ((file_read(&elf, &ehdr, sizeof(ehdr)) < sizeof(ehdr)) ||
+        (ehdr.e_ident[EI_MAG0] != ELFMAG0) || 
+        (ehdr.e_ident[EI_MAG1] != ELFMAG1) || 
+        (ehdr.e_ident[EI_MAG2] != ELFMAG2) || 
+        (ehdr.e_ident[EI_MAG3] != ELFMAG3))
+    {
+        elf_error = "Invalid ELF header.";
+        goto err2;
+    }
+    if (ehdr.e_version != EV_CURRENT || ehdr.e_ident[EI_VERSION] != EV_CURRENT)
+    {
+        elf_error = "Unsupported ELF version.";
+        goto err2;
+    }
+    if (ehdr.e_type != ET_REL)
+    {
+        elf_error = "ELF is not a valid driver.";
+        goto err2;
+    }
+    if (ehdr.e_machine != K_ELF_MACHINE)
+    {
+        elf_error = "Unsupported ELF machine.";
+        goto err2;
+    }
+    if (ehdr.e_ident[EI_CLASS] != K_ELF_CLASS)
+    {
+        elf_error = "Unsupported ELF class.";
+        goto err2;
+    }
+    if (ehdr.e_ident[EI_DATA] != K_ELF_DATA)
+    {
+        elf_error = "Unsupported ELF data encoding.";
+        goto err2;
+    }
+
+    Elf32_Shdr *shdrs = kmalloc(sizeof(Elf32_Shdr)*ehdr.e_shnum);
+    file_seek(&elf, ehdr.e_shoff);
+    Elf32_Sym *symtab = 0;
+
+    // read section headers
+    for (i = 0; i < ehdr.e_shnum; i++)
+    {
+        file_seek(&elf, ehdr.e_shoff+ehdr.e_shentsize*i);
+        file_read(&elf, &shdrs[i], sizeof(Elf32_Shdr));
+    }
+    int j, cnt, stlink;
+    Elf32_Shdr *s;
+    // Load sections and symbol table
+    for (i = 1; i < ehdr.e_shnum; i++)
+    {
+        s = &shdrs[i];
+        switch (s->sh_type)
+        {
+        case SHT_PROGBITS:
+            if (s->sh_flags & SHF_ALLOC)
+            {
+                s->sh_addr = driver_end;
+                driver_end = (void*)(((unsigned)driver_end + s->sh_size + 0xFFF) & 0xFFFFF000);
+                for (j = 0; j < s->sh_size; j += 4096)
+                    page_map(s->sh_addr + j, page_alloc(1), s->sh_flags & SHF_WRITE ? PF_WRITE : PF_NONE);
+                file_seek(&elf, s->sh_offset);
+                file_read(&elf, s->sh_addr, s->sh_size);
+            }
+            break;
+        case SHT_NOBITS:
+            if (s->sh_flags & SHF_ALLOC)
+            {
+                s->sh_addr = driver_end;
+                driver_end = (void*)(((unsigned)driver_end + s->sh_size + 0xFFF) & 0xFFFFF000);
+                for (j = 0; j < s->sh_size; j += 4096)
+                    page_map(s->sh_addr + j, page_alloc(1), s->sh_flags & SHF_WRITE ? PF_WRITE : PF_NONE);
+                kzeromem(s->sh_addr, s->sh_size);
+            }
+            break;
+        case SHT_SYMTAB:
+            cnt = s->sh_size/s->sh_entsize;
+            symtab = kmalloc(cnt*sizeof(Elf32_Sym));
+            stlink = s->sh_link;
+            for (j = 0; j < cnt; j++)
+            {
+                file_seek(&elf, s->sh_offset+s->sh_entsize*j);
+                file_read(&elf, &symtab[j], sizeof(Elf32_Sym));
+            }
+            break;
+        }
+    }
+    
+    // Read the string table
+    char *strtab = kmalloc(shdrs[stlink].sh_size);
+    file_seek(&elf, shdrs[stlink].sh_offset);
+    file_read(&elf, strtab, shdrs[stlink].sh_size);
+
+    void* drivermain = 0;
+    static char t[1024];
+    // Update symbols
+    for (i = 1; i < cnt; i++)
+    {
+        if (symtab[i].st_shndx == SHN_UNDEF)
+        {
+            Elf32_Sym *ksym = find_symbol(strtab + symtab[i].st_name);
+            if (ksym)
+            {
+                symtab[i].st_shndx = SHN_ABS;
+                symtab[i].st_value = ksym->st_value;
+            }
+            else
+            {
+                elf_error = t;
+                ksprintf(elf_error, "Undefined symbol '%s'", strtab+symtab[i].st_name);
+                goto err1;
+            }
+        }
+        else if (symtab[i].st_shndx < SHN_LORESERVE)
+        {
+            symtab[i].st_value += (unsigned)shdrs[symtab[i].st_shndx].sh_addr;
+            if (!kstrcmp("driver_main", strtab+symtab[i].st_name)) drivermain = symtab[i].st_value;
+        }
+    }
+
+    if (!drivermain)
+    {
+        elf_error = "Could not find entry driver_main.";
+        goto err1;
+    }
+
+    // Perform relocations
+    for (i = 1; i < ehdr.e_shnum; i++)
+    {
+        s = &shdrs[i];
+        if (s->sh_type == SHT_REL)
+        {
+            int count = s->sh_size/s->sh_entsize;
+            for (j = 0; j < count; j++)
+            {
+                Elf32_Rel rel;
+                file_seek(&elf, s->sh_offset+j*s->sh_entsize);
+                file_read(&elf, &rel, sizeof(Elf32_Rel));
+                unsigned soff = (unsigned)shdrs[s->sh_info].sh_addr;
+                unsigned* ptr = rel.r_offset + soff;
+                unsigned symval = (unsigned)symtab[ELF32_R_SYM(rel.r_info)].st_value;
+                switch (ELF32_R_TYPE(rel.r_info))
+                {
+                case R_386_32:
+                    *ptr += symval;
+                    break;
+                case R_386_PC32:
+                    *ptr += symval - (unsigned)ptr;
+                    break;
+                }
+            }
+        }
+    }
+
+    int retval;
+    asm volatile("call *%1":"=a"(retval):"g"(drivermain));
+    if (retval == 0)
+        ret = 1;
+    else
+    {
+        ksprintf(t, "Driver exited with status %l.", retval);
+        elf_error = t;
+    }
+err1:
+    kfree(strtab);
+    kfree(symtab);
+    kfree(shdrs);
+err2:
+    file_close(&elf);
+    return ret;
 }
 
 // Creates and maps memory of the given size at the given address

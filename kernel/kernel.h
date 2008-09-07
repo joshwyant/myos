@@ -10,9 +10,10 @@
 
 
 // externals
-extern void irq0(); // kerboard isr
-extern void irq1(); // kerboard isr
-extern void int0(); // divide error isr
+extern void irq0(); // system timer isr
+extern void irq1(); // keyboard isr
+extern void irq8(); // system clock isr
+extern void int0(); // divide error
 extern void int8(); // double fault
 extern void intd(); // gpf
 extern void inte(); // pgf
@@ -32,6 +33,7 @@ void init_timer();
 void init_processes();
 void init_tss();
 void init_syscalls();
+void init_clock();
 void start_shell();
 // syscalls
 void syscall(unsigned edi, unsigned esi, unsigned ebp, unsigned esp, unsigned ebx, unsigned edx, unsigned ecx, unsigned eax);
@@ -53,6 +55,10 @@ static int ksbrk(int);
 Elf32_Sym *find_symbol(const char* name);
 void invoke(const char* function); // random fun test function (invoke("kmain"))
 
+// Misc vars
+static int pit_reload;
+static unsigned timer_seconds;
+static unsigned timer_fractions;
 
 // Processes
 typedef struct _ProcessNode
@@ -70,16 +76,23 @@ typedef struct
 
 ProcessQueue			processes;
 unsigned			process_inc;
+int		switch_voluntary = 0; // Whether the current task switch was explicit
 
-int		process_rotate();
+void		process_yield();
 void		process_node_unlink(ProcessNode* n);
 void		process_node_link(ProcessNode* n);
 
 // keyboard data
 static const char kbd_lowercase[] = { 0,0,'1','2','3','4','5','6','7','8','9','0','-','=','\b','\t','q','w','e','r','t','y','u','i','o','p','[',']','\r',0,'a','s','d','f','g','h','j','k','l',';','\'','`',0,'\\','z','x','c','v','b','n','m',',','.','/',0,'*',0,'\x20',0,0,0,0,0,0,0,0,0,0,0,0,0,'7','8','9','-','4','5','6','+','1','2','3','0','.',0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 };
 static const char kbd_uppercase[] = { 0,0,'!','@','#','$','%','^','&','*','(',')','_','+','\b','\t','Q','W','E','R','T','Y','U','I','O','P','{','}','\r',0,'A','S','D','F','G','H','J','K','L',':','\"','~',0,'|', 'Z','X','C','V','B','N','M','<','>','?',0,'*',0,'\x20',0,0,0,0,0,0,0,0,0,0,0,0,0,'7','8','9','-','4','5','6','+','1','2','3','0','.',0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 };
-static int kbd_escaped;
-static int kbd_shift;
+static volatile int kbd_escaped;
+static volatile int kbd_shift;
+static volatile char kbd_buffer[32];
+static volatile int kbd_count = 0;
+static char kbd_peekc();
+static char kbd_readc();
+static void kbd_read(char*, int);
+static void kbd_readln(char*, int);
 
 
 // count of RAM
@@ -97,6 +110,11 @@ static void* heap_brk;
 static void* first_free;
 static void* last_free;
 
+// Spinlocks
+static int	heap_busy = 0;
+static int	page_map_locked = 0;
+static int	palloc_lock = 0;
+
 // global descriptor table
 static volatile unsigned int __attribute__ ((aligned(8))) gdt[] = {
     0x00000000,0x00000000, // 0x0000 Unused - null descriptor
@@ -109,6 +127,7 @@ static volatile unsigned int __attribute__ ((aligned(8))) gdt[] = {
     0x0000FFFF,0x00CFFA00, // 0x0038 DPL3 code - user
     0x0000FFFF,0x00CFF200, // 0x0040 DPL3 data - user
     0x00000000,0x00000000, // 0x0048 System TSS (initialized later)
+    0x00000000,0x00000000, // 0x0050 VM8086 TSS
 };
 
 struct TSS
@@ -136,7 +155,7 @@ struct TSS
 // Intel manual says, if using paging, avoid letting TSS cross a page
 // boundary. The alignment is 128 here because it's the smallest number
 // bigger than 104 (sizeof(TSS)) that the page size (4096 bytes) is divisible by.
-} __attribute__ ((aligned(128))) system_tss;
+} __attribute__ ((aligned(128))) system_tss, *vm8086_tss;
 
 
 // interrupt descriptor table

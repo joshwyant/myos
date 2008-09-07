@@ -84,6 +84,36 @@ static inline void irq_unmask(char irq)
       outb(0xa1, inb(0xa1)&(unsigned char)(mask>>8));
 }
 
+static inline int irq_getmask()
+{
+    return inb(0x21)|(inb(0xa1)<<8);
+}
+
+static inline void irq_setmask(int mask)
+{
+   outb(0x21, mask);
+   outb(0xa1, mask>>8);
+}
+
+static inline int irq_disable()
+{
+    int i = irq_getmask();
+    irq_setmask(0xFFFF);
+    return i;
+}
+
+static inline int int_disable() // returns 0x200 if ints were enabled
+{
+    int i;
+    asm volatile ("pushf; pop %0; cli":"=g"(i));
+    return i & 0x200;
+}
+
+static inline void int_restore(int i)
+{
+    if (i) sti();
+}
+
 static inline void eoi(int irq)
 {
     if (irq >= 8) outb(0xa0,0x20);
@@ -111,6 +141,27 @@ static inline void freeze()
 {
     cli();
     while (1) hlt();
+}
+// Spins while value int ptr is set and then sets 1 in the pointer.
+static inline void spinlock(int* ptr)
+{
+    int prev;
+    // This seems to be the perfect way to do it.
+    // The Intel manual says the LOCK prefix is alway assummed
+    // with the xchg instruction with mem op, so we can save a byte by not
+    // using the prefix.
+    // >> SAME AS XCHG
+    do asm volatile ("lock xchgl %0,%1":"=a"(prev):"m"(*ptr),"a"(1)); while (prev);
+}
+
+// Sets the value, and returns whether it was previously set.
+// Allows multiple threads to wait for a value to be unset
+static inline int lock(int* ptr)
+{
+    int prev;
+    // >> SAME AS XCHG
+    asm volatile ("lock xchgl %0,%1":"=a"(prev):"m"(*ptr),"a"(1));
+    return prev;
 }
 
 #endif

@@ -8,5 +8,7 @@ if [ -d /cygdrive/g/user ]; then rm -r /cygdrive/g/user; fi
 mkdir /cygdrive/g/system
 mkdir /cygdrive/g/system/bin
 cp ./bin/osldr /cygdrive/g/osldr
-cp ./bin/kernel /cygdrive/g/kernel
+cp ./bin/kernel /cygdrive/g/system/bin/kernel
+cp ./bin/vesadrvr.o /cygdrive/g/system/bin/vesadrvr.o
 cp ./bin/shell /cygdrive/g/system/bin/shell
+

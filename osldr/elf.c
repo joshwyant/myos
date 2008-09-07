@@ -91,6 +91,7 @@ int load_kernel(loader_info *li)
                 void* p = findpage();
                 page_map(obj_base+(unsigned)phdr.p_vaddr+j, p, PF_WRITE);
                 file_read(&elf, p, phdr.p_filesz - j > 4096 ? 4096 : phdr.p_filesz - j);
+                if (phdr.p_filesz - j < 4096) kzeromem(p+(phdr.p_filesz%4096),phdr.p_filesz-j);
             }
             for (j = (phdr.p_filesz+0xFFF)&0xFFFFF000; j < phdr.p_memsz; j += 4096)
             {
@@ -155,11 +156,18 @@ int load_kernel(loader_info *li)
     {
         if (relent == 0) relent = sizeof(Elf32_Rel);
         relcount = relsz/relent;
-        for (i = 0; i < relcount; i++)
+        for (i = 1; i < relcount; i++)
         {
             unsigned* ptr = obj_base + (unsigned)rel[i].r_offset;
             int type = ELF32_R_TYPE(rel[i].r_info);
             int sym = ELF32_R_SYM(rel[i].r_info);
+            if ((type != R_386_RELATIVE) && (symtab[sym].st_shndx == SHN_UNDEF))
+            {
+                static char t[256];
+                elf_error = t;
+                ksprintf(t, "Symbol '%s' undefined.", strtab + symtab[sym].st_name);
+                return 0;
+            }
             unsigned symval = (unsigned)symtab[sym].st_value;
             switch (type)
             {

@@ -50,6 +50,15 @@ void kmain(loader_info *li)
     // Load the shell
     start_shell();
 
+    // Load vesadrvr.o
+    if (!load_driver("/system/bin/vesadrvr.o"))
+    {
+        kprintf("Error: Could not load vesadrvr.o: %s\n", elf_last_error());
+        freeze();
+    }
+
+    init_clock();
+
     // Unmask timer IRQ
     irq_unmask(0);
 }
@@ -109,6 +118,90 @@ void hello()
     kprintf("Hello!");
 }
 
+// These functions are temporary test functions, 
+// designed for kmain demos (not multithreading). They will
+// have to be made thread-safe if it is to be extended.
+
+static char kbd_peekc()
+{
+    if (kbd_count)
+        return kbd_buffer[kbd_count-1];
+    else
+        return 0;
+}
+
+static char kbd_readc()
+{
+    while (!kbd_count) hlt(); // power saver
+        return kbd_buffer[kbd_count---1];
+}
+
+static void kbd_read(char* str, int max)
+{
+    char c = kbd_readc();
+    int i = 0;
+    while ((c == '\x20') || (c == '\r'))
+    {
+        print_char(c);
+        c = kbd_readc();
+    }
+    while ((c != '\r') && (c != '\x20'))
+    {
+        if (c == '\b')
+        {
+            if (i > 0)
+            {
+                if (max++ >= 0)
+                    str--;
+                i--;
+                print("\b \b");
+            }
+        }
+        else
+        {
+            if (max-- > 0)
+                *str++ = c;
+            i++;
+            print_char(c);
+        }
+        c = kbd_readc();
+    }
+    if (c == '\r')
+        endl();
+    else
+        print_char('\x20');
+    *str = 0;
+}
+
+static void kbd_readln(char* str, int max)
+{
+    char c = kbd_readc();
+    int i = 0;
+    while (c != '\r')
+    {
+        if (c == '\b')
+        {
+            if (i > 0)
+            {
+                if (max++ >= 0)
+                    str--;
+                i--;
+                print("\b \b");
+            }
+        }
+        else
+        {
+            if (max-- > 0)
+                *str++ = c;
+            i++;
+            print_char(c);
+        }
+        c = kbd_readc();
+    }
+    endl();
+    *str = 0;
+}
+
 void demo()
 {
     cls();
@@ -121,22 +214,33 @@ void demo()
     }
     */
 
-    /*
-    char* const n = "file_exists";
-    Elf32_Sym *s = find_symbol(n);
-    if (s)
-    {
-        kprintf("%l %s\n", s->st_value, kernel_strtab + s->st_name);
-    }
-    else
-    {
-        kprintf("Symbol '%s' not found\n", n);
-    }
-    */
+    static char buffer[64];
 
-    invoke("hello");
+    //kprintf("Type a symbol name:\n");
 
-    while (1) ;
+    kprintf("Execute a function:\n");
+
+    while (1)
+    {
+        kbd_readln(buffer, 63);
+
+        /*Elf32_Sym *s = find_symbol(buffer);
+        if (s)
+        {
+            kprintf("Symbol %s found: %l\n", kernel_strtab + s->st_name, s->st_value);
+        }
+        else
+        {
+            kprintf("Symbol '%s' not found\n", buffer);
+        }*/
+
+        invoke(buffer);
+    }
+    
+
+    /*invoke("hello");
+
+    while (1) ;*/
 }
 
 void start_shell()
@@ -149,16 +253,21 @@ void start_shell()
     }
 }
 
+// syscall, called using a trap gate int. Interrupts are still enabled, so the code must
+// be fully thread-safe, and not cause any conflicts.
 void syscall(unsigned edi, unsigned esi, unsigned ebp, unsigned esp, unsigned ebx, unsigned edx, unsigned ecx, unsigned eax)
 {
     // eax = system call number.
     // extra info normally in edx
     // returns any return value in eax
+    int m;
     switch (eax)
     {
         // End process
         case 0:
+            m = int_disable();
             process_node_unlink(processes.first);
+            int_restore(m);
             break;
         // Close a file.
         case 1:
@@ -224,22 +333,34 @@ void syscall(unsigned edi, unsigned esi, unsigned ebp, unsigned esp, unsigned eb
         case 14:
             cls();
             break;
+        // Yield to other processes
+        case 15:
+            process_yield();
+            break;
     }
 }
 
 void init_tss()
 {
+    // Initialize the system TSS
     kzeromem(&system_tss, sizeof(system_tss));
     system_tss.ss0 = 16;
     system_tss.esp0 = 0xC0000000;
     gdt[18] = 0x00000067 | (((unsigned)&system_tss)<<16);
     gdt[19] = 0x00008900 | (((unsigned)&system_tss&0x00FF0000)>>16) | ((unsigned)&system_tss&0xFF000000);
-    asm volatile("ltr %0"::"r"((unsigned short)0x48));
+    // Now the VM8086 TSS (a TSS with IO permission for all ports)
+    vm8086_tss = kmalloc(sizeof(struct TSS)+8192);
+    kzeromem(vm8086_tss, sizeof(struct TSS)+8192);
+    vm8086_tss->ss0 = 16;
+    vm8086_tss->esp0 = 0xC0000000;
+    vm8086_tss->bitmap = sizeof(struct TSS);
+    gdt[20] = 0x00002067 | (((unsigned)vm8086_tss)<<16);
+    gdt[21] = 0x00008900 | (((unsigned)vm8086_tss&0x00FF0000)>>16) | ((unsigned)vm8086_tss&0xFF000000);
 }
 
 void init_syscalls()
 {
-    register_isr(0x30, 3, (void*)int30);
+    register_trap(0x30, 3, (void*)int30);
 }
 
 void init_processes()
@@ -257,6 +378,7 @@ void page_map(void *logical, void *physical, unsigned flags)
     unsigned           dir_ind = ((unsigned)logical>>22);       // The index into the page directory
     unsigned           tbl_ind = ((unsigned)logical>>12)&0x3FF; // The index into the page table
     // If a page table doesn't exist
+    while (lock(&page_map_locked)) process_yield();
     if (!(dir[dir_ind]&1))
     {
         // Page table
@@ -268,6 +390,7 @@ void page_map(void *logical, void *physical, unsigned flags)
         for (i = 0; i < 1024; i++) tbl[i] = 0;
         invlpg((void*)(unsigned)tbl);
     }
+    page_map_locked = 0;
     tbl[tbl_ind] = ((unsigned)physical&~0xFFF)+(flags|PF_PRESENT);
     // Invalidate the page
     invlpg((void*)(((unsigned)logical)&~0xFFF));
@@ -297,9 +420,11 @@ void page_unmap(void* logical)
             // dir[dir_ind] = 0;
             // page_free((void*)tbl, 1);
             // invlpg((void*)(unsigned)tbl);
+            while (lock(&page_map_locked)) process_yield();
             page_free((void*)(dir[dir_ind]&0xFFFFF000), 1);
-            page_unmap((void*)tbl);
             dir[dir_ind] = 0;
+            page_map_locked = 0;
+            page_unmap((void*)tbl);
             invlpg((void*)(unsigned)tbl);
         }
     }
@@ -313,6 +438,8 @@ void* kfindrange(int size)
     volatile void* volatile* p = (volatile void* volatile*)0xFFFC0000; // Pointer to a PTE
     void* ptr; // pointer to range
     int bytes = 0;
+    static int locked = 0;
+    while (lock(&locked)) process_yield();
     while ((void*)p < (void*)0xFFFFF000)
     {
         // Addr = (p-0xFFFC0000)*4096/4+0xF0000000
@@ -334,8 +461,17 @@ void* kfindrange(int size)
             }
             p++;
         }
-        if (bytes >= size) return ptr;
+        if (bytes >= size)
+        {
+            // commit pages TODO quick solution, make this better
+            int i;
+            for (i = 0; i < size; i++)
+                page_map(ptr+i*4096,0,PF_NONE); // Temporarily map the pages to 0 to keep kfindrange from reallocating them in another process
+            locked = 0; // unlock spinlock
+            return ptr;
+        }
     }
+    locked = 0;
     return 0;
 }
 
@@ -431,12 +567,24 @@ void init_paging(loader_info *li)
     // Mark other pages as used:
     //   IVT, BDA, Free
     mark_page(0,1);
+    //   Boot sector
+    mark_page((void*)0x7000,1);
     //   Video memory, vga rom, bios rom
     mark_pages((void*)0xA0000,96,1);
     //   kernel image, page bitmap
     ptr = li->loaded;
     for (i = 0; i < tpages; i++, ptr += 0x1000)
         mark_page(get_physaddr(ptr), 1);
+    //   (Whoops, don't forget these! >>>)
+    //   kernel page tables
+    ptr = (void*)0xFFC00000;
+    for (i = 0; i < 1024; i++, ptr += 0x1000)
+    {
+        void* ph = get_physaddr(ptr);
+        if (ph) mark_page(ph, 1);
+    }
+    //   (or the stack! 8-23-2008)
+    mark_page(get_physaddr((void*)0xF0000000), 1);
     // PAGING is now setup enough AT THIS POINT to ALLOCATE AND FREE PAGES, AND MAPPING (MAPPING MAY ALLOCATE OR FREE PAGE TABLES):
     // Unmap first megabyte
     for (ptr = (void*)0x00000000; ptr < (void*)0x00100000; ptr+=0x1000)
@@ -453,6 +601,7 @@ void init_heap()
 }
 
 // Adds n pages to the heap. Returns the actual number of pages added.
+// ONLY CALLED IN KMALLOC
 static int ksbrk(int n)
 {
     int i;
@@ -468,7 +617,8 @@ static int ksbrk(int n)
     return i;
 }
 
-void* kbestfreeblock(int size)
+// KMALLOC ONLY
+static void* kbestfreeblock(int size)
 {
     void* best = 0;
     void* ptr = first_free;
@@ -481,7 +631,7 @@ void* kbestfreeblock(int size)
     return best;
 }
 
-void* kfirstfreeblock(int size)
+static void* kfirstfreeblock(int size)
 {
     void* ptr = first_free;
     while (ptr)
@@ -519,6 +669,7 @@ void* kmalloc(int size)
     // The size of each block is perfect in this case. There can be up to 16777216 16-byte blocks in 256MB.
     // 16777216 is 2^24, the same as the size value in the tag. There is room for flags in a byte.
     // 2 tags + 2 pointers = 16 bytes.
+    while (lock(&heap_busy)) process_yield();
     void* ptr = kbestfreeblock(size); // faster: kfirstfreeblock(int)
     int m = (size + 23) & 0xFFFFFFF0; // Minimum size needed for a block. ((size + 8) + 15) / 16 * 16;
     if (ptr)
@@ -535,24 +686,27 @@ void* kmalloc(int size)
             // link in the new block because it's free
             kptrlink(ptr+m);
         }
+        heap_busy = 0;
         return ptr;
     }
     else
     {
         // There are no free blocks; Try and expand the heap and make a new block.
         void* t = heap_end;
-        while (t+m > heap_brk) if (!ksbrk(1)) return 0;
+        while (t+m > heap_brk) if (!ksbrk(1)) { heap_busy = 0; return 0; }
         heap_end = t+m;
         ptr = t+4;
         ksettag(ptr, kmaketag(m, 1, ptr == (void*)0xD0000004, 1));
         if (ptr != (void*)0xD0000004)
             ksettag(kadjprev(ptr), ktag(kadjprev(ptr))&0xFBFFFFFF); // The previous block is no longer at the end of the memory.
+        heap_busy = 0;
         return ptr;
     }
 }
 
 void kfree(void* ptr)
 {
+    while (lock(&heap_busy)) process_yield();
     // Unlink any adjacent free blocks and coalesce them.
     int s = ktagsize(ktag(ptr)); // The total size of the free block
     void* ptr2 = ptr; // The leftmost adjacent free block
@@ -581,11 +735,14 @@ void kfree(void* ptr)
         ksettag(ptr2, kmaketag(s, 0, ktagisbegin(ktag(ptr2)), ktagisend(ktag(ptr3))));
         kptrlink(ptr2);
     }
+    heap_busy = 0;
 }
 
 // Allocates a number of pages in the given range
+// FOR USE IN PAGE_ALLOC FUNCTIONS
 static inline void* palloc(int size,void* start,void* end)
 {
+    while (lock(&palloc_lock)) process_yield();
     void register *ptr = page_bitmap+((unsigned int)start>>15), *ptr2 = page_bitmap+((unsigned int)end>>15), *startptr;
     int i, count = 0;
     unsigned char volatile bit;
@@ -611,13 +768,16 @@ static inline void* palloc(int size,void* start,void* end)
         }
         ptr++;
     }
+    palloc_lock = 0;
     return (void*)0;
 found:
     mark_pages(startptr, size, 1);
+    palloc_lock = 0;
     return startptr;
 }
 
 // Marks the given page range as used or free.
+// DON'T USE OUTSIDE OF PALLOC OR INIT_PAGING
 static void inline mark_pages(void* page, int count, int used)
 {
     register int i;
@@ -625,6 +785,7 @@ static void inline mark_pages(void* page, int count, int used)
 }
 
 // Marks the given page as used or free.
+// PALLOC, INIT_PAGING
 static void inline mark_page(void* page, int used)
 {
     if (used)
@@ -636,7 +797,9 @@ static void inline mark_page(void* page, int used)
 // Frees a number of contiguous pages at the given physical address
 void page_free(void* addr, int count)
 {
+    while (lock(&palloc_lock)) process_yield();
     mark_pages(addr, count, 0);
+    palloc_lock = 0;
 }
 
 // Returns the physical address of a set of free contiguous pages.
@@ -667,11 +830,8 @@ void* base_alloc(int size)
 // Initialize the Interrupt Descriptor Table
 void init_idt()
 {
-    int i;
-    // zero all entries
-    for (i = 0; i < 512; i++) idt[i] = 0;
-    // load idt
-    lidt((void*)idt,sizeof(idt));
+    // In BSS section - IDT initialized to 0s
+    lidt((void*)idt,sizeof(idt)); // Load the IDT
 }
 
 // Initialize the Programmable Interrupt Controller
@@ -714,26 +874,26 @@ void register_isr(int num, int dpl, void* offset)
 }
 
 // Add a trap gate to the IDT
-void register_trap(int num, void* offset)
+void register_trap(int num, int dpl, void* offset)
 {
     volatile struct IDTDescr* gate;
     gate=&(((struct IDTDescr*)idt)[num]);
     gate->offset_1  = (unsigned short)(unsigned int)offset;
     gate->selector  = 8;
     gate->zero      = 0;
-    gate->type_attr = 0x8F;
+    gate->type_attr = 0x8F|(dpl<<5);
     gate->offset_2  = (unsigned short)(((unsigned int)offset)>>16);
 }
 
 // Add a task gate to the IDT
-void register_task(int num, unsigned short selector)
+void register_task(int num, int dpl, unsigned short selector)
 {
     volatile struct IDTDescr* gate;
     gate=&(((struct IDTDescr*)idt)[num]);
     gate->offset_1  = 0;
     gate->selector  = selector;
     gate->zero      = 0;
-    gate->type_attr = 0x85;
+    gate->type_attr = 0x85|(dpl<<5);
     gate->offset_2  = 0;
 }
 
@@ -741,13 +901,13 @@ void register_task(int num, unsigned short selector)
 void init_exceptions()
 {
     // Division error
-    register_isr(0x0,0,(void*)int0);
+    register_trap(0x0,0,(void*)int0);
     // Double fault
-    register_isr(0x8,0,(void*)int8);
+    register_trap(0x8,0,(void*)int8);
     // General protection fault
-    register_isr(0xd,0,(void*)intd);
+    register_trap(0xd,0,(void*)intd);
     // Page fault
-    register_isr(0xe,0,(void*)inte);
+    register_trap(0xe,0,(void*)inte);
 }
 
 // Keyboard initialization
@@ -765,13 +925,27 @@ void kbd_init()
 // Initialize the system timer - the Programmable Interval Timer
 void init_timer()
 {
+    timer_seconds = 0;
+    timer_fractions = 0;
+    pit_reload = 17898; // 17898 = roughly every 15ms
     outb(0x43, 0x34); // Channel 0: rate generator
-    // 17898 = roughly every 15ms
-    outb(0x40, 17898&0xFF); // reload value lo byte channel 0
-    outb(0x40, 17898>>8); // reload value hi byte channel 0
+    outb(0x40, pit_reload&0xFF); // reload value lo byte channel 0
+    outb(0x40, pit_reload>>8); // reload value hi byte channel 0
     // fill descriptor 0x20 (irq 0) for timer handler
     register_isr(0x20,0,(void*)irq0);
     // unmask IRQ later
+}
+
+void init_clock()
+{
+    // TODO: Figure out how to do this (I want irq8 fired each second)
+    //register_isr(0x28,0,(void*)irq8);
+    //irq_unmask(8);
+}
+
+void handle_clock()
+{
+    eoi(8);
 }
 
 // Called when a divide exception occurs
@@ -789,7 +963,7 @@ void double_fault(unsigned edi, unsigned esi, unsigned ebp, unsigned esp, unsign
 // General Protection Fault handler
 void gpfault(unsigned edi, unsigned esi, unsigned ebp, unsigned esp, unsigned ebx, unsigned edx, unsigned ecx, unsigned eax, unsigned errorcode, unsigned eip, unsigned cs, unsigned eflags)
 {
-    char t[100];
+    char t[80];
     ksprintf(t, "A general protection fault occurred with error code %l.", errorcode);
     dump_stack(t, edi, esi, ebp, esp+16, ebx, edx, ecx, eax, eip, cs);
 }
@@ -799,7 +973,7 @@ void pgfault(unsigned edi, unsigned esi, unsigned ebp, unsigned esp, unsigned eb
 {
     volatile unsigned int cr2;
     asm volatile ("mov %%cr2,%0":"=r"(cr2));
-    if ((errorcode & 1) == 0 && cr2 >= 0xc0000000)
+    if (((errorcode & 1) == 0) && (cr2 >= 0xc0000000))
     {
         unsigned t = cr2 >> 22;
         if (!(process_pdt[t]&1))
@@ -879,26 +1053,17 @@ static void dump_stack(const char* msg, unsigned edi, unsigned esi, unsigned ebp
 // called by wrapper irq0()
 int handle_timer()
 {
-    return process_rotate();
-}
-
-Process* process_create(const char* name)
-{
-    Process *p = kmalloc(sizeof(Process));
-    kstrcpy(p->name, name);
-    p->pid = process_inc++;
-    return p;
-}
-
-void process_enqueue(Process* p)
-{
-    ProcessNode *n = kmalloc(sizeof(ProcessNode));
-    n->process = p;
-    process_node_link(n);
-}
-
-int process_rotate()
-{
+    if (!switch_voluntary)
+    {
+        // Calculate the amount of time passed
+        asm volatile ("add %2,%0; adc $0,%1":
+                      "=g"(timer_fractions),"=g"(timer_seconds):
+                      "g"(3600*pit_reload)); // 3600 is (2**32-1)/pit_freq_hz.
+    }
+    else
+    {
+        switch_voluntary = 0; // reset switch_voluntary for the next timer tick
+    }
     if (!processes.first) return 0;
     if (current_process) // If we are already in a process
     {
@@ -915,6 +1080,36 @@ int process_rotate()
     return 1;
 }
 
+// Yield to other processes (give up this process' time slice)
+void process_yield()
+{
+    // Tell the timer handler the switch was voluntary
+    switch_voluntary = 1;
+    // IRQ0, the timer handler; Switches tasks
+    int86(0x20);
+}
+
+// Do not use in an ISR.
+Process* process_create(const char* name)
+{
+    Process *p = kmalloc(sizeof(Process));
+    kstrcpy(p->name, name);
+    p->pid = process_inc++;
+    return p;
+}
+
+// Safe to use without any kind of lock.
+// NOT safe to use in an ISR.
+void process_enqueue(Process* p)
+{
+    ProcessNode *n = kmalloc(sizeof(ProcessNode));
+    n->process = p;
+    int i = int_disable();
+    process_node_link(n);
+    int_restore(i);
+}
+
+// MUST CLEAR INTS BEFORE USING
 void process_node_unlink(ProcessNode* n)
 {
     if (!n) return;
@@ -924,6 +1119,7 @@ void process_node_unlink(ProcessNode* n)
     if (n->next) n->next->prev = n->prev;
 }
 
+// CLEAR INTS BEFORE USING
 void process_node_link(ProcessNode* n)
 {
     if (!n) return;
@@ -947,9 +1143,13 @@ void handle_keyboard()
     {
     case 0x0E:
         // print("\b\x20\b");
+        if (kbd_count == 32) kbd_count = 0;
+        kbd_buffer[kbd_count++] = '\b';
         break;
     case 0x1C:
         // endl();
+        if (kbd_count == 32) kbd_count = 0;
+        kbd_buffer[kbd_count++] = '\r';
         break;
     case 0x2A:
     case 0x36:
@@ -966,7 +1166,12 @@ void handle_keyboard()
         if (!(scancode&0x80))
         {
             char c = kbd_shift? kbd_uppercase[scancode] : kbd_lowercase[scancode];
-            // print_char(c);
+            if (c)
+            {
+                if (kbd_count == 32) kbd_count = 0;
+                kbd_buffer[kbd_count++] = c;
+            }
+            //print_char(c);
         }
         break;
     }
@@ -1014,7 +1219,7 @@ const char* kstrcpy(char* dest, const char* src)
     do *dest++ = *src; while (*src++);
     return destorig;
 }
-int kstrlen(char* str)
+int kstrlen(const char* str)
 {
     int c = 0;
     while (*str++) c++;

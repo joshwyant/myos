@@ -4,9 +4,9 @@ echo Build started.
 date
 
 export DISKTYPE=FAT32
-export DISKSIZE=1024
+export DISKSIZE=33
 export PATH=/usr/cross/i586-elf/bin:/usr/src/myos/vgui:$PATH
-export DEFINES="-D"$DISKTYPE" -DXRES=1024 -DYRES=768"
+export DEFINES="-D"$DISKTYPE" -DDEBUG"
 if [ ! -d bin ] ; then mkdir bin; fi
 if [ -e myos.sym ] ; then rm myos.sym; fi
 
@@ -42,6 +42,7 @@ gcc -c $DEFINES -O2 disk.c -o ./obj/disk.o
 gcc -c $DEFINES -O2 fat.c -o ./obj/fat.o
 gcc -c $DEFINES -O2 elf.c -o ./obj/elf.o
 gcc -c $DEFINES -O2 kernel.c -o ./obj/kernel.o
+gcc -c $DEFINES -O2 dictionary.c -o ./obj/dictionary.o
 ld -s -shared -Tkernel.ld
 ld -s -shared -Tkernel.ld -o ./obj/kernel -Ttext=0xC0000000
 nm -n -D ./obj/kernel>>../myos.sym

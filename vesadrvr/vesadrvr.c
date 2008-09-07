@@ -1,6 +1,7 @@
 #include "vesadrvr.h"
+#include "../kernel/klib.h"
 
-int drivermain()
+int driver_main()
 {
     return 0;
 }

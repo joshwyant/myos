@@ -3,6 +3,7 @@
 
 // Include inline IO functions with klib
 #include "io.h"
+#include "dictionary.h"
 #include "elf.h"
 
 // defines
@@ -32,18 +33,21 @@ typedef struct
     unsigned int     esp;       // kernel esp
     unsigned short   ss, __ssh; // kernel ss
     unsigned int     cr3;       // process cr3
+    unsigned int     vm8086;    // vm8086 process
+    void*            gpfault;   // vm8086 gpfault handler
     unsigned int     pid;       // process id
     unsigned int     timeslice; // Amount of time to run
     unsigned int     priority;  // Process priority
     unsigned char    name[64];  // Name of process
+    void*	     node;	// Process_Node struct for scheduler
 } Process;
 
 // Functions
-
+extern Elf32_Sym *find_symbol(const char* name);
 // exceptions
 extern void register_isr(int num, int dpl, void* offset);
-extern void register_trap(int num, void* offset);
-extern void register_task(int num, unsigned short selector);
+extern void register_trap(int num, int dpl, void* offset);
+extern void register_task(int num, int dpl, unsigned short selector);
 // Memory
 extern void  page_free(void*, int);
 extern void* page_alloc(int);
@@ -72,8 +76,9 @@ static inline void kzeromem(void* dest, unsigned bytes)
     );
 }
 // processes
+extern void	process_yield();
 extern Process*	process_create(const char* name);
-extern void		process_enqueue(Process* p);
+extern void	process_enqueue(Process* p);
 // various
 static inline char ktoupper(char c)
 {
@@ -85,7 +90,7 @@ static inline char ktolower(char c)
     if ((c < 'A') || (c > 'Z')) return c;
     return c-'A'+'a';
 }
-extern int kstrlen(char* str);
+extern int kstrlen(const char* str);
 extern const char* ksprintf(char* dest, const char* format, ...);
 extern const char* ksprinthexb(char*, char);
 extern const char* ksprinthexw(char*, short);
@@ -120,6 +125,7 @@ extern Elf32_Dyn*		kernel_dynamic;
 
 // elf.c
 extern int process_start(char* filename);
+extern int load_driver(char* filename);
 extern char *elf_last_error();
 
 #endif

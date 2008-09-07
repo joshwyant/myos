@@ -11,6 +11,7 @@ INPUT (
 ./obj/isr.o ,
 ./obj/disk.o ,
 ./obj/fat.o ,
+./obj/dictionary.o ,
 ./obj/elf.o
 )
 /* Sections */

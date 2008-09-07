@@ -17,6 +17,6 @@ void printdec(int x);
 void kprintdatetime(DateTime dt);
 void kprintf(const char* format, ...);
 void endl();
-volatile char* videomem;
+extern volatile char* videomem;
 
 #endif

@@ -7,6 +7,10 @@ static inline void update_cursor_index();
 static unsigned short crtbaseio;
 static char cursor_shown;
 static unsigned short cursorpos;
+volatile char* videomem;
+// spinlocks
+static int screenlock = 0;
+static int cursorlock = 0;
 
 void init_video()
 {
@@ -32,8 +36,10 @@ void init_video()
 
 void move_cursor(int pos)
 {
+    while (lock(&cursorlock)) process_yield();
     cursorpos = pos;
     update_cursor_index();
+    cursorlock = 0;
 }
 
 static inline void __print_char(char c, unsigned char color)
@@ -46,6 +52,7 @@ static inline void __print_char(char c, unsigned char color)
 
 static void _print_char(char c, unsigned char color)
 {
+    while (lock(&screenlock)) process_yield(); // Another thread is using this function
     int i;
     volatile unsigned short* line1 = 
         (volatile unsigned short*)videomem;
@@ -74,6 +81,7 @@ static void _print_char(char c, unsigned char color)
         for (i = 0; i < 80; i++, line1++)
             *line1 = 0x0720;
     }
+    screenlock = 0; // Unlock this function
 }
 
 void print_char(char c)
@@ -106,7 +114,7 @@ void printlen(const char* str, int len)
     if (s) show_cursor(1);
 }
 
-static void update_cursor_index()
+static inline void update_cursor_index()
 {
     outb(crtbaseio,0xF);
     outb(crtbaseio+1,(unsigned char)(cursorpos));
@@ -116,6 +124,8 @@ static void update_cursor_index()
 
 void show_cursor(int show)
 {
+    static int locked; // Prevent more than one thread (or processer) from using this function at the same time
+    while (lock(&locked)) process_yield();
     if (show?cursor_shown?0:1:cursor_shown?1:0)
     {
         cursor_shown = show;
@@ -124,18 +134,23 @@ void show_cursor(int show)
         //outb(crtbaseio,0xA); // Is this necessary?
         outb(crtbaseio+1, c);
     }
+    locked = 0; // Unlock show_cursor
 }
 
 void cls()
 {
+    while (lock(&screenlock)) process_yield();
     volatile int* ivideomem = (volatile int*)(videomem);
     int i;
     for (i = 0; i < 1000; i++, ivideomem++)
     {
         *ivideomem = 0x07200720;
     }
+    while (lock(&cursorlock)) process_yield(); // lock cursor io
     cursorpos = 0;
     update_cursor_index();
+    cursorlock = 0;
+    screenlock = 0;
 }
 
 void printhexb(char c)
@@ -144,7 +159,9 @@ void printhexb(char c)
     if (str[0] > '9') str[0] += 7;
     if (str[1] > '9') str[1] += 7;
     print(str);
+    while (lock(&cursorlock)) process_yield();
     update_cursor_index();
+    cursorlock = 0;
 }
 
 void printhexw(short w)

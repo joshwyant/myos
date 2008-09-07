@@ -85,3 +85,24 @@ working...
 BOCHS PIT timer bug?
 It seems that I get a random GPFault with error code 0x0000013B if the
 PIT frequency is too high...
+
+8-21-08
+After I changed the way the kernel was loaded, I had to initialize paging differently,
+too. Since then I had a bug that made the computer reset if RAM <= 16M.
+I decided to fix it today, and the problem was I forgot to mark the page tables as used.
+- a couple of days later: I still forgot to mark the stack! whoops...
+
+8-23-08
+OK, I was playing around with the timer, and I wanted to do irq 0 with an int.
+I was confused and couldn't figure out why I kept getting a 'divide error',
+but it turns out I should of used int 20h, not int 0! irqs start at 20h...
+- 8-26-08 It's for switching tasks voluntarily.
+
+8-26-08
+OK so I found out what was wrong after I made spinlocks:
+First I did an asm ("xchg".."m"(ptr)) instead of "m"(*ptr). Then,
+in kmalloc, when I was detecting if interrupts were enabled (for debugging,
+to make sure kmallocs weren't used in isrs), I realized that I disabled ints
+and restored them based on the flags, calling a function that used kmalloc.
+I changed the 'cli' to 'disable irqs.' I don't think it was really necessary,
+but I don't care.

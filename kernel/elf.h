@@ -288,6 +288,36 @@ extern Elf32_Dyn _DYNAMIC[];
 // Global Offset Table
 extern Elf32_Addr	_GLOBAL_OFFSET_TABLE_[];
 
+/* Relocation types discovered with "readelf" */
+#define R_386_32PLT		11
+#define R_386_TLS_TPOFF		14
+#define R_386_TLS_IE		15
+#define R_386_TLS_GOTIE		16
+#define R_386_TLS_LE		17
+#define R_386_TLS_GD		18
+#define R_386_TLS_LDM		19
+#define R_386_16		20 // I know what this is
+#define R_386_PC16		21 // and this
+#define R_386_8			22 //
+#define R_386_PC8		23 // These are useful
+#define R_386_TLS_GD_32		24
+#define R_386_TLS_GD_PUSH	25
+#define R_386_TLS_GD_CALL	26
+#define R_386_TLS_GD_POP	27
+#define R_386_TLS_LDM_32	28
+#define R_386_TLS_LDM_PUSH	29
+#define R_386_TLS_LDM_CALL	30
+#define R_386_TLS_LDM_POP	31
+#define R_386_TLS_LDO_32	32
+#define R_386_TLS_IE_32		33
+#define R_386_TLS_LE_32		34
+#define R_386_TLS_DTPMOD32	35
+#define R_386_TLS_DTPOFF32	36
+#define R_386_TLS_TPOFF32	37
+#define R_386_TLS_GOTDESC	39
+#define R_386_TLS_DESC_CA	40
+#define R_386_TLS_DESC		41
+
 /* Our OS-specific constants */
 #define K_ELF_MACHINE	EM_386
 #define K_ELF_CLASS	ELFCLASS32
