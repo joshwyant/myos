@@ -8,3 +8,8 @@ WORKDIR /src
 COPY --from=compiler /src/bin ./bin
 COPY package .
 RUN chmod 777 package && ./package
+
+FROM ubuntu as runner
+WORKDIR /src
+COPY --from=packager /src/hdd.img .
+RUN apt-get update -y && apt-get install qemu -y

@@ -1,4 +1,4 @@
+docker build . -f Dockerfile.build -t myos
 echo Running Qemu...
-export PATH=/cygdrive/c/qemu:$PATH
-qemu -L c:\\qemu -snapshot c\:\\cygwin\\usr\\src\\myos\\hdd.img
+sudo docker run -it --name myos-qemu --privileged myos qemu-system-x86_64 -nographic -curses -drive format=raw,file=hdd.img
 echo Simulation terminated.
