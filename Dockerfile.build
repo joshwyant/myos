@@ -1,0 +1,10 @@
+FROM joshwyant/gcc-cross as compiler
+WORKDIR /src
+COPY . .
+RUN chmod 777 build && ./build
+
+FROM joshwyant/vdisk-tools as packager
+WORKDIR /src
+COPY --from=compiler /src/bin ./bin
+COPY package .
+RUN chmod 777 package && ./package

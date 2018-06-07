@@ -1,0 +1,26 @@
+set -e
+
+echo Package started.
+date
+
+export DISKTYPE=FAT32
+export DISKSIZE=33
+export DEFINES="-D"$DISKTYPE" -DDEBUG"
+
+echo creating disk image...
+vmkimg -i hdd.img -M $DISKSIZE -b ./bin/bootsect -t $DISKTYPE>>/dev/zero
+
+echo copying files...
+vput hdd.img ./bin/osldr /osldr
+vmkdir hdd.img /system/bin
+vput hdd.img ./bin/kernel /system/bin/kernel
+vput hdd.img ./bin/shell /system/bin/shell
+vput hdd.img ./bin/vesadrvr.o /system/bin/vesadrvr.o
+
+echo setting attributes...
+vattr hdd.img /osldr rhs
+vattr hdd.img /system/bin/kernel rs
+vattr hdd.img /system/bin/shell rs
+vattr hdd.img /system/bin/vesadrvr.o rs
+
+echo Package Completed.
