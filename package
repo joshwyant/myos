@@ -1,5 +1,7 @@
 set -e
 
+export PATH=/cygdrive/y/src/github/vdisk-tools/vgui/bin/release:$PATH
+
 echo Package started.
 date
 
