@@ -69,5 +69,9 @@ fabric.properties
 
 # End of https://www.gitignore.io/api/clion
 
-/bin/
-/obj/
+bin/
+obj/
+
+.DS_Store
+*.img
+*.sym

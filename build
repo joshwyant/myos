@@ -60,7 +60,7 @@ echo building shell...
 if [ ! -d obj ] ; then mkdir obj; fi
 nasm $DEFINES -O2 -felf crt0.S -o./obj/crt0.o
 i586-elf-gcc -c $DEFINES -O2 shell.c -o ./obj/shell.o
-i586-elf-ld -i ./obj/crt0.o ./obj/shell.o -o../bin/shell
+i586-elf-ld ./obj/crt0.o ./obj/shell.o -o../bin/shell
 i586-elf-nm -n ../bin/shell>>../myos.sym
 
 echo Build Completed.
