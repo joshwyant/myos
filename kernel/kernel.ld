@@ -12,7 +12,20 @@ INPUT (
 ./obj/disk.o ,
 ./obj/fat.o ,
 ./obj/dictionary.o ,
-./obj/elf.o
+./obj/elf.o ,
+./obj/clock.o ,
+./obj/drawing.o ,
+./obj/exceptions.o ,
+./obj/interrupt.o ,
+./obj/keyboard.o ,
+./obj/memory.o ,
+./obj/mouse.o ,
+./obj/process.o ,
+./obj/string.o ,
+./obj/syscall.o ,
+./obj/task.o ,
+./obj/timer.o ,
+./obj/VESA.o
 )
 /* Sections */
 SECTIONS

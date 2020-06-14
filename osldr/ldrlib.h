@@ -3,7 +3,7 @@
 
 // Include inline IO functions with klib
 #include "io.h"
-#include "loader_info.h"
+#include "../include/loader_info.h"
 
 // defines
 #define PF_NONE		0
@@ -35,6 +35,7 @@
 void* kmalloc(int);
 void kfree(void*);
 void* findpage();
+void page_map(void *logical, void *physical, unsigned flags);
 
 // exceptions
 extern void register_isr(int num, void* offset);

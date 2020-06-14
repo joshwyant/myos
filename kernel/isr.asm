@@ -1,6 +1,7 @@
 global irq0
 global irq1
 global irq8
+global irq12
 global int0
 global int8
 global intd
@@ -10,6 +11,7 @@ extern current_process
 extern handle_timer
 extern handle_keyboard
 extern handle_clock
+extern handle_mouse
 extern divide_error
 extern double_fault
 extern gpfault
@@ -115,5 +117,11 @@ iret
 irq8:
 pusha
 call handle_clock
+popa
+iret
+
+irq12:
+pusha
+call handle_mouse
 popa
 iret

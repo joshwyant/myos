@@ -4,6 +4,12 @@
 %define SMAPPage	0x00001000
 ;define BootSect	0x00007C00
 %define Loader		0x00008000
+%ifdef VESA
+%ifndef XRES
+%define XRES 1024
+%define YRES 768
+%endif
+%endif
 
 ; Physical memory layout:
 ; 0x00000000 - 0x000003FF IVT
@@ -207,3 +213,54 @@ bits 32
 hlt
 jmp $-1
 bits 16
+
+
+%ifdef VESA
+init_vbe:
+push es
+xor ax,ax
+mov es,ax
+mov di,VESAInfo
+mov ax,0x4F00
+int 10h
+cmp ax,4fh
+jne .novbe
+mov di,[es:VESAInfo+14]
+mov ax,[es:VESAInfo+16]
+mov es,ax
+.0:
+mov cx,[es:di]
+cmp cx,0ffffh
+je .novbe
+push di
+mov di,VESAMode
+mov ax,4f01h
+int 10h
+test byte[es:di],1
+jz .1
+cmp word[es:di+18], XRES
+jne .1
+cmp word[es:di+20], YRES
+jne .1
+cmp byte[es:di+25], 24
+jge .2
+
+.1:
+pop di
+add di,2
+jmp .0
+
+
+.novbe:
+pop es
+ret
+
+.2:
+pop di
+pop es ; es
+mov bx,0x4000
+or bx,cx
+mov ax,4f02h
+int 10h
+ret
+%endif

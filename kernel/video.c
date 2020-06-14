@@ -1,4 +1,6 @@
-#include "video.h"
+#include "kernel.h"
+
+volatile char* videomem;
 
 static inline void __print_char(char, unsigned char);
 static void _print_char(char, unsigned char);
@@ -7,7 +9,7 @@ static inline void update_cursor_index();
 static unsigned short crtbaseio;
 static char cursor_shown;
 static unsigned short cursorpos;
-volatile char* videomem;
+
 // spinlocks
 static int screenlock = 0;
 static int cursorlock = 0;
@@ -338,3 +340,78 @@ void kprintdatetime(DateTime dt)
     const char* sec0 = dt.Second < 10 ? "0" : "";
     kprintf("%s %d%s, %d  %d:%s%d %s%d %s", month, dt.Day, eday, dt.Year, (dt.Hour % 12) == 0 ? 12 : dt.Hour % 12, min0, dt.Minute, sec0, dt.Second, dt.Hour < 12 ? "AM" : "PM");
 }
+
+/*void print_datetime()
+{
+    DateTime dt = get_time();
+again:
+    switch (dt.Month)
+    {
+        case 1:
+             print("January");
+             break;
+        case 2:
+             print("February");
+             break;
+        case 3:
+             print("March");
+             break;
+        case 4:
+             print("April");
+             break;
+        case 5:
+             print("May");
+             break;
+        case 6:
+             print("June");
+             break;
+        case 7:
+             print("July");
+             break;
+        case 8:
+             print("August");
+             break;
+        case 9:
+             print("September");
+             break;
+        case 10:
+             print("October");
+             break;
+        case 11:
+             print("November");
+             break;
+        case 12:
+             print("December");
+             break;
+    }
+    print_char('\x20');
+    printdec(dt.Day);
+    switch (dt.Day % 10)
+    {
+           case 1:
+                print("st");
+                break;
+           case 2:
+                print("nd");
+                break;
+           case 3:
+                print("rd");
+                break;
+           default:
+                print("th");
+                break;
+    }
+    print(", ");
+    printdec(dt.Year);
+    print("  ");
+    printdec((dt.Hour % 12) == 0 ? 12 : dt.Hour % 12);
+    print(":");
+    if (dt.Minute < 10) print("0");
+    printdec(dt.Minute);
+    print(" ");
+    if (dt.Second < 10) print("0");
+    printdec(dt.Second);
+    print(" ");
+    print(dt.Hour < 12 ? "AM" : "PM");
+    endl();
+}*/

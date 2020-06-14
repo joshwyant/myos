@@ -78,7 +78,7 @@ static inline void sti() { asm volatile ("sti"); }
 static inline void irq_unmask(char irq)
 {
     unsigned short mask = (0xFFFE<<irq)|(0xFFFE>>(16-irq));
-    if (~(unsigned char)(mask&0xFF))
+    if (~(unsigned char)(mask)&0xFF)
       outb(0x21, inb(0x21)&(unsigned char)(mask));
     else
       outb(0xa1, inb(0xa1)&(unsigned char)(mask>>8));

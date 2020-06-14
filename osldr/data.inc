@@ -1,4 +1,5 @@
 global DriveNumber
+global VESAMode;
 
 DriveNumber: db 0
 fatalerror: db "Kernel Loader",0Dh,0Ah,"Fatal error: ",0
@@ -23,3 +24,13 @@ dw 0                   ; padding
 
 idt48:
 dd 0,0
+
+%ifdef VESA
+align 4096 ; page boundary, for simplicity
+VESAMode:
+times 256-($-VESAMode) db 0
+
+VESAInfo:
+db "VBE2"
+times 512-($-VESAInfo) db 0
+%endif

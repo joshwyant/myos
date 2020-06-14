@@ -73,5 +73,6 @@ bin/
 obj/
 
 .DS_Store
+Thumbs.db
 *.img
 *.sym

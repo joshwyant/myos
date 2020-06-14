@@ -28,6 +28,11 @@ mov [DriveNumber],dl
 ; Call initialization routines
 call a20_enable		; Enable the A20 line
 call read_memmap	; Read the system memory map
+%ifdef VESA
+; TODO: Remove all references to VESA in the loader,
+; and instead initialize with a VM8086 driver or better.
+call init_vbe		; Init VESA VBE2
+%endif
 jmp  init32		; Go into protected mode and finish up loading
 
 ; Common code and data

@@ -18,5 +18,6 @@ void kprintdatetime(DateTime dt);
 void kprintf(const char* format, ...);
 void endl();
 extern volatile char* videomem;
+// void print_datetime();
 
 #endif

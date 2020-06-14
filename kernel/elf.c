@@ -1,9 +1,9 @@
 // An address ABOVE 0xC0000000 is shared between ALL processes and is used by the kernel.
 // An address BELOW 0xC0000000 is only used by the CURRENT process, and may include NON-USER pages, such as the KERNEL STACK
 
+#include "kernel.h"
 #include "elf.h"
 #include "fat.h"
-#include "klib.h"
 
 static void* getpage(unsigned* pgdir, void* vaddr, int, int);
 static void* pmapmem(unsigned* pgdir, void* vaddr, unsigned size, int, int);

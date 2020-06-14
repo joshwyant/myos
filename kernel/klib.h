@@ -5,6 +5,8 @@
 #include "io.h"
 #include "dictionary.h"
 #include "elf.h"
+#include "string.h"
+#include "memory.h"
 
 // defines
 #define PF_NONE		0
@@ -48,57 +50,10 @@ extern Elf32_Sym *find_symbol(const char* name);
 extern void register_isr(int num, int dpl, void* offset);
 extern void register_trap(int num, int dpl, void* offset);
 extern void register_task(int num, int dpl, unsigned short selector);
-// Memory
-extern void  page_free(void*, int);
-extern void* page_alloc(int);
-extern void* extended_alloc(int);
-extern void* base_alloc(int);
-extern void  page_map(void *logical,void *physical,unsigned flags);
-extern void  page_unmap(void *logical);
-extern void* kmalloc(int);
-extern void  kfree(void*);
-extern void* kfindrange(int size);
-extern void* get_physaddr(void* logical);
-static inline void kmemcpy(void* dest, const void* src, unsigned bytes)
-{
-    asm volatile (
-        "cld; rep; movsb":
-        "=c"(bytes),"=S"(src),"=D"(dest):
-        "c"(bytes),"S"(src),"D"(dest)
-    );
-}
-static inline void kzeromem(void* dest, unsigned bytes)
-{
-    asm volatile (
-        "cld; rep; stosb":
-        "=c"(bytes),"=D"(dest):
-        "c"(bytes),"D"(dest),"a"(0)
-    );
-}
 // processes
 extern void	process_yield();
 extern Process*	process_create(const char* name);
 extern void	process_enqueue(Process* p);
-// various
-static inline char ktoupper(char c)
-{
-    if ((c < 'a') || (c > 'z')) return c;
-    return c-'a'+'A';
-}
-static inline char ktolower(char c)
-{
-    if ((c < 'A') || (c > 'Z')) return c;
-    return c-'A'+'a';
-}
-extern int kstrlen(const char* str);
-extern const char* ksprintf(char* dest, const char* format, ...);
-extern const char* ksprinthexb(char*, char);
-extern const char* ksprinthexw(char*, short);
-extern const char* ksprinthexd(char*, int);
-extern const char* ksprintdec(char*, int);
-extern const char* kstrcpy(char*, const char*);
-extern const char* kstrcat(char*, const char*);
-extern int kstrcmp(const char*, const char*);
 
 typedef struct {
     int Second;

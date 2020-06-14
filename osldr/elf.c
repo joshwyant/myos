@@ -1,4 +1,5 @@
 #include "elf.h"
+#include "ldrlib.h"
 
 static char* elf_error;
 

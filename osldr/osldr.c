@@ -1,5 +1,7 @@
 #include "osldr.h"
 
+extern vbe_mode_info VESAMode;
+
 void loader_main()
 {
     // System initialization
@@ -24,7 +26,7 @@ void loader_main()
     // Interrupt related
     kbd_init(); // dependent on IDT and PIC
     
-    loader_info li = { (void*)0x00001000, 0, 0, 0 };
+    loader_info li = { (void*)0x00001000, 0, 0, 0, &VESAMode };
     if (!load_kernel(&li))
     {
         kprintf("Error: could not load the kernel: %s", elf_last_error());
