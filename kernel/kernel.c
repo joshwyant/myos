@@ -137,11 +137,13 @@ void show_splash()
     Bitmap b;
     if (read_bitmap(&b, "/system/bin/splash"))
     {
-		int opacity = 255;
-		for (opacity = 0; opacity <= 255; opacity += 5)
+		RECT src = {0, 0, b.width, b.height};
+		RECT dest = {0, 0, vesaMode.width, vesaMode.height};
+		for (int color = 0; color <= 255; color += 17)
 		{
-			draw_image(&b, 0, 0, opacity);
+			draw_image_ext(&b, &src, &dest, 255, RGB(color, color, color));
 		}
+		bitblt(&b, 0, 0);
     }
     else
     {
@@ -150,8 +152,11 @@ void show_splash()
     }
 	
 	// TODO: Remove
-	RECT r = {128, 128, vesaMode.width - 128, vesaMode.height - 128};
-	rect(&r, 1, 16, 0xffffff, 0, 64);
+	RECT r = {64, 160, vesaMode.width - 64, vesaMode.height - 160};
+	rect(&r, 1, 0, RGB(255, 255, 255), 0, 64);
+	rect(&r, 0, 8, 0, RGB(0, 0, 128), 192);
+	
+	draw_text("Hello, world!\nI'm Josh!!", 96, 192, RGB(255, 0, 0), 192, 16);
 }
 
 void start_shell()

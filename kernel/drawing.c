@@ -12,6 +12,39 @@ void clear_color(int c)
 	}
 }
 
+void draw_text(char *str, int x, int y, int color, int opacity, int size)
+{
+	static Bitmap font, *pFont = 0;
+	if (!pFont)
+	{
+		pFont = &font;
+		read_bitmap(pFont, "/system/bin/font");
+	}
+	
+	RECT draw_r = {x, y, x + size, y + size};
+	
+	for (; *str; str++)
+	{
+		if (*str == '\r') continue;
+		if (*str == '\n')
+		{
+			draw_r.x1 = x;
+			draw_r.x2 = x + size;
+			draw_r.y1 += size;
+			draw_r.y2 += size;
+			continue;
+		}
+		unsigned char c = *str;
+		if (c > 127) c = 0;
+		int char_col = c % 16;
+		int char_row = c / 16;
+		RECT char_rect = {char_col * 8, char_row * 8, (char_col + 1) * 8, (char_row + 1) * 8};
+		draw_image_ext(pFont, &char_rect, &draw_r, opacity, color);
+		draw_r.x1 += size;
+		draw_r.x2 += size;
+	}
+}
+
 void bitblt(Bitmap *bmp, int x, int y)
 {
 	unsigned char *bitmap_pixel, *screen_pixel, *end_screen_pixel;
@@ -19,7 +52,7 @@ void bitblt(Bitmap *bmp, int x, int y)
 	get_screen_metrics(&stride, &pixelWidth);
 	get_bitmap_metrics(bmp, &bmpStride, &bmpPixelWidth);
 	
-	RECT full_r = {x, y, x + bmp->width, y + bmp->width};
+	RECT full_r = {x, y, x + bmp->width, y + bmp->height};
 	RECT draw_r = full_r;
 	clip_to_screen(&draw_r);
 	
@@ -27,7 +60,7 @@ void bitblt(Bitmap *bmp, int x, int y)
 	{
 		screen_pixel = get_screen_pixel_address(draw_r.x1, y, stride, pixelWidth);
 		bitmap_pixel = get_bitmap_pixel_address(bmp, draw_r.x1 - full_r.x1, y - full_r.y1, bmpStride, bmpPixelWidth);
-		end_screen_pixel = screen_pixel + stride;
+		end_screen_pixel = screen_pixel + (draw_r.x2 - draw_r.x1) * pixelWidth;
 		for (; screen_pixel < end_screen_pixel; screen_pixel += pixelWidth, bitmap_pixel += bmpPixelWidth)
 		{
 			screen_pixel[0] = bitmap_pixel[0];
@@ -39,6 +72,11 @@ void bitblt(Bitmap *bmp, int x, int y)
 
 void draw_image(Bitmap *bmp, int x, int y, int opacity)
 {
+	if (bmp->bpp > 24)
+	{
+		draw_image_bgra(bmp, x, y, opacity);
+		return;
+	}
 	if (opacity == 0) return;
 	if (opacity == 255)
 	{
@@ -50,7 +88,7 @@ void draw_image(Bitmap *bmp, int x, int y, int opacity)
 	get_screen_metrics(&stride, &pixelWidth);
 	get_bitmap_metrics(bmp, &bmpStride, &bmpPixelWidth);
 	
-	RECT full_r = {x, y, x + bmp->width, y + bmp->width};
+	RECT full_r = {x, y, x + bmp->width, y + bmp->height};
 	RECT draw_r = full_r;
 	clip_to_screen(&draw_r);
 	
@@ -58,7 +96,7 @@ void draw_image(Bitmap *bmp, int x, int y, int opacity)
 	{
 		screen_pixel = get_screen_pixel_address(draw_r.x1, y, stride, pixelWidth);
 		bitmap_pixel = get_bitmap_pixel_address(bmp, draw_r.x1 - full_r.x1, y - full_r.y1, bmpStride, bmpPixelWidth);
-		end_screen_pixel = screen_pixel + stride;
+		end_screen_pixel = screen_pixel + (draw_r.x2 - draw_r.x1) * pixelWidth;
 		for (; screen_pixel < end_screen_pixel; screen_pixel += pixelWidth, bitmap_pixel += bmpPixelWidth)
 		{
 			int b = screen_pixel[0];
@@ -87,7 +125,7 @@ void draw_image_bgra(Bitmap *bmp, int x, int y, int opacity)
 	get_screen_metrics(&stride, &pixelWidth);
 	get_bitmap_metrics(bmp, &bmpStride, &bmpPixelWidth);
 	
-	RECT full_r = {x, y, x + bmp->width, y + bmp->width};
+	RECT full_r = {x, y, x + bmp->width, y + bmp->height};
 	RECT draw_r = full_r;
 	clip_to_screen(&draw_r);
 	
@@ -95,7 +133,7 @@ void draw_image_bgra(Bitmap *bmp, int x, int y, int opacity)
 	{
 		screen_pixel = get_screen_pixel_address(draw_r.x1, y, stride, pixelWidth);
 		bitmap_pixel = get_bitmap_pixel_address(bmp, draw_r.x1 - full_r.x1, y - full_r.y1, bmpStride, bmpPixelWidth);
-		end_screen_pixel = screen_pixel + stride;
+		end_screen_pixel = screen_pixel + (draw_r.x2 - draw_r.x1) * pixelWidth;
 		for (; screen_pixel < end_screen_pixel; screen_pixel += pixelWidth, bitmap_pixel += bmpPixelWidth)
 		{
 			int b = screen_pixel[0];
@@ -108,6 +146,49 @@ void draw_image_bgra(Bitmap *bmp, int x, int y, int opacity)
 			screen_pixel[0] = (unsigned char)(b >> 8);
 			screen_pixel[1] = (unsigned char)(g >> 8);
 			screen_pixel[2] = (unsigned char)(r >> 8);
+		}
+	}
+}
+
+void draw_image_ext(Bitmap *bmp, RECT *src, RECT *dest, int opacity, int c)
+{
+	if (opacity == 0) return;
+	unsigned char *bitmap_pixel, *screen_pixel, *end_screen_pixel;
+	int stride, pixelWidth, bmpStride, bmpPixelWidth;
+	int src_w, src_h, dest_w, dest_h, bmp_x, bmp_y, x, y;
+	get_screen_metrics(&stride, &pixelWidth);
+	get_bitmap_metrics(bmp, &bmpStride, &bmpPixelWidth);
+	
+	RECT draw_r = *dest;
+	clip_to_screen(&draw_r);
+	src_w = src->x2 - src->x1;
+	src_h = src->y2 - src->y1;
+	dest_w = dest->x2 - dest->x1;
+	dest_h = dest->y2 - dest->y1;
+	
+	int c_r = GET_R(c), c_g = GET_G(c), c_b = GET_B(c);
+	
+	for (y = draw_r.y1; y < draw_r.y2; y++)
+	{
+		bmp_y = (dest_h * src->y1 + (y - dest->y1) * src_h) / dest_h;
+		//if (bmp_y < 0) bmp_y = 0; if (bmp_y >= bmp->height) bmp_y = bmp->height - 1;
+		screen_pixel = get_screen_pixel_address(draw_r.x1, y, stride, pixelWidth);
+		end_screen_pixel = screen_pixel + (draw_r.x2 - draw_r.x1) * pixelWidth;
+		for (x = draw_r.x1; screen_pixel < end_screen_pixel; screen_pixel += pixelWidth, x++)
+		{
+			bmp_x = (dest_w * src->x1 + (x - dest->x1) * src_w) / dest_w;
+			//if (bmp_x < 0) bmp_x = 0; if (bmp_x >= bmp->width) bmp_x = bmp->width - 1;
+			bitmap_pixel = get_bitmap_pixel_address(bmp, bmp_x, bmp_y, bmpStride, bmpPixelWidth);
+			int b = screen_pixel[0];
+			int g = screen_pixel[1];
+			int r = screen_pixel[2];
+			int op = bmp->bpp > 24 ? (bitmap_pixel[3] * opacity) / 255 : opacity;
+			b = b * 255 + (((int)bitmap_pixel[0] * c_b) / 255 - b) * op;
+			g = g * 255 + (((int)bitmap_pixel[1] * c_g) / 255 - g) * op;
+			r = r * 255 + (((int)bitmap_pixel[2] * c_r) / 255 - r) * op;
+			screen_pixel[0] = (unsigned char)(b / 255);
+			screen_pixel[1] = (unsigned char)(g / 255);
+			screen_pixel[2] = (unsigned char)(r / 255);
 		}
 	}
 }
@@ -214,14 +295,20 @@ void rect(RECT *r, char bSolid, int iborder, int c, int cborder, int opacity)
 	
 	// Top border
 	if (iborder)
-	for (y = draw_r.y1; y < fill_r.y1; y++)
 	{
-		int x = draw_r.x1;
-		pixel = get_screen_pixel_address(x, y, stride, pixelWidth);
-		for (; x < draw_r.x2; x++, pixel += pixelWidth)
+		for (y = draw_r.y1; y < fill_r.y1; y++)
 		{
-			set_pixel_opacity(pixel, cborder, opacity);
+			int x = draw_r.x1;
+			pixel = get_screen_pixel_address(x, y, stride, pixelWidth);
+			for (; x < draw_r.x2; x++, pixel += pixelWidth)
+			{
+				set_pixel_opacity(pixel, cborder, opacity);
+			}
 		}
+	}
+	else
+	{
+		y = fill_r.y1;
 	}
 	
 	// Middle part (y)
@@ -236,9 +323,16 @@ void rect(RECT *r, char bSolid, int iborder, int c, int cborder, int opacity)
 		}
 		// Middle part (x)
 		if (bSolid)
-		for (; x < fill_r.x2; x++, pixel += pixelWidth)
 		{
-			set_pixel_opacity(pixel, c, opacity);
+			for (; x < fill_r.x2; x++, pixel += pixelWidth)
+			{
+				set_pixel_opacity(pixel, c, opacity);
+			}
+		}
+		else
+		{
+			x += fill_r.x2 - fill_r.x1;
+			pixel += (fill_r.x2 - fill_r.x1) * pixelWidth;
 		}
 		// Right border
 		for (x = fill_r.x2; x < draw_r.x2; x++, pixel += pixelWidth)

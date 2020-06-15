@@ -27,6 +27,13 @@ extern unsigned char mouse_read();
 extern void show_mouse_cursor(int bShow);
 extern void irq12(); // mouse isr
 
+extern MOUSE_PACKET mouse_packet;
+extern int mouse_screen_x;
+extern int mouse_screen_y;
+extern int mouse_visible;
+extern unsigned char mouse_erase_buffer[];
+extern unsigned char mouse_cycle;
+
 inline static unsigned char mouse_read()
 {
   //Get's response from mouse

@@ -4,9 +4,11 @@
 #include "VESA.h"
 
 #define RGB(r, g, b) ((r) | (g) << 8 | (b) << 16)
+#define RGBA(r, g, b, a) ((r) | (g) << 8 | (b) << 16 | (a) << 24)
 #define GET_R(rgb) ((rgb) & 0xFF)
 #define GET_G(rgb) (((rgb) >> 8) & 0xFF)
 #define GET_B(rgb) (((rgb) >> 16) & 0xFF)
+#define GET_A(rgba) (((unsigned)(rgba) >> 24) & 0xFF)
 
 typedef struct
 {
@@ -55,11 +57,13 @@ void clear_color(int c);
 void bitblt(Bitmap *bmp, int x, int y);
 void draw_image(Bitmap *bmp, int x, int y, int opacity);
 void draw_image_bgra(Bitmap *bmp, int x, int y, int opacity);
+void draw_image_ext(Bitmap *bmp, RECT *src, RECT *dest, int opacity, int c);
 void rect(RECT *r, char bSolid, int iborder, int c, int cborder, int opacity);
 void invert_rect(RECT *r);
 void screen_to_buffer(RECT *r, unsigned char *buffer);
 void buffer_to_screen(unsigned char *buffer, RECT *r);
 int read_bitmap(Bitmap *b, char *filename);
+void draw_text(char *str, int x, int y, int c, int opacity, int size);
 
 inline static void swap_int(int *a, int *b)
 {
@@ -82,11 +86,15 @@ inline static void rect_normalize(RECT *r)
 
 inline static void rect_clip(RECT *r, RECT clip)
 {
+	rect_normalize(r);
 	if (r->x1 < clip.x1) r->x1 = clip.x1;
 	if (r->y1 < clip.y1) r->y1 = clip.y1;
+	if (r->x2 < clip.x1) r->x2 = clip.x1;
+	if (r->y2 < clip.y1) r->y2 = clip.y1;
+	if (r->x1 > clip.x2) r->x1 = clip.x2;
+	if (r->y1 > clip.y2) r->y1 = clip.y2;
 	if (r->x2 > clip.x2) r->x2 = clip.x2;
 	if (r->y2 > clip.y2) r->y2 = clip.y2;
-	rect_normalize(r);
 }
 
 inline static unsigned char * get_screen_pixel_address(int x, int y, int stride, int pixelWidth)

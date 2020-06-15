@@ -4,8 +4,10 @@ MOUSE_PACKET mouse_packet = {0, 0, 0};
 int mouse_screen_x;
 int mouse_screen_y;
 int mouse_visible = 0;
-unsigned char mouse_erase_buffer[768];
+unsigned char mouse_erase_buffer[1728];
 unsigned char mouse_cycle=0;
+
+static Bitmap cursor;
 
 void init_mouse()
 {
@@ -35,6 +37,9 @@ void init_mouse()
   
   mouse_screen_x = vesaMode.width / 2;
   mouse_screen_y = vesaMode.height / 2;
+  
+  read_bitmap(&cursor, "/system/bin/cursor");
+  
   show_mouse_cursor(1);
 
   //Setup the mouse handler
@@ -42,13 +47,15 @@ void init_mouse()
   irq_unmask(12);
 }
 
+volatile int t;
 void draw_mouse_cursor(int x, int y)
 {
-	// TODO: Support cursor objects with bitmap and hotspot
-	RECT r1 = {x, y - 7, x + 1, y + 8};
-	RECT r2 = {x - 7, y, x + 8, y + 1};
-	invert_rect(&r1);
-	invert_rect(&r2);
+	//RECT r1 = {x, y - 7, x + 1, y + 8};
+	//RECT r2 = {x - 7, y, x + 8, y + 1};
+	//invert_rect(&r1);
+	//invert_rect(&r2);
+	
+	draw_image(&cursor, x, y, 255);
 }
 
 //Mouse functions
@@ -108,7 +115,7 @@ void show_mouse_cursor(int bShow)
 	if ((bShow && mouse_visible) || !(bShow || mouse_visible)) return;
 	
 	// TODO: programmable with cursor object
-	RECT mouse_rect = {mouse_screen_x - 8, mouse_screen_y - 8, mouse_screen_x + 8, mouse_screen_y + 8};
+	RECT mouse_rect = {mouse_screen_x, mouse_screen_y, mouse_screen_x + 24, mouse_screen_y + 24};
 	
 	if (bShow)
 	{
