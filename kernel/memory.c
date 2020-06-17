@@ -577,11 +577,13 @@ static void inline mark_page(void* page, int used)
         *(unsigned char*)(page_bitmap+((unsigned int)page>>15)) &= ~(unsigned char)(1<<(((unsigned int)page>>12)%8));
 }
 
-// Frees a number of contiguous pages at the given physical address
-void page_free(void* addr, int count)
+// Frees a number of contiguous pages at the given PHYSICAL ADDRESS by marking them unused.
+// This only marks the physical pages as free. It does nothing with virtual addresses.
+// For that, use page_unmap before marking the physical page as unused.
+void page_free(void* phys_addr, int count)
 {
     while (lock(&palloc_lock)) process_yield();
-    mark_pages(addr, count, 0);
+    mark_pages(phys_addr, count, 0);
     palloc_lock = 0;
 }
 

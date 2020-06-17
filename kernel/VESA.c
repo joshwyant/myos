@@ -11,7 +11,7 @@ void init_vesa()
     unsigned char *framebuffer_orig = vesa_orig->framebuffer;
 	vesaMode = *vesa_orig;
     page_unmap(vesa_orig);
-    //page_free((void*)vesa_orig,1);
+    page_free((void*)loaderInfo.vbe,1);
 	
 	// Map in the frame buffer
     int xres, yres, bpp;
