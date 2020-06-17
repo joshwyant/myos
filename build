@@ -9,6 +9,8 @@ export TARGET=i586-elf
 export DISKTYPE=FAT32
 export DISKSIZE=33
 export DEFINES="-D"$DISKTYPE" -DDEBUG -DVESA"
+export GCCFLAGS="-c $DEFINES -O2"
+export CPPFLAGS="$GCCFLAGS -fno-exceptions -fno-rtti"
 if [ ! -d bin ] ; then mkdir bin; fi
 if [ -e myos.sym ] ; then rm myos.sym; fi
 
@@ -25,11 +27,11 @@ echo building osldr...
 if [ ! -d obj ] ; then mkdir obj; fi
 nasm init.asm $DEFINES -felf -o./obj/init.o
 nasm isr.asm $DEFINES -O2 -felf -o./obj/isr.o
-$TARGET-gcc -c $DEFINES -O2 video.c -o ./obj/video.o
-$TARGET-gcc -c $DEFINES -O2 disk.c -o ./obj/disk.o
-$TARGET-gcc -c $DEFINES -O2 fat.c -o ./obj/fat.o
-$TARGET-gcc -c $DEFINES -O2 elf.c -o ./obj/elf.o
-$TARGET-gcc -c $DEFINES -O2 osldr.c -o ./obj/osldr.o
+$TARGET-gcc $GCCFLAGS video.c -o ./obj/video.o
+$TARGET-gcc $GCCFLAGS disk.c -o ./obj/disk.o
+$TARGET-gcc $GCCFLAGS fat.c -o ./obj/fat.o
+$TARGET-gcc $GCCFLAGS elf.c -o ./obj/elf.o
+$TARGET-gcc $GCCFLAGS osldr.c -o ./obj/osldr.o
 $TARGET-ld -Tosldr.ld
 $TARGET-objcopy ./obj/osldr ../bin/osldr -O binary
 $TARGET-nm -n ./obj/osldr>>../myos.sym
@@ -39,25 +41,25 @@ echo building kernel...
 if [ ! -d obj ] ; then mkdir obj; fi
 nasm startup.S $DEFINES -O2 -felf -o./obj/startup.o
 nasm isr.asm $DEFINES -O2 -felf -o./obj/isr.o
-$TARGET-gcc -c $DEFINES -O2 video.c -o ./obj/video.o
-$TARGET-gcc -c $DEFINES -O2 disk.c -o ./obj/disk.o
-$TARGET-gcc -c $DEFINES -O2 fat.c -o ./obj/fat.o
-$TARGET-gcc -c $DEFINES -O2 elf.c -o ./obj/elf.o
-$TARGET-gcc -c $DEFINES -O2 kernel.cc -o ./obj/kernel.o
-$TARGET-gcc -c $DEFINES -O2 dictionary.c -o ./obj/dictionary.o
-$TARGET-gcc -c $DEFINES -O2 clock.c -o ./obj/clock.o
-$TARGET-gcc -c $DEFINES -O2 drawing.c -o ./obj/drawing.o
-$TARGET-gcc -c $DEFINES -O2 exceptions.c -o ./obj/exceptions.o
-$TARGET-gcc -c $DEFINES -O2 interrupt.c -o ./obj/interrupt.o
-$TARGET-gcc -c $DEFINES -O2 keyboard.c -o ./obj/keyboard.o
-$TARGET-gcc -c $DEFINES -O2 memory.c -o ./obj/memory.o
-$TARGET-gcc -c $DEFINES -O2 mouse.c -o ./obj/mouse.o
-$TARGET-gcc -c $DEFINES -O2 process.c -o ./obj/process.o
-$TARGET-gcc -c $DEFINES -O2 string.c -o ./obj/string.o
-$TARGET-gcc -c $DEFINES -O2 syscall.c -o ./obj/syscall.o
-$TARGET-gcc -c $DEFINES -O2 task.c -o ./obj/task.o
-$TARGET-gcc -c $DEFINES -O2 timer.c -o ./obj/timer.o
-$TARGET-gcc -c $DEFINES -O2 VESA.c -o ./obj/VESA.o
+$TARGET-gcc $GCCFLAGS video.c -o ./obj/video.o
+$TARGET-gcc $GCCFLAGS disk.c -o ./obj/disk.o
+$TARGET-gcc $GCCFLAGS fat.c -o ./obj/fat.o
+$TARGET-gcc $GCCFLAGS elf.c -o ./obj/elf.o
+$TARGET-gcc $CPPFLAGS kernel.cc -o ./obj/kernel.o
+$TARGET-gcc $GCCFLAGS dictionary.c -o ./obj/dictionary.o
+$TARGET-gcc $GCCFLAGS clock.c -o ./obj/clock.o
+$TARGET-gcc $GCCFLAGS drawing.c -o ./obj/drawing.o
+$TARGET-gcc $GCCFLAGS exceptions.c -o ./obj/exceptions.o
+$TARGET-gcc $GCCFLAGS interrupt.c -o ./obj/interrupt.o
+$TARGET-gcc $GCCFLAGS keyboard.c -o ./obj/keyboard.o
+$TARGET-gcc $GCCFLAGS memory.c -o ./obj/memory.o
+$TARGET-gcc $GCCFLAGS mouse.c -o ./obj/mouse.o
+$TARGET-gcc $GCCFLAGS process.c -o ./obj/process.o
+$TARGET-gcc $GCCFLAGS string.c -o ./obj/string.o
+$TARGET-gcc $GCCFLAGS syscall.c -o ./obj/syscall.o
+$TARGET-gcc $GCCFLAGS task.c -o ./obj/task.o
+$TARGET-gcc $GCCFLAGS timer.c -o ./obj/timer.o
+$TARGET-gcc $GCCFLAGS VESA.c -o ./obj/VESA.o
 $TARGET-ld -s -shared -Tkernel.ld
 $TARGET-ld -s -shared -Tkernel.ld -o ./obj/kernel -Ttext=0xC0000000
 $TARGET-nm -n -D ./obj/kernel>>../myos.sym
@@ -66,14 +68,14 @@ cd ../vesadrvr
 echo building vesadrvr.o...
 if [ ! -d obj ] ; then mkdir obj; fi
 nasm $DEFINES -O2 -felf vesadrvr.asm -o./obj/vesa_asm.o
-$TARGET-gcc -c $DEFINES -O2 vesadrvr.c -o ./obj/vesa_c.o
+$TARGET-gcc $GCCFLAGS vesadrvr.c -o ./obj/vesa_c.o
 $TARGET-ld -i ./obj/vesa_c.o ./obj/vesa_asm.o -o ../bin/vesadrvr.o
 
 cd ../shell
 echo building shell...
 if [ ! -d obj ] ; then mkdir obj; fi
 nasm $DEFINES -O2 -felf crt0.S -o./obj/crt0.o
-$TARGET-gcc -c $DEFINES -O2 shell.c -o ./obj/shell.o
+$TARGET-gcc $GCCFLAGS shell.c -o ./obj/shell.o
 $TARGET-ld ./obj/crt0.o ./obj/shell.o -o../bin/shell
 $TARGET-nm -n ../bin/shell>>../myos.sym
 
