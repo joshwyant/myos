@@ -26,7 +26,20 @@ unsigned long elf_hash(const unsigned char *name)
     return h;
 }
 
-int process_start(char* filename)
+Elf32_Sym *find_symbol(const char* name)
+{
+    // Use the ELF hash table to find the symbol.
+    int i = kernel_bucket[elf_hash((const unsigned char*)name)%kernel_nbucket];
+    while (i != SHN_UNDEF)
+    {
+        if (kstrcmp(kernel_strtab + kernel_symtab[i].st_name, name) == 0)
+            return kernel_symtab + i;
+        i = kernel_chain[i];
+    }
+    return 0;
+}
+
+int process_start(const char* filename)
 {
     elf_error = "";
     FileStream elf;
@@ -148,7 +161,7 @@ int process_start(char* filename)
     return 1;
 }
 
-int load_driver(char* filename)
+int load_driver(const char* filename)
 {
     int ret = 0;
     elf_error = "";

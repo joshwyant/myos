@@ -12,7 +12,7 @@ void clear_color(int c)
 	}
 }
 
-void draw_text(char *str, int x, int y, int color, int opacity, int size)
+void draw_text(const char *str, int x, int y, int color, int opacity, int xsize, int ysize)
 {
 	static Bitmap font, *pFont = 0;
 	if (!pFont)
@@ -21,7 +21,7 @@ void draw_text(char *str, int x, int y, int color, int opacity, int size)
 		read_bitmap(pFont, "/system/bin/font");
 	}
 	
-	RECT draw_r = {x, y, x + size, y + size};
+	RECT draw_r = {x, y, x + xsize, y + ysize};
 	
 	for (; *str; str++)
 	{
@@ -29,19 +29,19 @@ void draw_text(char *str, int x, int y, int color, int opacity, int size)
 		if (*str == '\n')
 		{
 			draw_r.x1 = x;
-			draw_r.x2 = x + size;
-			draw_r.y1 += size;
-			draw_r.y2 += size;
+			draw_r.x2 = x + xsize;
+			draw_r.y1 += ysize;
+			draw_r.y2 += ysize;
 			continue;
 		}
 		unsigned char c = *str;
 		if (c > 127) c = 0;
-		int char_col = c % 16;
-		int char_row = c / 16;
+		int char_col = c & 0xF;
+		int char_row = c >> 4;
 		RECT char_rect = {char_col * 8, char_row * 8, (char_col + 1) * 8, (char_row + 1) * 8};
 		draw_image_ext(pFont, &char_rect, &draw_r, opacity, color);
-		draw_r.x1 += size;
-		draw_r.x2 += size;
+		draw_r.x1 += xsize;
+		draw_r.x2 += xsize;
 	}
 }
 
@@ -353,7 +353,7 @@ void rect(RECT *r, char bSolid, int iborder, int c, int cborder, int opacity)
 	}
 }
 
-int read_bitmap(Bitmap *b, char *filename)
+int read_bitmap(Bitmap *b, const char *filename)
 {
        FileStream fs;
        if (!file_open(filename, &fs)) return 0;

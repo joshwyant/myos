@@ -43,7 +43,7 @@ $TARGET-gcc -c $DEFINES -O2 video.c -o ./obj/video.o
 $TARGET-gcc -c $DEFINES -O2 disk.c -o ./obj/disk.o
 $TARGET-gcc -c $DEFINES -O2 fat.c -o ./obj/fat.o
 $TARGET-gcc -c $DEFINES -O2 elf.c -o ./obj/elf.o
-$TARGET-gcc -c $DEFINES -O2 kernel.c -o ./obj/kernel.o
+$TARGET-gcc -c $DEFINES -O2 kernel.cc -o ./obj/kernel.o
 $TARGET-gcc -c $DEFINES -O2 dictionary.c -o ./obj/dictionary.o
 $TARGET-gcc -c $DEFINES -O2 clock.c -o ./obj/clock.o
 $TARGET-gcc -c $DEFINES -O2 drawing.c -o ./obj/drawing.o

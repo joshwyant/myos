@@ -1,6 +1,10 @@
 #ifndef __KERNEL_STRING_H__
 #define __KERNEL_STRING_H__
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 extern const char* ksprintdec(char* str, int x);
 const char* ksprintf(char* dest, const char* format, ...);
 
@@ -62,5 +66,9 @@ static inline char ktolower(char c)
     if ((c < 'A') || (c > 'Z')) return c;
     return c-'A'+'a';
 }
+
+#ifdef __cplusplus
+}  // extern "C"
+#endif
 
 #endif  // __KERNEL_STRING_H__

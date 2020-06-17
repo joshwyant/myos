@@ -1,6 +1,10 @@
 #ifndef __IO_H__
 #define __IO_H__
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct IDTDescr
 {
    unsigned short offset_1; // offset bits 0..15
@@ -163,5 +167,9 @@ static inline int lock(int* ptr)
     asm volatile ("lock xchgl %0,%1":"=a"(prev):"m"(*ptr),"a"(1));
     return prev;
 }
+
+#ifdef __cplusplus
+}  // extern "C"
+#endif
 
 #endif

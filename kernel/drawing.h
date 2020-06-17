@@ -10,6 +10,10 @@
 #define GET_B(rgb) (((rgb) >> 16) & 0xFF)
 #define GET_A(rgba) (((unsigned)(rgba) >> 24) & 0xFF)
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct
 {
 	int x1;
@@ -62,8 +66,8 @@ void rect(RECT *r, char bSolid, int iborder, int c, int cborder, int opacity);
 void invert_rect(RECT *r);
 void screen_to_buffer(RECT *r, unsigned char *buffer);
 void buffer_to_screen(unsigned char *buffer, RECT *r);
-int read_bitmap(Bitmap *b, char *filename);
-void draw_text(char *str, int x, int y, int c, int opacity, int size);
+int read_bitmap(Bitmap *b, const char *filename);
+void draw_text(const char *str, int x, int y, int c, int opacity, int xsize, int ysize);
 
 inline static void swap_int(int *a, int *b)
 {
@@ -166,5 +170,9 @@ inline static int get_screen_pixel(int x, int y)
 	get_screen_metrics(&stride, &pixelWidth);
 	return get_pixel(get_screen_pixel_address(x, y, stride, pixelWidth));
 }
+
+#ifdef __cplusplus
+}  // extern "C"
+#endif
 
 #endif  // __DRAWING_H__

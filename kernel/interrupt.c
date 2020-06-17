@@ -32,11 +32,10 @@ void init_pic()
     outb(0xa1, 1);
     io_wait();
     
-    outb(0x21, 0xFD); // mask irqs
+    outb(0x21, 0xFB); // mask irqs except for cascade
+    io_wait();
     outb(0xa1, 0xFF);
-	
-	// Enable slave PIC
-	irq_unmask(2); // TODO: This should already be enabled
+    io_wait();
 }
 
 // Add a normal ISR to the IDT

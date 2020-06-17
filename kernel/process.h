@@ -1,6 +1,10 @@
 #ifndef __PROCESS_H__
 #define __PROCESS_H__
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 // Processes
 typedef struct _ProcessNode
 {
@@ -36,5 +40,9 @@ extern volatile unsigned		*process_pdt;
 extern ProcessQueue				processes;
 extern unsigned					process_inc;
 extern int						switch_voluntary; // Whether the current task switch was explicit
+
+#ifdef __cplusplus
+}  // extern "C"
+#endif
 
 #endif  // __PROCESS_H__

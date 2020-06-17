@@ -3,6 +3,10 @@
 
 #include "kernel.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct
 {
 	unsigned char flags;
@@ -80,5 +84,9 @@ inline static int mouse_wait(unsigned char a_type)
     return 0;
   }
 }
+
+#ifdef __cplusplus
+}  // extern "C"
+#endif
 
 #endif  // __MOUSE_H__

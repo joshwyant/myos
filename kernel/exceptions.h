@@ -1,6 +1,10 @@
 #ifndef __EXCEPTIONS_H__
 #define __EXCEPTIONS_H__
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 extern void init_exceptions();
 
 extern void int0(); // divide error
@@ -15,5 +19,9 @@ extern void dobule_fault(unsigned edi, unsigned esi, unsigned ebp, unsigned esp,
 
 extern void dump_stack(const char*, unsigned, unsigned, unsigned, unsigned, unsigned, unsigned, unsigned, unsigned, unsigned, unsigned);
 extern void bsod(const char*);
+
+#ifdef __cplusplus
+}  // extern "C"
+#endif
 
 #endif  // __EXCEPTIONS_H__

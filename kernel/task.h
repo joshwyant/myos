@@ -1,6 +1,10 @@
 #ifndef __TASK_H__
 #define __TASK_H__
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 extern void init_gdt();
 extern void init_tss();
 
@@ -33,5 +37,9 @@ extern struct TSS
 
 // global descriptor table
 extern volatile unsigned int __attribute__ ((aligned(8))) gdt[];
+
+#ifdef __cplusplus
+}  // extern "C"
+#endif
 
 #endif  // __TASK_H__

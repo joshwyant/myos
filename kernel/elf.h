@@ -19,6 +19,10 @@
 
 #define EI_NIDENT	16
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 // ELF Header
 typedef struct {
         unsigned char       e_ident[EI_NIDENT];
@@ -324,5 +328,12 @@ extern Elf32_Addr	_GLOBAL_OFFSET_TABLE_[];
 #define K_ELF_DATA	ELFDATA2LSB
 
 extern unsigned long elf_hash(const unsigned char *name);
+
+// Find Kernel symbol
+extern Elf32_Sym *find_symbol(const char* name);
+
+#ifdef __cplusplus
+}  // extern "C"
+#endif
 
 #endif /* __elf_h__ */

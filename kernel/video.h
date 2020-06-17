@@ -3,6 +3,10 @@
 
 #include "klib.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 void init_video();
 void move_cursor(int);
 void print_char(char);
@@ -19,5 +23,9 @@ void kprintf(const char* format, ...);
 void endl();
 extern volatile char* videomem;
 // void print_datetime();
+
+#ifdef __cplusplus
+}  // extern "C"
+#endif
 
 #endif

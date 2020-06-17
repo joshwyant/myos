@@ -1,6 +1,10 @@
 #ifndef __VESA_H__
 #define __VESA_H__
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 // Based on https://wiki.osdev.org/User:Omarrx024/VESA_Tutorial
 
 struct vbe_mode_info_structure {
@@ -57,5 +61,9 @@ struct vbe_info_structure {
 	char oem_data[256];		// OEM BIOSes store their strings in this area
 } __attribute__ ((packed));
 typedef struct vbe_info_structure vbe_info;
+
+#ifdef __cplusplus
+}  // extern "C"
+#endif
 
 #endif /* __VESA_H__ */

@@ -1,5 +1,9 @@
 #include "kernel.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 static void demo();
 
 loader_info loaderInfo;
@@ -59,7 +63,7 @@ void kmain(loader_info *li)
     // Load vesadrvr.o
     if (!load_driver("/system/bin/vesadrvr.o"))
     {
-        kprintf("Error: Could not load vesadrvr.o: %s\n", elf_last_error());
+		kprintf("Error: Could not load vesadrvr.o: %s\n", elf_last_error());
         freeze();
     }
 
@@ -76,17 +80,17 @@ void init_symbols(loader_info *li)
     // Get the hash, string, and symbol tables
     for (i = 0; _DYNAMIC[i].d_tag != DT_NULL; i++)
     {
-        void* ptr = li->loaded + _DYNAMIC[i].d_un.d_val;
+        void* ptr = (void *)((char *)li->loaded + _DYNAMIC[i].d_un.d_val);
         switch (_DYNAMIC[i].d_tag)
         {
             case DT_SYMTAB:
-                kernel_symtab = ptr;
+                kernel_symtab = (Elf32_Sym*)ptr;
                 break;
             case DT_STRTAB:
-                kernel_strtab = ptr;
+                kernel_strtab = (char*)ptr;
                 break;
             case DT_HASH:
-                kernel_hashtable = ptr;
+                kernel_hashtable = (unsigned*)ptr;
                 break;
         }
     }
@@ -94,19 +98,6 @@ void init_symbols(loader_info *li)
     kernel_nchain = kernel_hashtable[1];
     kernel_bucket = &kernel_hashtable[2];
     kernel_chain = &kernel_bucket[kernel_nbucket];
-}
-
-Elf32_Sym *find_symbol(const char* name)
-{
-    // Use the ELF hash table to find the symbol.
-    int i = kernel_bucket[elf_hash(name)%kernel_nbucket];
-    while (i != SHN_UNDEF)
-    {
-        if (kstrcmp(kernel_strtab + kernel_symtab[i].st_name, name) == 0)
-            return kernel_symtab + i;
-        i = kernel_chain[i];
-    }
-    return 0;
 }
 
 // Calls the function with the given name. Pretty useless, but neat.
@@ -156,7 +147,11 @@ void show_splash()
 	rect(&r, 1, 0, RGB(255, 255, 255), 0, 64);
 	rect(&r, 0, 8, 0, RGB(0, 0, 128), 192);
 	
-	draw_text("Hello, world!\nI'm Josh!!", 96, 192, RGB(255, 0, 0), 192, 16);
+	
+	static const char *str = "Hello, world!\nI'm Josh!!";
+	int x = 96, y = 192, xsize = 16, ysize = 32;
+	draw_text(str, x + 2, y + 2, RGB(0, 0, 0), 85, xsize, ysize);  // shadow
+	draw_text(str, x, y, RGB(255, 0, 0), 255, xsize, ysize);
 }
 
 void start_shell()
@@ -209,3 +204,7 @@ static void demo()
 
     while (1) ;*/
 }
+
+#ifdef __cplusplus
+}  // extern "C"
+#endif

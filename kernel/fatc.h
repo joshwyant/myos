@@ -25,6 +25,10 @@
 #define TFAT16		1
 #define TFAT32		2
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct  __attribute__ ((__packed__)) {
     unsigned char	jmpBoot[3];
     unsigned char	OEMName[8];
@@ -229,12 +233,16 @@ int file_exists(const char* filename);
 int directory_exists(const char* dirname);
 int chdir(const char* dir);
 const char* current_directory();
-int  file_open(char *filename, FileStream *fs);
+int  file_open(const char *filename, FileStream *fs);
 void file_close(FileStream *fs);
 int file_seek(FileStream *fs, unsigned pos);
 unsigned file_read(FileStream *fs, void *buffer, unsigned bytes);
 char file_getc(FileStream *fs);
 char file_peekc(FileStream *fs);
 int file_eof(FileStream *fs);
+
+#ifdef __cplusplus
+}  // extern "C"
+#endif
 
 #endif

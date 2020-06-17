@@ -26,7 +26,7 @@ void fat_init()
     cur_fat_sec = 0;
 }
 
-int file_open(char *filename, FileStream *fs)
+int file_open(const char *filename, FileStream *fs)
 {
     if (!read_file_info(filename))
     {

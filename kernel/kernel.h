@@ -22,9 +22,12 @@
 #include "timer.h"
 #include "video.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 // main
 extern loader_info loaderInfo;
-extern void kmain(loader_info *li);
 extern void init_loader_info();
 extern void init_symbols(loader_info *li);
 
@@ -33,7 +36,10 @@ extern void show_splash();
 extern void start_shell();
 
 // Misc
-extern Elf32_Sym *find_symbol(const char* name);
 extern void invoke(const char* function); // random fun test function (invoke("kmain"))
+
+#ifdef __cplusplus
+}  // extern "C"
+#endif
 
 #endif  // __KERNEL_H__

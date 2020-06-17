@@ -3,6 +3,10 @@
 
 #include "../include/loader_info.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 // count of RAM
 extern unsigned int total_memory;
 
@@ -55,5 +59,9 @@ static inline void kzeromem(void* dest, unsigned bytes)
         "c"(bytes),"D"(dest),"a"(0)
     );
 }
+
+#ifdef __cplusplus
+}  // extern "C"
+#endif
 
 #endif  // __MEMORY_H__
