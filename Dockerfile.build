@@ -9,8 +9,10 @@ COPY --from=compiler /src/bin ./bin
 COPY package .
 RUN chmod 777 package && ./package
 
-FROM ubuntu as runner
-WORKDIR /src
-COPY --from=packager /src/hdd.img .
+FROM ubuntu as emulator
 ARG DEBIAN_FRONTEND=noninteractive
 RUN apt-get update -y && apt-get install qemu-system-i386 -y
+
+FROM emulator as runner
+WORKDIR /src
+COPY --from=packager /src/hdd.img .
