@@ -81,4 +81,10 @@ $TARGET-gcc $CFLAGS shell.c -o ./obj/shell.o
 $TARGET-ld ./obj/crt0.o ./obj/shell.o -o../bin/shell
 $TARGET-nm -n ../bin/shell>>../myos.sym
 
+cd ../
+echo copying files...
+cp ./splash.bmp ./bin/splash
+cp ./kernel/cursor.bmp ./bin/cursor
+cp ./kernel/font.bmp ./bin/font
+
 echo Build Completed.

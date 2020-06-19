@@ -20,14 +20,9 @@ vmkdir hdd.img /system/bin
 vput hdd.img ./bin/kernel /system/bin/kernel
 vput hdd.img ./bin/shell /system/bin/shell
 vput hdd.img ./bin/vesadrvr.o /system/bin/vesadrvr.o
-#set +e
-#vexists hdd.img /system/bin/splash
-#if [ $? -eq 0 ]; then
-#	vput hdd.img ./splash.bmp /system/bin/splash # this takes an unreasonable amount of time
-#fi
-#set -e
-#vput hdd.img ./kernel/font.bmp /system/bin/font
-#vput hdd.img ./kernel/cursor.bmp /system/bin/cursor
+vput hdd.img ./bin/splash /system/bin/splash
+vput hdd.img ./bin/font /system/bin/font
+vput hdd.img ./bin/cursor /system/bin/cursor
 
 echo setting attributes...
 vattr hdd.img /osldr rhs

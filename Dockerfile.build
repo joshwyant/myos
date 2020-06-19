@@ -12,4 +12,5 @@ RUN chmod 777 package && ./package
 FROM ubuntu as runner
 WORKDIR /src
 COPY --from=packager /src/hdd.img .
-RUN apt-get update -y && apt-get install qemu -y
+ARG DEBIAN_FRONTEND=noninteractive
+RUN apt-get update -y && apt-get install qemu-system-i386 -y
