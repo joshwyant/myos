@@ -20,9 +20,15 @@ vmkdir hdd.img /system/bin
 vput hdd.img ./bin/kernel /system/bin/kernel
 vput hdd.img ./bin/shell /system/bin/shell
 vput hdd.img ./bin/vesadrvr.o /system/bin/vesadrvr.o
-vput hdd.img ./bin/splash /system/bin/splash
-vput hdd.img ./bin/font /system/bin/font
-vput hdd.img ./bin/cursor /system/bin/cursor
+if [[ $(vexists hdd.img /system/bin/splash && echo 0 || echo 1) == 0 ]]; then
+	vput hdd.img ./bin/splash /system/bin/splash
+fi
+if [[ $(vexists hdd.img /system/bin/font && echo 0 || echo 1) == 0 ]]; then
+	vput hdd.img ./bin/font /system/bin/font
+fi
+if [[ $(vexists hdd.img /system/bin/cursor && echo 0 || echo 1) == 0 ]]; then
+	vput hdd.img ./bin/cursor /system/bin/cursor
+fi
 
 echo setting attributes...
 vattr hdd.img /osldr rhs
