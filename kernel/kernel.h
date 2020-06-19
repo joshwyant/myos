@@ -20,6 +20,7 @@
 #include "syscall.h"
 #include "task.h"
 #include "timer.h"
+#include "vector.h"
 #include "video.h"
 
 #ifdef __cplusplus

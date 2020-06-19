@@ -1,6 +1,8 @@
 #include "kernel.h"
 
 #ifdef __cplusplus
+using namespace kernel;
+
 extern "C" {
 #endif
 
@@ -147,6 +149,17 @@ void show_splash()
 	rect(&r, 1, 0, RGB(255, 255, 255), 0, 64);
 	rect(&r, 0, 8, 0, RGB(0, 0, 128), 192);
 	
+	KVector<const char*> strs;
+	strs.push_back("Hello");
+	strs.push_back("World");
+	strs.push_back("How");
+	strs.push_back("Are");
+	strs.push_back("You?");
+	
+	for (auto i = 0; i < strs.len(); i++)
+	{
+		draw_text(strs[i], 0, i * 32, RGB(255, 255, 255), 255, 16, 32);
+	}
 	
 	static const char *str = "Hello, world!\nI'm Josh!!";
 	int x = 96, y = 192, xsize = 16, ysize = 32;

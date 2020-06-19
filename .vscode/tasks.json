@@ -1,0 +1,50 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Build",
+            "type": "shell",
+            "osx": {
+                "command": "./build"
+            },
+            "group": "build",
+        },
+        {
+            "label": "Package",
+            "type": "shell",
+            "osx": {
+                "command": "./package"
+            },
+            "problemMatcher": [],
+            "group": "build",
+        },
+        {
+            "label": "Build and Package",
+            "dependsOrder":"sequence",
+            "dependsOn": [
+                "Build",
+                "Package",
+            ]
+        },
+        {
+            "label": "Build and run",
+            "dependsOrder":"sequence",
+            "dependsOn": [
+                "Build",
+                "Package",
+                "Launch QEMU",
+            ]
+        },
+        {
+            "label": "Launch QEMU for debugging",
+            "type": "shell",
+            "isBackground": true,
+            "command": "qemu-system-i386 hdd.img -s -S",
+        },
+        {
+            "label": "Launch QEMU",
+            "type": "shell",
+            "command": "qemu-system-i386 hdd.img",
+        }
+    ]
+}

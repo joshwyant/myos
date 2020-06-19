@@ -5,12 +5,12 @@ export PATH=/usr/local/cross/bin:usr/local/cross/i586-elf-bin:$PATH
 echo Build started.
 date
 
-export TARGET=i586-elf
+export TARGET=i686-elf
 export DISKTYPE=FAT32
 export DISKSIZE=33
 export DEFINES="-D"$DISKTYPE" -DDEBUG -DVESA"
-export GCCFLAGS="-c $DEFINES -O2"
-export CPPFLAGS="$GCCFLAGS -fno-exceptions -fno-rtti"
+export CFLAGS="-c $DEFINES -O2 -g"
+export CPPFLAGS="$CFLAGS -fno-exceptions -fno-rtti"
 if [ ! -d bin ] ; then mkdir bin; fi
 if [ -e myos.sym ] ; then rm myos.sym; fi
 
@@ -27,13 +27,14 @@ echo building osldr...
 if [ ! -d obj ] ; then mkdir obj; fi
 nasm init.asm $DEFINES -felf -o./obj/init.o
 nasm isr.asm $DEFINES -O2 -felf -o./obj/isr.o
-$TARGET-gcc $GCCFLAGS video.c -o ./obj/video.o
-$TARGET-gcc $GCCFLAGS disk.c -o ./obj/disk.o
-$TARGET-gcc $GCCFLAGS fat.c -o ./obj/fat.o
-$TARGET-gcc $GCCFLAGS elf.c -o ./obj/elf.o
-$TARGET-gcc $GCCFLAGS osldr.c -o ./obj/osldr.o
+$TARGET-gcc $CFLAGS video.c -o ./obj/video.o
+$TARGET-gcc $CFLAGS disk.c -o ./obj/disk.o
+$TARGET-gcc $CFLAGS fat.c -o ./obj/fat.o
+$TARGET-gcc $CFLAGS elf.c -o ./obj/elf.o
+$TARGET-gcc $CFLAGS osldr.c -o ./obj/osldr.o
 $TARGET-ld -Tosldr.ld
-$TARGET-objcopy ./obj/osldr ../bin/osldr -O binary
+$TARGET-objcopy --strip-debug ./obj/osldr ./obj/osldr-nodbg
+$TARGET-objcopy ./obj/osldr-nodbg ../bin/osldr -O binary
 $TARGET-nm -n ./obj/osldr>>../myos.sym
 
 cd ../kernel
@@ -41,41 +42,42 @@ echo building kernel...
 if [ ! -d obj ] ; then mkdir obj; fi
 nasm startup.S $DEFINES -O2 -felf -o./obj/startup.o
 nasm isr.asm $DEFINES -O2 -felf -o./obj/isr.o
-$TARGET-gcc $GCCFLAGS video.c -o ./obj/video.o
-$TARGET-gcc $GCCFLAGS disk.c -o ./obj/disk.o
-$TARGET-gcc $GCCFLAGS fat.c -o ./obj/fat.o
-$TARGET-gcc $GCCFLAGS elf.c -o ./obj/elf.o
+$TARGET-gcc $CFLAGS video.c -o ./obj/video.o
+$TARGET-gcc $CFLAGS disk.c -o ./obj/disk.o
+$TARGET-gcc $CFLAGS fat.c -o ./obj/fat.o
+$TARGET-gcc $CFLAGS elf.c -o ./obj/elf.o
 $TARGET-gcc $CPPFLAGS kernel.cc -o ./obj/kernel.o
-$TARGET-gcc $GCCFLAGS dictionary.c -o ./obj/dictionary.o
-$TARGET-gcc $GCCFLAGS clock.c -o ./obj/clock.o
-$TARGET-gcc $GCCFLAGS drawing.c -o ./obj/drawing.o
-$TARGET-gcc $GCCFLAGS exceptions.c -o ./obj/exceptions.o
-$TARGET-gcc $GCCFLAGS interrupt.c -o ./obj/interrupt.o
-$TARGET-gcc $GCCFLAGS keyboard.c -o ./obj/keyboard.o
-$TARGET-gcc $GCCFLAGS memory.c -o ./obj/memory.o
-$TARGET-gcc $GCCFLAGS mouse.c -o ./obj/mouse.o
-$TARGET-gcc $GCCFLAGS process.c -o ./obj/process.o
-$TARGET-gcc $GCCFLAGS string.c -o ./obj/string.o
-$TARGET-gcc $GCCFLAGS syscall.c -o ./obj/syscall.o
-$TARGET-gcc $GCCFLAGS task.c -o ./obj/task.o
-$TARGET-gcc $GCCFLAGS timer.c -o ./obj/timer.o
-$TARGET-gcc $GCCFLAGS VESA.c -o ./obj/VESA.o
-$TARGET-ld -s -shared -Tkernel.ld
-$TARGET-ld -s -shared -Tkernel.ld -o ./obj/kernel -Ttext=0xC0000000
+$TARGET-gcc $CFLAGS dictionary.c -o ./obj/dictionary.o
+$TARGET-gcc $CFLAGS clock.c -o ./obj/clock.o
+$TARGET-gcc $CFLAGS drawing.c -o ./obj/drawing.o
+$TARGET-gcc $CFLAGS exceptions.c -o ./obj/exceptions.o
+$TARGET-gcc $CFLAGS interrupt.c -o ./obj/interrupt.o
+$TARGET-gcc $CFLAGS keyboard.c -o ./obj/keyboard.o
+$TARGET-gcc $CFLAGS memory.c -o ./obj/memory.o
+$TARGET-gcc $CFLAGS mouse.c -o ./obj/mouse.o
+$TARGET-gcc $CFLAGS process.c -o ./obj/process.o
+$TARGET-gcc $CFLAGS string.c -o ./obj/string.o
+$TARGET-gcc $CFLAGS syscall.c -o ./obj/syscall.o
+$TARGET-gcc $CFLAGS task.c -o ./obj/task.o
+$TARGET-gcc $CFLAGS timer.c -o ./obj/timer.o
+$TARGET-gcc $CPPFLAGS vector.cc -o ./obj/vector.o
+$TARGET-gcc $CFLAGS VESA.c -o ./obj/VESA.o
+$TARGET-ld -shared -Tkernel.ld
+$TARGET-ld -shared -Tkernel.ld -o ./obj/kernel -Ttext=0xC0000000
 $TARGET-nm -n -D ./obj/kernel>>../myos.sym
 
 cd ../vesadrvr
 echo building vesadrvr.o...
 if [ ! -d obj ] ; then mkdir obj; fi
 nasm $DEFINES -O2 -felf vesadrvr.asm -o./obj/vesa_asm.o
-$TARGET-gcc $GCCFLAGS vesadrvr.c -o ./obj/vesa_c.o
+$TARGET-gcc $CFLAGS vesadrvr.c -o ./obj/vesa_c.o
 $TARGET-ld -i ./obj/vesa_c.o ./obj/vesa_asm.o -o ../bin/vesadrvr.o
 
 cd ../shell
 echo building shell...
 if [ ! -d obj ] ; then mkdir obj; fi
 nasm $DEFINES -O2 -felf crt0.S -o./obj/crt0.o
-$TARGET-gcc $GCCFLAGS shell.c -o ./obj/shell.o
+$TARGET-gcc $CFLAGS shell.c -o ./obj/shell.o
 $TARGET-ld ./obj/crt0.o ./obj/shell.o -o../bin/shell
 $TARGET-nm -n ../bin/shell>>../myos.sym
 

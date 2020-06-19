@@ -77,9 +77,9 @@ int push_cluster(FileStream *fs)
     unsigned nextcluster = next_cluster(fs->data->currentcluster);
     if (eof(nextcluster)) nextcluster = 0;
     // Resize stack if needed
-    if (fs->data->stack_index >= fs->data->clusterstacksize)
+    if (fs->data->stack_index > fs->data->clusterstacksize)
     {
-        unsigned* newptr = kmalloc(fs->data->clusterstacksize*2*sizeof(unsigned));
+        unsigned* newptr = kmalloc((fs->data->clusterstacksize ? fs->data->clusterstacksize*2 : 4)*sizeof(unsigned));
         int i;
         for (i = 0; i < fs->data->stack_index; i++)
             newptr[i] = fs->data->clusterstack[i];
@@ -87,6 +87,10 @@ int push_cluster(FileStream *fs)
         fs->data->clusterstack = newptr;
         // THE BUG IS FIXED! >>>
         fs->data->clusterstacksize *= 2;
+        if (!fs->data->clusterstacksize)
+        {
+            fs->data->clusterstacksize = 4;
+        }
     }
     // Push cluster on stack
     fs->data->clusterstack[fs->data->stack_index++] = fs->data->currentcluster;
@@ -102,7 +106,7 @@ int pop_cluster(FileStream *fs)
     // pop cluster
     fs->data->currentcluster = fs->data->clusterstack[--fs->data->stack_index];
     // Resize stack if needed
-    if (fs->data->stack_index <= fs->data->clusterstacksize/2)
+    if ((fs->data->stack_index < fs->data->clusterstacksize/2) && fs->data->clusterstacksize > 4)
     {
         unsigned* newptr = kmalloc(fs->data->clusterstacksize/2*sizeof(unsigned));
         int i;
@@ -111,7 +115,8 @@ int pop_cluster(FileStream *fs)
         kfree(fs->data->clusterstack);
         fs->data->clusterstack = newptr;
         // THE BUG IS FIXED! >>>
-        fs->data->clusterstacksize /= 2;
+        if (fs->data->clusterstacksize > 4)
+            fs->data->clusterstacksize /= 2;
     }
     return 1;
 }

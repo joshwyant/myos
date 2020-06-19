@@ -25,6 +25,7 @@ INPUT (
 ./obj/syscall.o ,
 ./obj/task.o ,
 ./obj/timer.o ,
+./obj/vector.o ,
 ./obj/VESA.o
 )
 /* Sections */

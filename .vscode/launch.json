@@ -1,0 +1,106 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug Kernel",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceRoot}/kernel/obj/kernel",
+            "cwd": "${workspaceRoot}",
+            "args": [],
+            "sourceFileMap": {
+                "/cygdrive/z/": "~/",
+                "/cygdrive/y/": "~/"
+            },
+            "targetArchitecture": "x86",
+            "MIMode": "gdb",
+            "miDebuggerPath": "/usr/local/bin/gdb",
+            "miDebuggerArgs": "",
+            "customLaunchSetupCommands": [
+                {
+                    "text": "target remote localhost:1234",
+                    "description": "Connect to QEMU remote debugger"
+                }
+            ],
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                },
+                {
+                    "text": "file ${workspaceRoot}/kernel/obj/kernel",
+                    "description": "Load binary."
+                },
+                {
+                    "text": "break divide_error",
+                    "description": "Break on divide by 0 error."
+                },
+                {
+                    "text": "break double_fault",
+                    "description": "Break on double fault."
+                },
+                {
+                    "text": "break gpfault",
+                    "description": "Break on GP fault."
+                },
+                {
+                    "text": "break pgfault",
+                    "description": "Break on page fault."
+                }
+            ],
+            /*"preLaunchTask": "Launch QEMU for debugging"*/
+        },
+
+        {
+            "name": "Debug Loader",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceRoot}/osldr/obj/osldr",
+            "cwd": "${workspaceRoot}",
+            "args": [],
+            "sourceFileMap": {
+                "/cygdrive/z/": "~/",
+                "/cygdrive/y/": "~/"
+            },
+            "targetArchitecture": "x86",
+            "MIMode": "gdb",
+            "miDebuggerPath": "/usr/local/bin/gdb",
+            "miDebuggerArgs": "",
+            "customLaunchSetupCommands": [
+                {
+                    "text": "target remote localhost:1234",
+                    "description": "Connect to QEMU remote debugger"
+                }
+            ],
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                },
+                {
+                    "text": "file ${workspaceRoot}/osldr/obj/osldr",
+                    "description": "Load binary."
+                },
+                {
+                    "text": "break divide_error",
+                    "description": "Break on divide by 0 error."
+                },
+                {
+                    "text": "break double_fault",
+                    "description": "Break on double fault."
+                },
+                {
+                    "text": "break gpfault",
+                    "description": "Break on GP fault."
+                },
+                {
+                    "text": "break pgfault",
+                    "description": "Break on page fault."
+                }
+            ],
+            /*"preLaunchTask": "Launch QEMU for debugging"*/
+        }
+    ]
+}

@@ -208,18 +208,25 @@ int load_driver(const char* filename)
         goto err2;
     }
 
-    Elf32_Shdr *shdrs = kmalloc(sizeof(Elf32_Shdr)*ehdr.e_shnum);
+    volatile Elf32_Shdr *shdrs = kmalloc(sizeof(Elf32_Shdr)*ehdr.e_shnum);
     file_seek(&elf, ehdr.e_shoff);
-    Elf32_Sym *symtab = 0;
+    volatile Elf32_Sym *symtab = 0;
 
     // read section headers
     for (i = 0; i < ehdr.e_shnum; i++)
     {
         file_seek(&elf, ehdr.e_shoff+ehdr.e_shentsize*i);
-        file_read(&elf, &shdrs[i], sizeof(Elf32_Shdr));
+        file_read(&elf, (void*)&shdrs[i], sizeof(Elf32_Shdr));
     }
-    int j, cnt, stlink;
-    Elf32_Shdr *s;
+
+    // Read the section header string table
+    volatile char *shstrtab = kmalloc(shdrs[ehdr.e_shstrndx].sh_size);
+    file_seek(&elf, shdrs[ehdr.e_shstrndx].sh_offset);
+    file_read(&elf, (void*)shstrtab, shdrs[ehdr.e_shstrndx].sh_size);
+
+    int j, cnt;
+    volatile Elf32_Shdr *s;
+    volatile char *strtab;
     // Load sections and symbol table
     for (i = 1; i < ehdr.e_shnum; i++)
     {
@@ -248,31 +255,31 @@ int load_driver(const char* filename)
             }
             break;
         case SHT_SYMTAB:
+            if (kstrcmp(".symtab", (void*)shstrtab+s->sh_name) != 0) break;
             cnt = s->sh_size/s->sh_entsize;
             symtab = kmalloc(cnt*sizeof(Elf32_Sym));
-            stlink = s->sh_link;
             for (j = 0; j < cnt; j++)
             {
                 file_seek(&elf, s->sh_offset+s->sh_entsize*j);
-                file_read(&elf, &symtab[j], sizeof(Elf32_Sym));
+                file_read(&elf, (void*)&symtab[j], sizeof(Elf32_Sym));
             }
+    
+            // Read the linked string table
+            strtab = kmalloc(shdrs[s->sh_link].sh_size);
+            file_seek(&elf, shdrs[s->sh_link].sh_offset);
+            file_read(&elf, (void*)strtab, shdrs[s->sh_link].sh_size);
             break;
         }
     }
-    
-    // Read the string table
-    char *strtab = kmalloc(shdrs[stlink].sh_size);
-    file_seek(&elf, shdrs[stlink].sh_offset);
-    file_read(&elf, strtab, shdrs[stlink].sh_size);
 
-    void* drivermain = 0;
+    volatile void* drivermain = 0;
     static char t[1024];
     // Update symbols
     for (i = 1; i < cnt; i++)
     {
         if (symtab[i].st_shndx == SHN_UNDEF)
         {
-            Elf32_Sym *ksym = find_symbol(strtab + symtab[i].st_name);
+            Elf32_Sym *ksym = find_symbol((void*)strtab + symtab[i].st_name);
             if (ksym)
             {
                 symtab[i].st_shndx = SHN_ABS;
@@ -288,7 +295,7 @@ int load_driver(const char* filename)
         else if (symtab[i].st_shndx < SHN_LORESERVE)
         {
             symtab[i].st_value += (unsigned)shdrs[symtab[i].st_shndx].sh_addr;
-            if (!kstrcmp("driver_main", strtab+symtab[i].st_name)) drivermain = symtab[i].st_value;
+            if (!kstrcmp("driver_main", (void*)strtab+symtab[i].st_name)) drivermain = symtab[i].st_value;
         }
     }
 
@@ -304,23 +311,39 @@ int load_driver(const char* filename)
         s = &shdrs[i];
         if (s->sh_type == SHT_REL)
         {
-            int count = s->sh_size/s->sh_entsize;
-            for (j = 0; j < count; j++)
+            // Avoid relocating debug symbols if we didn't load that section
+            int loaded = 0;
+            switch (shdrs[s->sh_info].sh_type)
             {
-                Elf32_Rel rel;
-                file_seek(&elf, s->sh_offset+j*s->sh_entsize);
-                file_read(&elf, &rel, sizeof(Elf32_Rel));
-                unsigned soff = (unsigned)shdrs[s->sh_info].sh_addr;
-                unsigned* ptr = rel.r_offset + soff;
-                unsigned symval = (unsigned)symtab[ELF32_R_SYM(rel.r_info)].st_value;
-                switch (ELF32_R_TYPE(rel.r_info))
+                case SHT_PROGBITS:
+                case SHT_NOBITS:
+                    if (shdrs[s->sh_info].sh_flags & SHF_ALLOC)
+                    {
+                        loaded = 1;
+                    }
+                    break;
+            }
+            if (loaded)
+            {
+                int count = s->sh_size/s->sh_entsize;
+                for (j = 0; j < count; j++)
                 {
-                case R_386_32:
-                    *ptr += symval;
-                    break;
-                case R_386_PC32:
-                    *ptr += symval - (unsigned)ptr;
-                    break;
+                    Elf32_Rel rel;
+                    file_seek(&elf, s->sh_offset+j*s->sh_entsize);
+                    file_read(&elf, &rel, sizeof(Elf32_Rel));
+                    unsigned soff = (unsigned)shdrs[s->sh_info].sh_addr;
+                    volatile unsigned* ptr = rel.r_offset + soff;
+                    Elf32_Sym sym = symtab[ELF32_R_SYM(rel.r_info)];
+                    unsigned symval = (unsigned)sym.st_value;
+                    switch (ELF32_R_TYPE(rel.r_info))
+                    {
+                    case R_386_32:
+                        *ptr += symval;
+                        break;
+                    case R_386_PC32:
+                        *ptr += symval - (unsigned)ptr;
+                        break;
+                    }
                 }
             }
         }
@@ -336,9 +359,9 @@ int load_driver(const char* filename)
         elf_error = t;
     }
 err1:
-    kfree(strtab);
-    kfree(symtab);
-    kfree(shdrs);
+    kfree((void*)strtab);
+    kfree((void*)symtab);
+    kfree((void*)shdrs);
 err2:
     file_close(&elf);
     return ret;

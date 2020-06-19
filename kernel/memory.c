@@ -315,7 +315,7 @@ void init_paging(loader_info *li)
     unsigned kend = (unsigned)page_bitmap+page_bitmap_size;
     unsigned kpages = (li->memsize+0xFFF)>>12;
     unsigned tpages = (kend-0xC0000000+0xFFF)>>12;
-    int i;
+    volatile int i;
     for (i = kpages; i < tpages; i++)
         page_map((void*)0xC0000000+(i<<12), li->freemem+((i-kpages)<<12), PF_LOCKED|PF_WRITE);
     // Initialize physical memory bitmap.
@@ -361,6 +361,8 @@ void init_paging(loader_info *li)
     //   (Whoops, don't forget these! >>>)
     //   kernel page tables
     ptr = (void*)0xFFC00000;
+    // Optimization changes i < 1024 to ptr < 0x100000000, but due to 32 bits, it wraps to 0 and the condition is optimized out.
+    // Change to volatile?
     for (i = 0; i < 1024; i++, ptr += 0x1000)
     {
         void* ph = get_physaddr(ptr);
