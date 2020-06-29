@@ -62,6 +62,10 @@ static inline void kzeromem(void* dest, unsigned bytes)
 
 #ifdef __cplusplus
 }  // extern "C"
+
+
+
+
 #endif
 
 #endif  // __MEMORY_H__
