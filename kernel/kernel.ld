@@ -6,6 +6,8 @@ ENTRY(_start)
 /* Input files */
 INPUT (
 ./obj/startup.o ,
+./obj/crti.o ,
+./obj/crtbegin.o ,
 ./obj/kernel.o ,
 ./obj/video.o ,
 ./obj/isr.o ,
@@ -17,6 +19,7 @@ INPUT (
 ./obj/drawing.o ,
 ./obj/exceptions.o ,
 ./obj/interrupt.o ,
+./obj/kcpp.o ,
 ./obj/keyboard.o ,
 ./obj/memory.o ,
 ./obj/mouse.o ,
@@ -26,7 +29,9 @@ INPUT (
 ./obj/task.o ,
 ./obj/timer.o ,
 ./obj/vector.o ,
-./obj/VESA.o
+./obj/VESA.o ,
+./obj/crtend.o ,
+./obj/crtn.o
 )
 /* Sections */
 SECTIONS

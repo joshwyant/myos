@@ -1,6 +1,7 @@
 #ifndef __KERNEL_H__
 #define __KERNEL_H__
 
+#include <stddef.h>
 #include "../include/VESA.h"
 #include "../include/loader_info.h"
 #include "VESA.h"
@@ -25,6 +26,14 @@
 
 #ifdef __cplusplus
 extern "C" {
+
+void *operator new(size_t size);
+ 
+void *operator new[](size_t size);
+ 
+void operator delete(void *p);
+ 
+void operator delete[](void *p);
 #endif
 
 // main

@@ -1,9 +1,13 @@
+extern _init
+extern _fini
 extern kmain      ; void kmain()
 global _start
 
 ; Initialization: Go to kmain
 _start:
+call _init  ; global constructors in crti.o/crtbegin.o/crtend.o/crtn.o
 call kmain
+call _fini  ; global destructors in crti.o/crtbegin.o/crtend.o/crtn.o
 ; If the kernel's kmain function returns and the kernel code is still running,
 ; this loop insures that the processor stops until an interrupt is received.
 ; If the interrupt returns to this code, we need to keep halting. Hopefully

@@ -164,6 +164,10 @@ int load_kernel(loader_info *li)
             int sym = ELF32_R_SYM(rel[i].r_info);
             if ((type != R_386_RELATIVE) && (symtab[sym].st_shndx == SHN_UNDEF))
             {
+                if ((ELF32_ST_BIND(symtab[sym].st_info) == STB_WEAK))
+                {
+                    continue;
+                }
                 static char t[256];
                 elf_error = t;
                 ksprintf(t, "Symbol '%s' undefined.", strtab + symtab[sym].st_name);

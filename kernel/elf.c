@@ -285,7 +285,7 @@ int load_driver(const char* filename)
                 symtab[i].st_shndx = SHN_ABS;
                 symtab[i].st_value = ksym->st_value;
             }
-            else
+            else if (ELF32_ST_BIND(ksym->st_info) != STB_WEAK)
             {
                 elf_error = t;
                 ksprintf(elf_error, "Undefined symbol '%s'", strtab+symtab[i].st_name);

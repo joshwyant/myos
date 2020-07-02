@@ -40,8 +40,12 @@ $TARGET-nm -n ./obj/osldr>>../myos.sym
 cd ../kernel
 echo building kernel...
 if [ ! -d obj ] ; then mkdir obj; fi
+ln $($TARGET-gcc $CFLAGS -print-file-name=crtbegin.o) ./obj/crtbegin.o 2> /dev/null || true
+ln $($TARGET-gcc $CFLAGS -print-file-name=crtend.o) ./obj/crtend.o 2> /dev/null || true
 nasm startup.S $DEFINES -O2 -felf -o./obj/startup.o
 nasm isr.asm $DEFINES -O2 -felf -o./obj/isr.o
+$TARGET-as crti.s -O2 -o ./obj/crti.o
+$TARGET-as crtn.s -O2 -o ./obj/crtn.o
 $TARGET-gcc $CFLAGS video.c -o ./obj/video.o
 $TARGET-gcc $CFLAGS disk.c -o ./obj/disk.o
 $TARGET-gcc $CFLAGS fat.c -o ./obj/fat.o
@@ -52,6 +56,7 @@ $TARGET-gcc $CFLAGS clock.c -o ./obj/clock.o
 $TARGET-gcc $CFLAGS drawing.c -o ./obj/drawing.o
 $TARGET-gcc $CFLAGS exceptions.c -o ./obj/exceptions.o
 $TARGET-gcc $CFLAGS interrupt.c -o ./obj/interrupt.o
+$TARGET-gcc $CPPFLAGS kcpp.cc -o ./obj/kcpp.o
 $TARGET-gcc $CFLAGS keyboard.c -o ./obj/keyboard.o
 $TARGET-gcc $CFLAGS memory.c -o ./obj/memory.o
 $TARGET-gcc $CFLAGS mouse.c -o ./obj/mouse.o
