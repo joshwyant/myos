@@ -26,7 +26,14 @@ void loader_main()
     // Interrupt related
     kbd_init(); // dependent on IDT and PIC
     
-    loader_info li = { (void*)0x00001000, 0, 0, 0, &VESAMode };
+
+
+#ifdef VESA
+    vbe_mode_info *pVESAMode = &VESAMode;
+#else
+    vbe_mode_info *pVESAMode = 0;
+#endif
+    loader_info li = { (void*)0x00001000, 0, 0, 0, pVESAMode };
     if (!load_kernel(&li))
     {
         kprintf("Error: could not load the kernel: %s", elf_last_error());

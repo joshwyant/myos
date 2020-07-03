@@ -66,7 +66,9 @@ void bsod(const char* msg)
     cls();
     print(msg);
     // Make the text display white on blue
-    for (i = 1; i < 4000; i += 2) videomem[i] = 0x1F;
+    int chars = get_console_rows() * get_console_cols();
+    volatile char *videomem = get_console_videomem();
+    for (i = 1; i < chars * 2; i += 2) videomem[i] = 0x1F;
     do hlt(); while (1);
 }
 
@@ -111,6 +113,8 @@ void dump_stack(const char* msg, unsigned edi, unsigned esi, unsigned ebp, unsig
         kprintf("\n  SS:%l %l", esp, val);
     }
     // Make the text display white on blue
-    for (i = 1; i < 4000; i += 2) videomem[i] = 0x1F;
+    int chars = get_console_rows() * get_console_cols();
+    volatile char *videomem = get_console_videomem();
+    for (i = 1; i < chars * 2; i += 2) videomem[i] = 0x1F;
     do hlt(); while (1);
 }

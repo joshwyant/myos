@@ -8,7 +8,7 @@ date
 export TARGET=i686-elf
 export DISKTYPE=FAT32
 export DISKSIZE=33
-export DEFINES="-D"$DISKTYPE" -DDEBUG -DVESA"
+export DEFINES="-D$DISKTYPE -DDEBUG -DVESA"
 export CFLAGS="-c $DEFINES -O2 -g"
 export CPPFLAGS="$CFLAGS -fno-exceptions -fno-rtti"
 if [ ! -d bin ] ; then mkdir bin; fi
@@ -46,7 +46,7 @@ nasm startup.S $DEFINES -O2 -felf -o./obj/startup.o
 nasm isr.asm $DEFINES -O2 -felf -o./obj/isr.o
 $TARGET-as crti.s -O2 -o ./obj/crti.o
 $TARGET-as crtn.s -O2 -o ./obj/crtn.o
-$TARGET-gcc $CFLAGS video.c -o ./obj/video.o
+$TARGET-gcc $CPPFLAGS video.cc -o ./obj/video.o
 $TARGET-gcc $CFLAGS disk.c -o ./obj/disk.o
 $TARGET-gcc $CFLAGS fat.c -o ./obj/fat.o
 $TARGET-gcc $CFLAGS elf.c -o ./obj/elf.o

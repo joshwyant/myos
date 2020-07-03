@@ -51,13 +51,17 @@ void kmain(loader_info *li)
     // System call interface (int 0x30)
     init_syscalls();
 
-	// Temporary VESA mode
-	init_vesa();
+    if (li->vbe)
+    {
+        // Temporary VESA mode
+        init_vesa();
+        init_graphical_console();
 	
-    //demo();
-	show_splash();
-	
-	init_mouse();
+        //demo();
+        show_splash();
+        
+        init_mouse();
+    }
 
     // Load the shell
     start_shell();
