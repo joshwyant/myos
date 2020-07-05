@@ -53,20 +53,20 @@ $TARGET-gcc $CFLAGS elf.c -o ./obj/elf.o
 $TARGET-gcc $CPPFLAGS kernel.cc -o ./obj/kernel.o
 $TARGET-gcc $CFLAGS dictionary.c -o ./obj/dictionary.o
 $TARGET-gcc $CFLAGS clock.c -o ./obj/clock.o
-$TARGET-gcc $CFLAGS drawing.c -o ./obj/drawing.o
+$TARGET-gcc $CPPFLAGS drawing.cc -o ./obj/drawing.o
 $TARGET-gcc $CFLAGS exceptions.c -o ./obj/exceptions.o
 $TARGET-gcc $CFLAGS interrupt.c -o ./obj/interrupt.o
 $TARGET-gcc $CPPFLAGS kcpp.cc -o ./obj/kcpp.o
 $TARGET-gcc $CFLAGS keyboard.c -o ./obj/keyboard.o
 $TARGET-gcc $CFLAGS memory.c -o ./obj/memory.o
-$TARGET-gcc $CFLAGS mouse.c -o ./obj/mouse.o
+$TARGET-gcc $CPPFLAGS mouse.cc -o ./obj/mouse.o
 $TARGET-gcc $CFLAGS process.c -o ./obj/process.o
 $TARGET-gcc $CFLAGS string.c -o ./obj/string.o
 $TARGET-gcc $CFLAGS syscall.c -o ./obj/syscall.o
 $TARGET-gcc $CFLAGS task.c -o ./obj/task.o
 $TARGET-gcc $CFLAGS timer.c -o ./obj/timer.o
 $TARGET-gcc $CPPFLAGS vector.cc -o ./obj/vector.o
-$TARGET-gcc $CFLAGS VESA.c -o ./obj/VESA.o
+$TARGET-gcc $CPPFLAGS VESA.cc -o ./obj/VESA.o
 $TARGET-ld -shared -Tkernel.ld
 $TARGET-ld -shared -Tkernel.ld -o ./obj/kernel -Ttext=0xC0000000
 $TARGET-nm -n -D ./obj/kernel>>../myos.sym

@@ -129,13 +129,14 @@ void init_loader_info()
 
 void show_splash()
 {
+    auto ctx = kernel::GraphicsDriver::get_current()->get_screen_context();
 	clear_color(RGB(0, 0, 0));
 	
     Bitmap b;
     if (read_bitmap(&b, "/system/bin/splash"))
     {
 		RECT src = {0, 0, b.width, b.height};
-		RECT dest = {0, 0, vesaMode.width, vesaMode.height};
+		RECT dest = {0, 0, ctx->get_width(), ctx->get_height()};
 		for (int color = 0; color <= 255; color += 17)
 		{
 			draw_image_ext(&b, &src, &dest, 255, RGB(color, color, color));
@@ -149,7 +150,7 @@ void show_splash()
     }
 	
 	// TODO: Remove
-	RECT r = {64, 160, vesaMode.width - 64, vesaMode.height - 160};
+	RECT r = {64, 160, ctx->get_width() - 64, ctx->get_height() - 160};
 	rect(&r, 1, 0, RGB(255, 255, 255), 0, 64);
 	rect(&r, 0, 8, 0, RGB(0, 0, 128), 192);
 	

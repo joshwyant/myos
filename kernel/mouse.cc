@@ -1,5 +1,7 @@
 #include "kernel.h"
 
+extern "C" {
+
 MOUSE_PACKET mouse_packet = {0, 0, 0};
 int mouse_screen_x;
 int mouse_screen_y;
@@ -34,16 +36,18 @@ void init_mouse()
   //Enable the mouse
   mouse_write(0xF4);
   mouse_read();  //Acknowledge
+
+  auto ctx = kernel::GraphicsDriver::get_current()->get_screen_context();
   
-  mouse_screen_x = vesaMode.width / 2;
-  mouse_screen_y = vesaMode.height / 2;
+  mouse_screen_x = ctx->get_width() / 2;
+  mouse_screen_y = ctx->get_height() / 2;
   
   read_bitmap(&cursor, "/system/bin/cursor");
   
   show_mouse_cursor(1);
 
   //Setup the mouse handler
-  register_isr(0x2c, 0, irq12);
+  register_isr(0x2c, 0, (void*)irq12);
   irq_unmask(12);
 }
 
@@ -61,6 +65,7 @@ void draw_mouse_cursor(int x, int y)
 //Mouse functions
 void handle_mouse(void *a_r) //struct regs *a_r (not used but just there)
 {
+  	auto ctx = kernel::GraphicsDriver::get_current()->get_screen_context();
 	unsigned char b = inb(0x60);
 	switch(mouse_cycle)
 	{
@@ -96,8 +101,8 @@ void handle_mouse(void *a_r) //struct regs *a_r (not used but just there)
 		// Clip the mouse position
 		if (mouse_screen_x < 0) mouse_screen_x = 0;
 		if (mouse_screen_y < 0) mouse_screen_y = 0;
-		if (mouse_screen_x >= vesaMode.width) mouse_screen_x = vesaMode.width - 1;
-		if (mouse_screen_y >= vesaMode.height) mouse_screen_y = vesaMode.height - 1;
+		if (mouse_screen_x >= ctx->get_width()) mouse_screen_x = ctx->get_width() - 1;
+		if (mouse_screen_y >= ctx->get_height()) mouse_screen_y = ctx->get_height() - 1;
 		
 		if (bMouseVisible)
 		{
@@ -128,3 +133,5 @@ void show_mouse_cursor(int bShow)
 	}
 	mouse_visible = bShow;
 }
+
+}  // extern "C"

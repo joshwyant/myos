@@ -2,6 +2,8 @@
 #define __DRAWING_H__
 
 #include "VESA.h"
+#include "video.h"
+#include "kernel.h"
 
 #define RGB(r, g, b) ((r) | (g) << 8 | (b) << 16)
 #define RGBA(r, g, b, a) ((r) | (g) << 8 | (b) << 16 | (a) << 24)
@@ -12,7 +14,6 @@
 
 #ifdef __cplusplus
 extern "C" {
-#endif
 
 typedef struct
 {
@@ -66,8 +67,9 @@ void rect(RECT *r, char bSolid, int iborder, int c, int cborder, int opacity);
 void invert_rect(RECT *r);
 void screen_to_buffer(RECT *r, unsigned char *buffer);
 void buffer_to_screen(unsigned char *buffer, RECT *r);
-int read_bitmap(Bitmap *b, const char *filename);
 void draw_text(const char *str, int x, int y, int c, int opacity, int xsize, int ysize);
+
+int read_bitmap(Bitmap *b, const char *filename);
 
 inline static void swap_int(int *a, int *b)
 {
@@ -99,11 +101,6 @@ inline static void rect_clip(RECT *r, RECT clip)
 	if (r->y1 > clip.y2) r->y1 = clip.y2;
 	if (r->x2 > clip.x2) r->x2 = clip.x2;
 	if (r->y2 > clip.y2) r->y2 = clip.y2;
-}
-
-inline static unsigned char * get_screen_pixel_address(int x, int y, int stride, int pixelWidth)
-{
-	return frameBuffer + y * stride + x * pixelWidth;
 }
 
 inline static unsigned char * get_bitmap_pixel_address(Bitmap *bmp, int x, int y, int stride, int pixelWidth)
@@ -139,40 +136,224 @@ inline static int get_pixel(unsigned char *pixel)
 	return RGB(pixel[2], pixel[1], pixel[0]);
 }
 
-inline static void get_screen_metrics(int *stride, int *pixelWidth)
-{
-	*pixelWidth = vesaMode.bpp >> 3;
-	*stride = vesaMode.width**pixelWidth;
-}
-
 inline static void get_bitmap_metrics(Bitmap *bmp, int *stride, int *pixelWidth)
 {
 	*pixelWidth = bmp->bpp >> 3;
 	*stride = bmp->width**pixelWidth;
 }
-
-inline static void clip_to_screen(RECT *draw_r)
-{
-	RECT screen_clip = {0, 0, vesaMode.width, vesaMode.height};
-	rect_clip(draw_r, screen_clip);
-}
-
-inline static void set_screen_pixel(int x, int y, int c)
-{
-	int stride, pixelWidth;
-	get_screen_metrics(&stride, &pixelWidth);
-	return set_pixel(get_screen_pixel_address(x, y, stride, pixelWidth), c);
-}
-
-inline static int get_screen_pixel(int x, int y)
-{
-	int stride, pixelWidth;
-	get_screen_metrics(&stride, &pixelWidth);
-	return get_pixel(get_screen_pixel_address(x, y, stride, pixelWidth));
-}
+#endif
 
 #ifdef __cplusplus
 }  // extern "C"
-#endif
 
+namespace kernel
+{
+class GraphicsContext
+{
+public:
+    virtual void clear_color(int c) = 0;
+    virtual void bitblt(Bitmap *bmp, int x, int y) = 0;
+    virtual void draw_image(Bitmap *bmp, int x, int y, int opacity) = 0;
+    virtual void draw_image_bgra(Bitmap *bmp, int x, int y, int opacity) = 0;
+    virtual void draw_image_ext(Bitmap *bmp, RECT *src, RECT *dest, int opacity, int c) = 0;
+    virtual void rect(RECT *r, char bSolid, int iborder, int c, int cborder, int opacity) = 0;
+    virtual void invert_rect(RECT *r) = 0;
+    virtual void screen_to_buffer(RECT *r, unsigned char *buffer) = 0;
+    virtual void buffer_to_screen(unsigned char *buffer, RECT *r) = 0;
+    virtual void draw_text(const char *str, int x, int y, int c, int opacity, int xsize, int ysize) = 0;
+    virtual int get_width() = 0;
+    virtual int get_height() = 0;
+    virtual unsigned char *get_frame_buffer() = 0;
+    virtual int get_bpp() = 0;
+    virtual int get_stride() = 0;
+
+	unsigned char * get_screen_pixel_address(int x, int y, int stride, int pixelWidth)
+	{
+		return (unsigned char *)get_frame_buffer() + y * stride + x * pixelWidth;
+	}
+
+	void get_screen_metrics(int *stride, int *pixelWidth)
+	{
+		*pixelWidth = get_bpp() >> 3;
+		*stride = get_stride();
+	}
+
+	void clip_to_screen(RECT *draw_r)
+	{
+		RECT screen_clip = {0, 0, get_width(), get_height()};
+		rect_clip(draw_r, screen_clip);
+	}
+
+	void set_screen_pixel(int x, int y, int c)
+	{
+		int stride, pixelWidth;
+		get_screen_metrics(&stride, &pixelWidth);
+		return set_pixel(get_screen_pixel_address(x, y, stride, pixelWidth), c);
+	}
+
+	int get_screen_pixel(int x, int y)
+	{
+		int stride, pixelWidth;
+		get_screen_metrics(&stride, &pixelWidth);
+		return get_pixel(get_screen_pixel_address(x, y, stride, pixelWidth));
+	}
+}; // class GraphicsDriver
+
+class BufferedGraphicsContext
+    : public GraphicsContext
+{
+public:
+    virtual GraphicsContext *get_raw_context() = 0;
+    virtual void swap_buffers() = 0;
+}; // class BufferedGraphicsContext
+
+class MemoryGraphicsContext
+	: public GraphicsContext
+{
+public:
+	MemoryGraphicsContext(unsigned char *buffer, int bpp, int width, int height, int stride = 0)
+	{
+		this->stride = stride ? stride : width * bpp >> 3;
+		this->own_buffer = buffer ? false : true;
+		this->buffer = buffer ? buffer : new unsigned char[height * stride];
+		this->bpp = bpp;
+		this->width = width;
+		this->height = height;
+	}
+	~MemoryGraphicsContext()
+	{
+		if (own_buffer && buffer)
+		{
+			delete[] buffer;
+		}
+	}
+    void clear_color(int c) override;
+    void bitblt(Bitmap *bmp, int x, int y) override;
+    void draw_image(Bitmap *bmp, int x, int y, int opacity) override;
+    void draw_image_bgra(Bitmap *bmp, int x, int y, int opacity) override;
+    void draw_image_ext(Bitmap *bmp, RECT *src, RECT *dest, int opacity, int c) override;
+    void rect(RECT *r, char bSolid, int iborder, int c, int cborder, int opacity) override;
+    void invert_rect(RECT *r) override;
+    void screen_to_buffer(RECT *r, unsigned char *buffer) override;
+    void buffer_to_screen(unsigned char *buffer, RECT *r) override;
+    void draw_text(const char *str, int x, int y, int c, int opacity, int xsize, int ysize) override;
+    int get_width() override { return width; }
+    int get_height() override { return height; }
+    unsigned char *get_frame_buffer() override { return buffer; }
+    int get_bpp() override { return bpp; }
+    int get_stride() override { return stride; }
+	MemoryGraphicsContext subcontext(RECT r)
+	{
+		RECT clipped_rect = r;
+		clip_to_screen(&clipped_rect);
+		return MemoryGraphicsContext(buffer + (r.x1 * bpp >> 3), r.x2 - r.x1, r.y2 - r.y1, stride);
+	}
+protected:
+	int width, height, stride, bpp;
+	unsigned char *buffer;
+	bool own_buffer;
+}; // class MemoryGraphicsContext
+
+class BufferedMemoryGraphicsContext
+	: public BufferedGraphicsContext
+{
+public:
+	BufferedMemoryGraphicsContext(MemoryGraphicsContext *raw_context)
+	{
+		own_raw_context = false;
+		this->raw_context = raw_context;
+		this->buffer_context 
+			= new MemoryGraphicsContext(
+				nullptr,
+				raw_context->get_bpp(),
+				raw_context->get_width(),
+				raw_context->get_height(),
+				raw_context->get_stride());
+	}
+	BufferedMemoryGraphicsContext(int bpp, int width, int height, int stride = 0)
+	{
+		own_raw_context = true;
+		this->raw_context = new MemoryGraphicsContext(nullptr, width, height, stride);
+		this->buffer_context = new MemoryGraphicsContext(nullptr, width, height, stride);
+	}
+	~BufferedMemoryGraphicsContext()
+	{
+		if (own_raw_context && raw_context)
+		{
+			delete raw_context;
+		}
+		delete buffer_context;
+	}
+    void clear_color(int c) override
+	{
+		buffer_context->clear_color(c);
+	}
+    void bitblt(Bitmap *bmp, int x, int y) override
+	{
+		buffer_context->bitblt(bmp, x, y);
+	}
+    void draw_image(Bitmap *bmp, int x, int y, int opacity) override
+	{
+		buffer_context->draw_image(bmp, x, y, opacity);
+	}
+    void draw_image_bgra(Bitmap *bmp, int x, int y, int opacity) override
+	{
+		buffer_context->draw_image_bgra(bmp, x, y, opacity);
+	}
+    void draw_image_ext(Bitmap *bmp, RECT *src, RECT *dest, int opacity, int c) override
+	{
+		buffer_context->draw_image_ext(bmp, src, dest, opacity, c);
+	}
+    void rect(RECT *r, char bSolid, int iborder, int c, int cborder, int opacity) override
+	{
+		buffer_context->rect(r, bSolid, iborder, c, cborder, opacity);
+	}
+    void invert_rect(RECT *r) override
+	{
+		buffer_context->invert_rect(r);
+	}
+    void screen_to_buffer(RECT *r, unsigned char *buffer) override
+	{
+		buffer_context->screen_to_buffer(r, buffer);
+	}
+    void buffer_to_screen(unsigned char *buffer, RECT *r) override
+	{
+		buffer_context->buffer_to_screen(buffer, r);
+	}
+    void draw_text(const char *str, int x, int y, int c, int opacity, int xsize, int ysize) override
+	{
+		buffer_context->draw_text(str, x, y, c, opacity, xsize, ysize);
+	}
+    int get_width() override
+	{
+		return buffer_context->get_width();
+	}
+    int get_height() override
+	{
+		return buffer_context->get_height();
+	}
+    unsigned char *get_frame_buffer() override
+	{
+		return buffer_context->get_frame_buffer();
+	}
+    int get_bpp() override
+	{
+		return buffer_context->get_bpp();
+	}
+    int get_stride() override
+	{
+		return buffer_context->get_stride();
+	}
+
+	// BufferedGraphicsContext members
+    GraphicsContext *get_raw_context() override;
+    void swap_buffers() override;
+protected:
+	MemoryGraphicsContext *raw_context;
+	MemoryGraphicsContext *buffer_context;
+	bool own_raw_context;
+}; // class BufferedMemoryGraphicsContext
+
+}	 	// namespace kernel
+#endif  // __cplusplus
 #endif  // __DRAWING_H__

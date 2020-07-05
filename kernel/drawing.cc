@@ -1,18 +1,101 @@
 #include "kernel.h"
 
+extern "C" {
+
 void clear_color(int c)
+{
+	kernel::GraphicsDriver::get_current()
+		->get_screen_context()
+		->get_raw_context()
+		->clear_color(c);
+}
+void bitblt(Bitmap *bmp, int x, int y)
+{
+	kernel::GraphicsDriver::get_current()
+		->get_screen_context()
+		->get_raw_context()
+		->bitblt(bmp, x, y);
+}
+void draw_image(Bitmap *bmp, int x, int y, int opacity)
+{
+	kernel::GraphicsDriver::get_current()
+		->get_screen_context()
+		->get_raw_context()
+		->draw_image(bmp, x, y, opacity);
+}
+void draw_image_bgra(Bitmap *bmp, int x, int y, int opacity)
+{
+	kernel::GraphicsDriver::get_current()
+		->get_screen_context()
+		->get_raw_context()
+		->draw_image_bgra(bmp, x, y, opacity);
+}
+void draw_image_ext(Bitmap *bmp, RECT *src, RECT *dest, int opacity, int c)
+{
+	kernel::GraphicsDriver::get_current()
+		->get_screen_context()
+		->get_raw_context()
+		->draw_image_ext(bmp, src, dest, opacity, c);
+}
+void rect(RECT *r, char bSolid, int iborder, int c, int cborder, int opacity)
+{
+	kernel::GraphicsDriver::get_current()
+		->get_screen_context()
+		->get_raw_context()
+		->rect(r, bSolid, iborder, c, cborder, opacity);
+}
+void invert_rect(RECT *r)
+{
+	kernel::GraphicsDriver::get_current()
+		->get_screen_context()
+		->get_raw_context()
+		->invert_rect(r);
+}
+void screen_to_buffer(RECT *r, unsigned char *buffer)
+{
+	kernel::GraphicsDriver::get_current()
+		->get_screen_context()
+		->get_raw_context()
+		->screen_to_buffer(r, buffer);
+}
+void buffer_to_screen(unsigned char *buffer, RECT *r)
+{
+	kernel::GraphicsDriver::get_current()
+		->get_screen_context()
+		->get_raw_context()
+		->buffer_to_screen(buffer, r);
+}
+void draw_text(const char *str, int x, int y, int c, int opacity, int xsize, int ysize)
+{
+	kernel::GraphicsDriver::get_current()
+		->get_screen_context()
+		->get_raw_context()
+		->draw_text(str, x, y, c, opacity, xsize, ysize);
+}
+
+} // extern "C"
+
+void kernel::MemoryGraphicsContext::clear_color(int c)
 {
 	int stride, pixelWidth;
 	get_screen_metrics(&stride, &pixelWidth);
 	
-	unsigned char *end = frameBuffer + stride * vesaMode.height;
-	for (unsigned char *pixel = frameBuffer; pixel != end; pixel += pixelWidth)
+	unsigned char *line_begin = get_frame_buffer();
+	unsigned char *line_end = line_begin + get_width() * pixelWidth;
+	unsigned char *end = line_begin + stride * get_height();
+	for (unsigned char *pixel = get_frame_buffer(); pixel < end; pixel += pixelWidth)
 	{
+		if (pixel == line_end)
+		{
+			line_begin += stride;
+			pixel = line_begin;
+			if (pixel >= end) break;
+		}
 		set_pixel(pixel, c);
 	}
 }
 
-void draw_text(const char *str, int x, int y, int color, int opacity, int xsize, int ysize)
+void kernel::MemoryGraphicsContext::draw_text(const char *str, int x, int y, int color, int opacity, int xsize, int ysize)
 {
 	static Bitmap font, *pFont = 0;
 	if (!pFont)
@@ -45,7 +128,7 @@ void draw_text(const char *str, int x, int y, int color, int opacity, int xsize,
 	}
 }
 
-void bitblt(Bitmap *bmp, int x, int y)
+void kernel::MemoryGraphicsContext::bitblt(Bitmap *bmp, int x, int y)
 {
 	unsigned char *bitmap_pixel, *screen_pixel, *end_screen_pixel;
 	int stride, pixelWidth, bmpStride, bmpPixelWidth;
@@ -70,7 +153,7 @@ void bitblt(Bitmap *bmp, int x, int y)
 	}
 }
 
-void draw_image(Bitmap *bmp, int x, int y, int opacity)
+void kernel::MemoryGraphicsContext::draw_image(Bitmap *bmp, int x, int y, int opacity)
 {
 	if (bmp->bpp > 24)
 	{
@@ -112,7 +195,7 @@ void draw_image(Bitmap *bmp, int x, int y, int opacity)
 	}
 }
 
-void draw_image_bgra(Bitmap *bmp, int x, int y, int opacity)
+void kernel::MemoryGraphicsContext::draw_image_bgra(Bitmap *bmp, int x, int y, int opacity)
 {
 	if (bmp->bpp <= 24)
 	{
@@ -150,7 +233,7 @@ void draw_image_bgra(Bitmap *bmp, int x, int y, int opacity)
 	}
 }
 
-void draw_image_ext(Bitmap *bmp, RECT *src, RECT *dest, int opacity, int c)
+void kernel::MemoryGraphicsContext::draw_image_ext(Bitmap *bmp, RECT *src, RECT *dest, int opacity, int c)
 {
 	if (opacity == 0) return;
 	unsigned char *bitmap_pixel, *screen_pixel, *end_screen_pixel;
@@ -193,7 +276,7 @@ void draw_image_ext(Bitmap *bmp, RECT *src, RECT *dest, int opacity, int c)
 	}
 }
 
-void invert_rect(RECT *r)
+void kernel::MemoryGraphicsContext::invert_rect(RECT *r)
 {
 	int stride, pixelWidth;
 	get_screen_metrics(&stride, &pixelWidth);
@@ -214,7 +297,7 @@ void invert_rect(RECT *r)
 }
 
 // Unclipped screen coordinates. Buffer size is same as rectangle size. Assumes buffer is 24bpp.
-void screen_to_buffer(RECT *r, unsigned char *buffer)
+void kernel::MemoryGraphicsContext::screen_to_buffer(RECT *r, unsigned char *buffer)
 {
 	int stride, pixelWidth;
 	get_screen_metrics(&stride, &pixelWidth);
@@ -241,7 +324,7 @@ void screen_to_buffer(RECT *r, unsigned char *buffer)
 }
 
 // Unclipped screen coordinates. Buffer size is same as rectangle size.
-void buffer_to_screen(unsigned char *buffer, RECT *r)
+void kernel::MemoryGraphicsContext::buffer_to_screen(unsigned char *buffer, RECT *r)
 {
 	int stride, pixelWidth;
 	get_screen_metrics(&stride, &pixelWidth);
@@ -267,7 +350,7 @@ void buffer_to_screen(unsigned char *buffer, RECT *r)
 	}
 }
 
-void rect(RECT *r, char bSolid, int iborder, int c, int cborder, int opacity)
+void kernel::MemoryGraphicsContext::rect(RECT *r, char bSolid, int iborder, int c, int cborder, int opacity)
 {
 	int y;
 	unsigned char *pixel;
@@ -351,6 +434,36 @@ void rect(RECT *r, char bSolid, int iborder, int c, int cborder, int opacity)
 			set_pixel_opacity(pixel, cborder, opacity);
 		}
 	}
+}
+
+void kernel::BufferedGraphicsContext::swap_buffers()
+{
+	unsigned char *buffer_pixel, *screen_pixel, *end_screen_pixel;
+	int stride, pixelWidth;
+	get_screen_metrics(&stride, &pixelWidth);
+	
+	for (int y = 0; y < get_height(); y++)
+	{
+		screen_pixel = get_raw_context()->get_screen_pixel_address(0, y, stride, pixelWidth);
+		buffer_pixel = get_screen_pixel_address(0, y, stride, pixelWidth);
+		end_screen_pixel = screen_pixel + get_width() * pixelWidth;
+		for (; screen_pixel < end_screen_pixel; screen_pixel += pixelWidth, buffer_pixel += pixelWidth)
+		{
+			screen_pixel[0] = buffer_pixel[0];
+			screen_pixel[1] = buffer_pixel[1];
+			screen_pixel[2] = buffer_pixel[2];
+		}
+	}
+}
+
+// BufferedGraphicsContext members
+kernel::GraphicsContext *kernel::BufferedMemoryGraphicsContext::get_raw_context()
+{
+	return raw_context;
+}
+void kernel::BufferedMemoryGraphicsContext::swap_buffers()
+{
+	// TODO
 }
 
 int read_bitmap(Bitmap *b, const char *filename)

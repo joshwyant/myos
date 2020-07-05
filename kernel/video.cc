@@ -2,6 +2,8 @@
 
 static kernel::ConsoleDriver *console;
 static kernel::TextModeConsoleDriver *text_mode_console;
+static kernel::GraphicsDriver *graphics_driver;
+kernel::GraphicsDriver *kernel::GraphicsDriver::current;
 
 #ifdef __cplusplus
 extern "C" {

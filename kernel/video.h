@@ -2,6 +2,8 @@
 #define __video_h__
 
 #include "kernel.h"
+#include "drawing.h"
+#include "klib.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -154,8 +156,12 @@ protected:
 class GraphicsDriver
 {
 public:
-
-}; // class GraphicsDriver
+    virtual BufferedGraphicsContext *get_screen_context() = 0;
+    static GraphicsDriver *get_current() { return current; }
+    static void set_current(GraphicsDriver *driver) { current = driver; }
+protected:
+    static GraphicsDriver *current;
+}; // class GraphicsContext
 }  // namespace kernel
 #endif // __cplusplus
 #endif // __video_h__
