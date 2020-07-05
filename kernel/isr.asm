@@ -3,6 +3,7 @@ global irq1
 global irq8
 global irq12
 global int0
+global int7
 global int8
 global intd
 global inte
@@ -12,6 +13,7 @@ extern handle_timer
 extern handle_keyboard
 extern handle_clock
 extern handle_mouse
+extern fpu_task_switch
 extern divide_error
 extern double_fault
 extern gpfault
@@ -31,6 +33,12 @@ pusha
 call double_fault
 popa
 add esp,4 ; remove error code
+iret
+
+int7:
+pusha
+call fpu_task_switch
+popa
 iret
 
 intd:

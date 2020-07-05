@@ -5,6 +5,8 @@ void init_exceptions()
 {
     // Division error
     register_trap(0x0,0,(void*)int0);
+    // FPU task switch
+    register_trap(0x7,0,(void*)int7);
     // Double fault
     register_trap(0x8,0,(void*)int8);
     // General protection fault

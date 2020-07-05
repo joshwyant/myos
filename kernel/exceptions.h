@@ -8,6 +8,7 @@ extern "C" {
 extern void init_exceptions();
 
 extern void int0(); // divide error
+extern void int7(); // FPU task switch
 extern void int8(); // double fault
 extern void intd(); // gpf
 extern void inte(); // pgf

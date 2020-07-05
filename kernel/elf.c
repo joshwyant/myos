@@ -157,6 +157,7 @@ int process_start(const char* filename)
     p->esp = 0xBFFFFFBC;
     p->priority = 3;
     p->vm8086 = 0;
+    p->fpu_saved = 0;
     process_enqueue(p);
     return 1;
 }

@@ -168,6 +168,120 @@ static inline int lock(int* ptr)
     return prev;
 }
 
+// Based on https://wiki.osdev.org/CPUID:
+#define CPUID_VENDOR_OLDAMD       "AMDisbetter!" /* early engineering samples of AMD K5 processor */
+#define CPUID_VENDOR_AMD          "AuthenticAMD"
+#define CPUID_VENDOR_INTEL        "GenuineIntel"
+#define CPUID_VENDOR_VIA          "CentaurHauls"
+#define CPUID_VENDOR_OLDTRANSMETA "TransmetaCPU"
+#define CPUID_VENDOR_TRANSMETA    "GenuineTMx86"
+#define CPUID_VENDOR_CYRIX        "CyrixInstead"
+#define CPUID_VENDOR_CENTAUR      "CentaurHauls"
+#define CPUID_VENDOR_NEXGEN       "NexGenDriven"
+#define CPUID_VENDOR_UMC          "UMC UMC UMC "
+#define CPUID_VENDOR_SIS          "SiS SiS SiS "
+#define CPUID_VENDOR_NSC          "Geode by NSC"
+#define CPUID_VENDOR_RISE         "RiseRiseRise"
+#define CPUID_VENDOR_VORTEX       "Vortex86 SoC"
+#define CPUID_VENDOR_VIA2         "VIA VIA VIA "
+
+/*Vendor-strings from Virtual Machines.*/
+#define CPUID_VENDOR_VMWARE       "VMwareVMware"
+#define CPUID_VENDOR_XENHVM       "XenVMMXenVMM"
+#define CPUID_VENDOR_MICROSOFT_HV "Microsoft Hv"
+#define CPUID_VENDOR_PARALLELS    " lrpepyh vr"
+
+#define CPUID_FEAT_ECX_SSE3         1 << 0      // streaming SIMD extensions 3 (SSE3)
+#define CPUID_FEAT_ECX_PCLMUL       1 << 1
+#define CPUID_FEAT_ECX_DTES64       1 << 2
+#define CPUID_FEAT_ECX_MONITOR      1 << 3      // monitor/mwait
+#define CPUID_FEAT_ECX_DS_CPL       1 << 4      // CPL qualified debug store
+#define CPUID_FEAT_ECX_VMX          1 << 5      // virtual machine extensions
+#define CPUID_FEAT_ECX_SMX          1 << 6      // safer mode extensions
+#define CPUID_FEAT_ECX_EST          1 << 7      // enhanced Intel SpeedStep(R) technology
+#define CPUID_FEAT_ECX_TM2          1 << 8      // thermal monitor 2
+#define CPUID_FEAT_ECX_SSSE3        1 << 9      // supplemental streaming SIMD extensions 3 (SSSSE3)
+#define CPUID_FEAT_ECX_CNXT_ID      1 << 10     // L1 context ID
+#define CPUID_FEAT_ECX_FMA          1 << 12
+#define CPUID_FEAT_ECX_CMPXCHG16B   1 << 13     // cmpxchg16b available
+#define CPUID_FEAT_ECX_xTPR_UPDATE  1 << 14     // xTPR update control
+#define CPUID_FEAT_ECX_PDCM         1 << 15     // performance and debug capability
+#define CPUID_FEAT_ECX_PCIDE        1 << 17 
+#define CPUID_FEAT_ECX_DCA          1 << 18     // memory-mapped device prefetching
+#define CPUID_FEAT_ECX_SSE4_1       1 << 19     // SSE4.1
+#define CPUID_FEAT_ECX_SSE4_2       1 << 20     // SSE4.2
+#define CPUID_FEAT_ECX_x2APIC       1 << 21     // x2APIC available
+#define CPUID_FEAT_ECX_MOVBE        1 << 22     // movbe available
+#define CPUID_FEAT_ECX_POPCNT       1 << 23     // popcnt available
+#define CPUID_FEAT_ECX_AES          1 << 25     
+#define CPUID_FEAT_ECX_XSAVE        1 << 26     // xsave/xrstor/xsetbv/xgetbv supported
+#define CPUID_FEAT_ECX_OSXSAVE      1 << 27     // xsetbv/xgetbv has been enabled
+#define CPUID_FEAT_ECX_AVX          1 << 28
+
+#define CPUID_FEAT_EDX_FPU          1 << 0      // x86 FPU on chip
+#define CPUID_FEAT_EDX_VME          1 << 1      // virtual-8086 mode enhancement
+#define CPUID_FEAT_EDX_DE           1 << 2      // debugging extensions
+#define CPUID_FEAT_EDX_PSE          1 << 3      // page size extensions
+#define CPUID_FEAT_EDX_TSC          1 << 4      // timestamp counter
+#define CPUID_FEAT_EDX_MSR          1 << 5      // rdmsr/wrmsr
+#define CPUID_FEAT_EDX_PAE          1 << 6      // page address extensions
+#define CPUID_FEAT_EDX_MCE          1 << 7      // machine check exception
+#define CPUID_FEAT_EDX_CX8          1 << 8      // cmpxchg8b supported
+#define CPUID_FEAT_EDX_APIC         1 << 9      // APIC on a chip
+#define CPUID_FEAT_EDX_SEP          1 << 11     // sysenter/sysexit
+#define CPUID_FEAT_EDX_MTRR         1 << 12     // memory type range registers
+#define CPUID_FEAT_EDX_PGE          1 << 13     // PTE global bit (PTE_GLOBAL)
+#define CPUID_FEAT_EDX_MCA          1 << 14     // machine check architecture
+#define CPUID_FEAT_EDX_CMOV         1 << 15     // conditional move/compare instructions
+#define CPUID_FEAT_EDX_PAT          1 << 16     // page attribute table
+#define CPUID_FEAT_EDX_PSE36        1 << 17     // page size extension
+#define CPUID_FEAT_EDX_PSN          1 << 18     // processor serial number
+#define CPUID_FEAT_EDX_CLF          1 << 19     // cflush instruction
+#define CPUID_FEAT_EDX_DTES         1 << 21     // debug store
+#define CPUID_FEAT_EDX_ACPI         1 << 22     // thermal monitor and clock control
+#define CPUID_FEAT_EDX_MMX          1 << 23     // MMX technology
+#define CPUID_FEAT_EDX_FXSR         1 << 24     // fxsave/fxrstor
+#define CPUID_FEAT_EDX_SSE          1 << 25     // SSE extensions
+#define CPUID_FEAT_EDX_SSE2         1 << 26     // SSE2 extensions
+#define CPUID_FEAT_EDX_SS           1 << 27     // self-snoop
+#define CPUID_FEAT_EDX_HTT          1 << 28     // hyper-threading
+#define CPUID_FEAT_EDX_TM1          1 << 29     // thermal monitor
+#define CPUID_FEAT_EDX_IA64         1 << 30
+#define CPUID_FEAT_EDX_PBE          1 << 31     // Pend. Brk. EN.
+
+#define CPUID_GETVENDORSTRING       0
+#define CPUID_GETFEATURES           1
+#define CPUID_GETTLB                2
+#define CPUID_GETSERIAL             3
+ 
+#define CPUID_INTELEXTENDED         0x80000000
+#define CPUID_INTELFEATURES         0x80000001
+#define CPUID_INTELBRANDSTRING      0x80000002
+#define CPUID_INTELBRANDSTRINGMORE  0x80000003
+#define CPUID_INTELBRANDSTRINGEND   0x80000004
+
+/** issue a single request to CPUID. Fits 'intel features', for instance.
+ */
+static inline void cpuid(int code, unsigned *a, unsigned *b, unsigned *c, unsigned *d) {
+  // note that even if only "eax" and "edx" are of interest, other registers
+  // will be modified by the operation, so we need to tell the compiler about it.
+  asm volatile("cpuid":"=a"(*a),"=b"(*b),"=c"(*c),"=d"(*d):"a"(code));
+}
+ 
+/** issue a complete request, storing general registers output as a string
+ */
+static inline int cpuid_string(int code, unsigned where[4]) {
+  asm volatile("cpuid":"=a"(*where),"=b"(*(where+1)),
+               "=c"(*(where+2)),"=d"(*(where+3)):"a"(code));
+  return (int)where[0];
+}
+
+static const char * const cpu_string() {
+	static char s[16] = "BogusProces!";
+	cpuid_string(0, (unsigned*)(s));
+	return s;
+}
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif

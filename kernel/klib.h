@@ -33,6 +33,30 @@ extern "C" {
 
 // Structures
 
+typedef unsigned char TBYTE[10];
+typedef struct
+{
+    unsigned short  control_word;
+    unsigned short  unused1;
+    unsigned short  status_word;
+    unsigned short  unused2;
+    unsigned short  tag_word;
+    unsigned short  unused3;
+    unsigned int    instruction_pointer;
+    unsigned short  code_segment;
+    unsigned short  unused4;
+    unsigned int    operand_address;
+    unsigned short  data_segment;
+    TBYTE           st0;
+    TBYTE           st1;
+    TBYTE           st2;
+    TBYTE           st3;
+    TBYTE           st4;
+    TBYTE           st5;
+    TBYTE           st6;
+    TBYTE           st7;
+} FPUFile;
+
 typedef struct
 {
     unsigned int     esp;       // kernel esp
@@ -45,6 +69,8 @@ typedef struct
     unsigned int     priority;  // Process priority
     unsigned char    name[64];  // Name of process
     void*	     node;	// Process_Node struct for scheduler
+    int             fpu_saved;
+    FPUFile          fpu_file;
 } Process;
 
 // Functions

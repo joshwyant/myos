@@ -28,6 +28,9 @@ void kmain(loader_info *li)
 
     // Initialize exceptions
     init_exceptions(); // Dependent on IDT; Start right after paging for page faults
+
+    // Initialize FPU
+    init_fpu();
     
     // Initialize symbol table
     init_symbols(li);

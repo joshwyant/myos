@@ -11,6 +11,7 @@
 #include "elf.h"
 #include "exceptions.h"
 #include "fat.h"
+#include "fpu.h"
 #include "interrupt.h"
 #include "keyboard.h"
 #include "klib.h"

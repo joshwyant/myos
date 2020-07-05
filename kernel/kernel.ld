@@ -13,6 +13,7 @@ INPUT (
 ./obj/isr.o ,
 ./obj/disk.o ,
 ./obj/fat.o ,
+./obj/fpu.o ,
 ./obj/dictionary.o ,
 ./obj/elf.o ,
 ./obj/clock.o ,
