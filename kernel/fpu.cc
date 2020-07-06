@@ -138,7 +138,7 @@ void fpu_task_switch()
         
     }
     fpu_process = current_process;
-    if (current_process->fpu_saved)
+    if (current_process && current_process->fpu_saved)
     {
         asm volatile ("frstor %0"::"m"(current_process->fpu_file));
         current_process->fpu_saved = false;
