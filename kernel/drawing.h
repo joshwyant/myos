@@ -152,6 +152,7 @@ class GraphicsContext
 {
 public:
     virtual void clear_color(int c) = 0;
+	virtual void draw_onto(GraphicsContext *other, int x, int y) = 0;
     virtual void bitblt(Bitmap *bmp, int x, int y) = 0;
     virtual void draw_image(Bitmap *bmp, int x, int y, int opacity) = 0;
     virtual void draw_image_bgra(Bitmap *bmp, int x, int y, int opacity) = 0;
@@ -228,6 +229,7 @@ public:
 		}
 	}
     void clear_color(int c) override;
+	void draw_onto(GraphicsContext *other, int x, int y) override;
     void bitblt(Bitmap *bmp, int x, int y) override;
     void draw_image(Bitmap *bmp, int x, int y, int opacity) override;
     void draw_image_bgra(Bitmap *bmp, int x, int y, int opacity) override;
@@ -291,6 +293,10 @@ public:
     void bitblt(Bitmap *bmp, int x, int y) override
 	{
 		buffer_context->bitblt(bmp, x, y);
+	}
+	void draw_onto(GraphicsContext *other, int x, int y) override
+	{
+		buffer_context->draw_onto(other, x, y);
 	}
     void draw_image(Bitmap *bmp, int x, int y, int opacity) override
 	{

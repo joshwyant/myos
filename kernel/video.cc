@@ -9,6 +9,25 @@ kernel::GraphicsDriver *kernel::GraphicsDriver::current;
 extern "C" {
 #endif
 
+int console_palette[] = {
+    RGB(0, 0, 0),       // Black        (0)
+    RGB(0, 0, 170),     // Blue         (1)
+    RGB(0, 170, 0),     // Green        (2)
+    RGB(0, 170, 170),   // Cyan         (3)
+    RGB(170, 0, 0),     // Red          (4)
+    RGB(170, 0, 170),   // Magenta      (5)
+    RGB(170, 85, 0),    // Brown        (6)
+    RGB(170, 170, 170), // Light Gray   (7)
+    RGB(85, 85, 85),    // Dark Gray    (8)
+    RGB(85, 85, 255),   // Light Blue   (9)
+    RGB(85, 255, 85),   // Light Green  (10)
+    RGB(85, 255, 255),  // Light Cyan   (11)
+    RGB(255, 85, 85),   // Light Red    (12)
+    RGB(255, 85, 255),  // Pink         (13)
+    RGB(255, 255, 85),  // Yellow       (14)
+    RGB(255, 255, 255)  // White        (15)
+};
+
 void init_video()
 {
     console
@@ -96,6 +115,8 @@ kernel::GraphicalConsoleDriver::GraphicalConsoleDriver(int rows, int cols)
     : ConsoleDriver(nullptr, rows, cols)
 {
     read_bitmap(&font, "/system/bin/font");
+    display = new MemoryGraphicsContext(nullptr, 24, cols * 8, rows * 16);
+    update_cursor_index();
 }
 
 kernel::GraphicalConsoleDriver::GraphicalConsoleDriver(const TextModeConsoleDriver &original)
@@ -109,24 +130,55 @@ kernel::GraphicalConsoleDriver::GraphicalConsoleDriver(const TextModeConsoleDriv
     }
 }
 
+// kernel::GraphicalConsoleDriver::~GraphicalConsoleDriver()
+// {
+//     delete display;
+// }
+
 void kernel::GraphicalConsoleDriver::show_cursor(int show)
 {
     while (lock(&show_cursorlock)) process_yield();
     if (show?cursor_shown?0:1:cursor_shown?1:0)
     {
         cursor_shown = show;
-
-        // TODO: Update display
+        update_cursor_index();
     }
     show_cursorlock = 0; // Unlock show_cursor
 }
 void kernel::GraphicalConsoleDriver::update_cursor_index()
 {
-    // TODO
+    RECT char_rect = {0, 0, 8, 16};
+    int pos = 0;
+    for (auto j = 0; j < rows; j++)
+    {
+        char_rect.x1 = 0;
+        char_rect.x2 = 8;
+        for (auto i = 0; i < cols; i++)
+        {
+            int back = console_palette[(unsigned char)videomem[pos * 2 + 1] >> 4];
+            int fore = console_palette[(unsigned char)videomem[pos * 2 + 1] & 0xF];
+            if (pos == cursorpos)
+            {
+                swap_int(&back, &fore);
+            }
+            GraphicsDriver::get_current()->get_screen_context()->get_raw_context()->rect(&char_rect, 1, 0, back, 0, 255);
+            char c[] = { videomem[pos * 2], 0 };
+            if (c[0] >= 32 && c[0] <= 127)
+            {
+                GraphicsDriver::get_current()->get_screen_context()->get_raw_context()->draw_text(c, char_rect.x1, char_rect.y1, fore, 255, 8, 16);
+            }
+            char_rect.x1 += 8;
+            char_rect.x2 += 8;
+            pos++;
+        }
+        char_rect.y1 += 16;
+        char_rect.y2 += 16;
+    }
+    //display->draw_onto(GraphicsDriver::get_current()->get_screen_context()->get_raw_context(), 64, 64);
 }
 
 kernel::TextModeConsoleDriver::TextModeConsoleDriver()
-    : ConsoleDriver((char*)(void*)0xB800, 80, 25)
+    : ConsoleDriver((char*)(void*)0xB800, 25, 80)
 {
     // Map video memory
     videomem = (volatile char*)kfindrange(4000);

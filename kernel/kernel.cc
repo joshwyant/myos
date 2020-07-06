@@ -60,14 +60,14 @@ void kmain(loader_info *li)
         init_vesa();
         init_graphical_console();
 	
-        //demo();
-        show_splash();
+        demo();
+        //show_splash();
         
         init_mouse();
     }
 
     // Load the shell
-    start_shell();
+    //start_shell();
 
     // Load vesadrvr.o
     if (!load_driver("/system/bin/vesadrvr.o"))
@@ -187,7 +187,7 @@ void start_shell()
 
 static void demo()
 {	
-    cls();
+    //cls();
 
     /*// Print all the kernel's symbols!!!
     int i;
@@ -199,15 +199,15 @@ static void demo()
 
     static char buffer[64];
 
-    //kprintf("Type a symbol name:\n");
+    kprintf("Type a symbol name:\n");
 
-    kprintf("Execute a function:\n");
+    // kprintf("Execute a function:\n");
 
     while (1)
     {
         kbd_readln(buffer, 63);
 
-        /*Elf32_Sym *s = find_symbol(buffer);
+        Elf32_Sym *s = find_symbol(buffer);
         if (s)
         {
             kprintf("Symbol %s found: %l\n", kernel_strtab + s->st_name, s->st_value);
@@ -215,9 +215,9 @@ static void demo()
         else
         {
             kprintf("Symbol '%s' not found\n", buffer);
-        }*/
+        }
 
-        invoke(buffer);
+        //invoke(buffer);
     }
     
 

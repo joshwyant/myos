@@ -5,9 +5,28 @@
 #include "drawing.h"
 #include "klib.h"
 
+#define C_BLACK         0
+#define C_BLUE          1
+#define C_GREEN         2
+#define C_CYAN          3
+#define C_RED           4
+#define C_MAGENTA       5
+#define C_BROWN         6
+#define C_LIGHTGRAY     7
+#define C_DARKGRAY      8
+#define C_LIGHTBLUE     9
+#define C_LIGHTGREEN    10
+#define C_LIGHTCYAN     11
+#define C_LIGHTRED      12
+#define C_PINK          13
+#define C_YELLOW        14
+#define C_WHITE         15
+
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+extern int console_palette[];
 
 void init_video();
 void init_graphical_console();
@@ -147,10 +166,12 @@ class GraphicalConsoleDriver : public ConsoleDriver
 public:
     GraphicalConsoleDriver(int rows, int cols);
     GraphicalConsoleDriver(const TextModeConsoleDriver &original);
+    //~GraphicalConsoleDriver() override;
     void show_cursor(int) override;
 protected:
     void update_cursor_index() override;
     Bitmap font;
+    MemoryGraphicsContext *display;
 }; // class TextModeConsoleDriver
 
 class GraphicsDriver
