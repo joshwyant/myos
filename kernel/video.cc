@@ -149,13 +149,21 @@ void kernel::GraphicalConsoleDriver::redraw(int pos)
     {
         swap_int(&back, &fore);
     }
-    GraphicsDriver::get_current()->get_screen_context()->get_raw_context()->rect(&char_rect, 1, 0, back, 0, 255);
+    display->rect(&char_rect, 1, 0, back, 0, 255);
     char c[] = { videomem[pos * 2], 0 };
     if (c[0] >= 32 && c[0] <= 127)
     {
-        GraphicsDriver::get_current()->get_screen_context()->get_raw_context()->draw_text(c, char_rect.x1, char_rect.y1, fore, 255, 8, 16);
+        display->draw_text(c, char_rect.x1, char_rect.y1, fore, 255, 8, 16);
     }
-    //display->draw_onto(GraphicsDriver::get_current()->get_screen_context()->get_raw_context(), 64, 64);
+    GraphicsDriver::get_current()
+        ->get_screen_context()
+        ->get_raw_context()
+        ->draw_image_ext(
+            display->as_bitmap(), 
+            &char_rect, 
+            &char_rect, 
+            255, 
+            RGB(255, 255, 255));
 }
 
 void kernel::GraphicalConsoleDriver::redraw()

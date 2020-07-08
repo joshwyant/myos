@@ -29,6 +29,7 @@ typedef struct {
 	int	height;
 	void*	bits;
 	short   bpp;
+	int direction;
 } Bitmap;
 
 typedef struct __attribute__ ((__packed__)) {
@@ -105,10 +106,14 @@ inline static void rect_clip(RECT *r, RECT clip)
 
 inline static unsigned char * get_bitmap_pixel_address(Bitmap *bmp, int x, int y, int stride, int pixelWidth)
 {
-	return  (unsigned char *)bmp->bits
-			+ bmp->width * bmp->height * pixelWidth 
-			- stride * (y + 1)
-			+ x * pixelWidth;
+	return  bmp->direction
+				? (unsigned char *)bmp->bits
+					+ bmp->width * bmp->height * pixelWidth 
+					- stride * (y + 1)
+					+ x * pixelWidth
+				: (unsigned char *)bmp->bits
+					+ stride * y
+					+ x * pixelWidth;
 }
 
 inline static void set_pixel(unsigned char *pixel, int c)
@@ -151,6 +156,27 @@ namespace kernel
 class GraphicsContext
 {
 public:
+	virtual ~GraphicsContext()
+	{
+		if (bmp)
+		{
+			delete bmp;
+			bmp = nullptr;
+		}
+	}
+	Bitmap *as_bitmap()
+	{
+		if (!bmp)
+		{
+			bmp = new Bitmap();
+			bmp->bits = get_frame_buffer();
+			bmp->bpp = get_bpp();
+			bmp->height = get_height();
+			bmp->width = get_width();
+			bmp->direction = 0;
+		}
+		return bmp;
+	}
     virtual void clear_color(int c) = 0;
 	virtual void draw_onto(GraphicsContext *other, int x, int y) = 0;
     virtual void bitblt(Bitmap *bmp, int x, int y) = 0;
@@ -198,7 +224,9 @@ public:
 		get_screen_metrics(&stride, &pixelWidth);
 		return get_pixel(get_screen_pixel_address(x, y, stride, pixelWidth));
 	}
-}; // class GraphicsDriver
+protected:
+	Bitmap *bmp;
+}; // class GraphicsContext
 
 class BufferedGraphicsContext
     : public GraphicsContext
@@ -214,9 +242,9 @@ class MemoryGraphicsContext
 public:
 	MemoryGraphicsContext(unsigned char *buffer, int bpp, int width, int height, int stride = 0)
 	{
-		this->stride = stride ? stride : width * bpp >> 3;
+		this->stride = stride ? stride : width * (bpp >> 3);
 		this->own_buffer = buffer ? false : true;
-		this->buffer = buffer ? buffer : new unsigned char[height * stride];
+		this->buffer = buffer ? buffer : new unsigned char[height * this->stride];
 		this->bpp = bpp;
 		this->width = width;
 		this->height = height;
@@ -248,7 +276,7 @@ public:
 	{
 		RECT clipped_rect = r;
 		clip_to_screen(&clipped_rect);
-		return MemoryGraphicsContext(buffer + (r.x1 * bpp >> 3), r.x2 - r.x1, r.y2 - r.y1, stride);
+		return MemoryGraphicsContext(buffer + (r.x1 * (bpp >> 3)), r.x2 - r.x1, r.y2 - r.y1, stride);
 	}
 protected:
 	int width, height, stride, bpp;
@@ -275,8 +303,8 @@ public:
 	BufferedMemoryGraphicsContext(int bpp, int width, int height, int stride = 0)
 	{
 		own_raw_context = true;
-		this->raw_context = new MemoryGraphicsContext(nullptr, width, height, stride);
-		this->buffer_context = new MemoryGraphicsContext(nullptr, width, height, stride);
+		this->raw_context = new MemoryGraphicsContext(nullptr, bpp, width, height, stride);
+		this->buffer_context = new MemoryGraphicsContext(nullptr, bpp, width, height, stride);
 	}
 	~BufferedMemoryGraphicsContext()
 	{

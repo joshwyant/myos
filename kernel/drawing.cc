@@ -155,27 +155,7 @@ void kernel::MemoryGraphicsContext::bitblt(Bitmap *bmp, int x, int y)
 
 void kernel::MemoryGraphicsContext::draw_onto(GraphicsContext *other, int x, int y)
 {
-	unsigned char *bitmap_pixel, *screen_pixel, *end_screen_pixel;
-	int stride, pixelWidth, bmpStride, bmpPixelWidth;
-	other->get_screen_metrics(&stride, &pixelWidth);
-	get_screen_metrics(&bmpStride, &bmpPixelWidth);
-	
-	RECT full_r = {x, y, x + width, y + height};
-	RECT draw_r = full_r;
-	other->clip_to_screen(&draw_r);
-	
-	for (y = draw_r.y1; y < draw_r.y2; y++)
-	{
-		screen_pixel = other->get_screen_pixel_address(draw_r.x1, y, stride, pixelWidth);
-		bitmap_pixel = get_screen_pixel_address(draw_r.x1 - full_r.x1, y - full_r.y1, bmpStride, bmpPixelWidth);
-		end_screen_pixel = screen_pixel + (draw_r.x2 - draw_r.x1) * pixelWidth;
-		for (; screen_pixel < end_screen_pixel; screen_pixel += pixelWidth, bitmap_pixel += bmpPixelWidth)
-		{
-			screen_pixel[0] = bitmap_pixel[0];
-			screen_pixel[1] = bitmap_pixel[1];
-			screen_pixel[2] = bitmap_pixel[2];
-		}
-	}
+	other->bitblt(as_bitmap(), x, y);
 }
 
 void kernel::MemoryGraphicsContext::draw_image(Bitmap *bmp, int x, int y, int opacity)
@@ -517,5 +497,6 @@ int read_bitmap(Bitmap *b, const char *filename)
        b->height = bc.bcHeight;
        b->bits = buffer;
        b->bpp = bc.bcBitCount;
+	   b->direction = 1;
        return 1;
 }
