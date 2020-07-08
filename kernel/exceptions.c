@@ -65,12 +65,8 @@ void bsod(const char* msg)
     int i;
     cli();
     show_cursor(0);
-    cls();
+    cls_color(C_WHITE, C_BLUE);
     print(msg);
-    // Make the text display white on blue
-    int chars = get_console_rows() * get_console_cols();
-    volatile char *videomem = get_console_videomem();
-    for (i = 1; i < chars * 2; i += 2) videomem[i] = 0x1F;
     do hlt(); while (1);
 }
 
@@ -79,7 +75,7 @@ void dump_stack(const char* msg, unsigned edi, unsigned esi, unsigned ebp, unsig
 {
     cli();
     show_cursor(0);
-    cls();
+    cls_color(C_WHITE, C_BLUE);
     print(msg);
     print("\nDumping stack and halting CPU.\n");
     int i;
@@ -114,9 +110,5 @@ void dump_stack(const char* msg, unsigned edi, unsigned esi, unsigned ebp, unsig
         asm volatile("mov %%ss:(%1),%0":"=g"(val):"p"(esp));
         kprintf("\n  SS:%l %l", esp, val);
     }
-    // Make the text display white on blue
-    int chars = get_console_rows() * get_console_cols();
-    volatile char *videomem = get_console_videomem();
-    for (i = 1; i < chars * 2; i += 2) videomem[i] = 0x1F;
     do hlt(); while (1);
 }

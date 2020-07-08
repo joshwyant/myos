@@ -36,7 +36,7 @@ void init_video()
 }
 void init_graphical_console()
 {
-    console = new kernel::GraphicalConsoleDriver(*text_mode_console);
+    console = new kernel::GraphicalConsoleDriver(25, 80);
 }
 volatile char *get_console_videomem()
 {
@@ -73,6 +73,10 @@ void show_cursor(int show)
 void cls()
 {
     console->cls();
+}
+void cls_color(int fore, int back)
+{
+    console->cls(fore, back);
 }
 void printhexb(char x)
 {
@@ -112,28 +116,17 @@ void endl()
 #endif
 
 kernel::GraphicalConsoleDriver::GraphicalConsoleDriver(int rows, int cols)
-    : ConsoleDriver(nullptr, rows, cols)
+    : ConsoleDriver(rows, cols)
 {
     read_bitmap(&font, "/system/bin/font");
     display = new MemoryGraphicsContext(nullptr, 24, cols * 8, rows * 16);
     update_cursor_index();
 }
 
-kernel::GraphicalConsoleDriver::GraphicalConsoleDriver(const TextModeConsoleDriver &original)
-    : GraphicalConsoleDriver(original.get_rows(), original.get_cols())
+kernel::GraphicalConsoleDriver::~GraphicalConsoleDriver()
 {
-    // Copy the text from the original video memory
-    volatile short *orig_videomem = (volatile short *)(void*)original.get_videomem();
-    for (auto i = 0; i < rows * cols; i++)
-    {
-        ((volatile short*)(void*)videomem)[i] = orig_videomem[i];
-    }
+    delete display;
 }
-
-// kernel::GraphicalConsoleDriver::~GraphicalConsoleDriver()
-// {
-//     delete display;
-// }
 
 void kernel::GraphicalConsoleDriver::show_cursor(int show)
 {
@@ -141,47 +134,47 @@ void kernel::GraphicalConsoleDriver::show_cursor(int show)
     if (show?cursor_shown?0:1:cursor_shown?1:0)
     {
         cursor_shown = show;
-        update_cursor_index();
     }
     show_cursorlock = 0; // Unlock show_cursor
+    update_cursor_index();
 }
-void kernel::GraphicalConsoleDriver::update_cursor_index()
+void kernel::GraphicalConsoleDriver::redraw(int pos)
 {
-    RECT char_rect = {0, 0, 8, 16};
-    int pos = 0;
-    for (auto j = 0; j < rows; j++)
+    int j = pos / cols;
+    int i = pos % cols;
+    RECT char_rect = {i * 8, j * 16, (i+1)*8, (j+1)*16};
+    int back = console_palette[(unsigned char)videomem[pos * 2 + 1] >> 4];
+    int fore = console_palette[(unsigned char)videomem[pos * 2 + 1] & 0xF];
+    if (cursor_shown && pos == cursorpos)
     {
-        char_rect.x1 = 0;
-        char_rect.x2 = 8;
-        for (auto i = 0; i < cols; i++)
-        {
-            int back = console_palette[(unsigned char)videomem[pos * 2 + 1] >> 4];
-            int fore = console_palette[(unsigned char)videomem[pos * 2 + 1] & 0xF];
-            if (pos == cursorpos)
-            {
-                swap_int(&back, &fore);
-            }
-            GraphicsDriver::get_current()->get_screen_context()->get_raw_context()->rect(&char_rect, 1, 0, back, 0, 255);
-            char c[] = { videomem[pos * 2], 0 };
-            if (c[0] >= 32 && c[0] <= 127)
-            {
-                GraphicsDriver::get_current()->get_screen_context()->get_raw_context()->draw_text(c, char_rect.x1, char_rect.y1, fore, 255, 8, 16);
-            }
-            char_rect.x1 += 8;
-            char_rect.x2 += 8;
-            pos++;
-        }
-        char_rect.y1 += 16;
-        char_rect.y2 += 16;
+        swap_int(&back, &fore);
+    }
+    GraphicsDriver::get_current()->get_screen_context()->get_raw_context()->rect(&char_rect, 1, 0, back, 0, 255);
+    char c[] = { videomem[pos * 2], 0 };
+    if (c[0] >= 32 && c[0] <= 127)
+    {
+        GraphicsDriver::get_current()->get_screen_context()->get_raw_context()->draw_text(c, char_rect.x1, char_rect.y1, fore, 255, 8, 16);
     }
     //display->draw_onto(GraphicsDriver::get_current()->get_screen_context()->get_raw_context(), 64, 64);
 }
 
+void kernel::GraphicalConsoleDriver::redraw()
+{
+    for (int i = 0; i < rows * cols; i++) redraw(i);
+}
+
+void kernel::GraphicalConsoleDriver::update_cursor_index()
+{
+    redraw(cursorpos);
+}
+
 kernel::TextModeConsoleDriver::TextModeConsoleDriver()
-    : ConsoleDriver((char*)(void*)0xB800, 25, 80)
 {
     // Map video memory
     videomem = (volatile char*)kfindrange(4000);
+    videomem_provided = true;
+    rows = 25;
+    cols = 80;
     page_map((void*)videomem, (void*)0xB8000, PF_WRITE);
     // save CRT base IO port (map BDA first)
     void* bda = kfindrange(0x465);
@@ -198,6 +191,8 @@ kernel::TextModeConsoleDriver::TextModeConsoleDriver()
     // check if cursor is hidden
     outb(crtbaseio, 0xA);
     cursor_shown = !(inb(crtbaseio+1)&0x20); // It seems the ! fixes it, but I need to look this up to be sure
+
+    cls();
 }
 
 void kernel::ConsoleDriver::move_cursor(int pos)
@@ -210,7 +205,7 @@ void kernel::ConsoleDriver::move_cursor(int pos)
 
 void kernel::ConsoleDriver::print_char(char c)
 {
-    __print_char(c, 7);
+    __print_char(c, fore_color | (back_color << 4));
     update_cursor_index();
 }
 
@@ -221,7 +216,7 @@ void kernel::ConsoleDriver::print(const char* str)
         show_cursor(0);
     while (*str != 0)
     {
-        __print_char(*str,7);
+        __print_char(*str, fore_color | (back_color << 4));
         str++;
     }
     update_cursor_index();
@@ -233,7 +228,7 @@ void kernel::ConsoleDriver::printlen(const char* str, int len)
 {
     int s = cursor_shown;
     if (s) show_cursor(0);
-    while (len--) __print_char(*str++,7);
+    while (len--) __print_char(*str++, fore_color | (back_color << 4));
     update_cursor_index();
     if (s) show_cursor(1);
 }
@@ -250,6 +245,7 @@ void kernel::TextModeConsoleDriver::show_cursor(int show)
         outb(crtbaseio+1, c);
     }
     show_cursorlock = 0; // Unlock show_cursor
+    update_cursor_index();
 }
 
 void kernel::ConsoleDriver::cls()
@@ -257,12 +253,14 @@ void kernel::ConsoleDriver::cls()
     while (lock(&screenlock)) process_yield();
     volatile short* svideomem = (volatile short*)(videomem);
     int i;
+    unsigned short ch = (unsigned short)' ' | (fore_color << 8) | (back_color << 12);
     for (i = 0; i < rows * cols; i++, svideomem++)
     {
-        *svideomem = 0x0720;
+        *svideomem = ch;
     }
     while (lock(&cursorlock)) process_yield(); // lock cursor io
     cursorpos = 0;
+    redraw();
     update_cursor_index();
     cursorlock = 0;
     screenlock = 0;
@@ -300,7 +298,7 @@ void kernel::ConsoleDriver::printdec(int x)
     char str2[11];
     char *strptr = str;
     char *strptr2 = str2;
-    if (x < 0) _print_char('-',7);
+    if (x < 0) _print_char('-', fore_color | (back_color << 4));
     do
     {
         div = temp/10;

@@ -39,6 +39,7 @@ void print(const char*);
 void printlen(const char*, int);
 void show_cursor(int);
 void cls();
+void cls_color(int fore, int back);
 void printhexb(char x);
 void printhexw(short x);
 void printhexd(int x);
@@ -56,16 +57,17 @@ namespace kernel
 class ConsoleDriver
 {
 public:
-    ConsoleDriver(volatile char videomem[], int rows, int cols) {
-        if (videomem)
-        {
-            videomem_provided = true;
-        }
-        this->videomem = videomem ? videomem : new char [rows * cols * 2];
+    ConsoleDriver() {
+        fore_color = C_LIGHTGRAY;
+        back_color = C_BLACK;
+    }
+    ConsoleDriver(int rows, int cols)
+        : ConsoleDriver() {
+        this->videomem = new char [rows * cols * 2];
         this->rows = rows;
         this->cols = cols;
-    };
-    ~ConsoleDriver() {
+    }
+    virtual ~ConsoleDriver() {
         if (videomem && videomem_provided)
         {
             delete[] videomem;
@@ -73,11 +75,18 @@ public:
         }
     }
     virtual void show_cursor(int) = 0;
+    virtual void redraw() {}
+    virtual void redraw(int) {}
     void move_cursor(int);
     void print_char(char);
     void print(const char*);
     void printlen(const char*, int);
     void cls();
+    void cls(int fore, int back) {
+        set_fore_color(fore);
+        set_back_color(back);
+        cls();
+    }
     void printhexb(char x);
     void printhexw(short x);
     void printhexd(int x);
@@ -88,6 +97,9 @@ public:
     int get_rows() const { return rows; }
     int get_cols() const { return cols; }
     volatile char *get_videomem() const { return videomem; }
+    void set_fore_color(int color) { fore_color = color; }
+    void set_back_color(int color) { back_color = color; }
+    unsigned short get_cursor_pos() const { return cursorpos; }
 protected:
     virtual void update_cursor_index() = 0;
     volatile char *videomem;
@@ -96,6 +108,8 @@ protected:
     char cursor_shown;
     unsigned short cursorpos;
     bool videomem_provided;
+    int fore_color;
+    int back_color;
 
     // spinlocks
     int screenlock;
@@ -130,6 +144,7 @@ private:
         {
             *(volatile unsigned short*)(videomem+cursorpos*2) = 
                 (unsigned char)c|(color<<8);
+            redraw(cursorpos);
             cursorpos++;
         }
         if (cursorpos >= rows * cols)
@@ -139,7 +154,8 @@ private:
                 *line1 = *line2;
             line1 = (volatile unsigned short*)(videomem+ 2 * (rows - 1) * cols);
             for (i = 0; i < cols; i++, line1++)
-                *line1 = 0x0720;
+                *line1 = (unsigned short)' ' | (color << 8);
+            redraw();
         }
         screenlock = 0; // Unlock this function
     }
@@ -165,9 +181,10 @@ class GraphicalConsoleDriver : public ConsoleDriver
 {
 public:
     GraphicalConsoleDriver(int rows, int cols);
-    GraphicalConsoleDriver(const TextModeConsoleDriver &original);
-    //~GraphicalConsoleDriver() override;
+    ~GraphicalConsoleDriver() override;
     void show_cursor(int) override;
+    void redraw() override;
+    void redraw(int) override;
 protected:
     void update_cursor_index() override;
     Bitmap font;

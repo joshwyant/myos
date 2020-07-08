@@ -58,13 +58,15 @@ void kmain(loader_info *li)
     {
         // Temporary VESA mode
         init_vesa();
-        init_graphical_console();
-	
-        demo();
+
         //show_splash();
         
-        init_mouse();
+        //init_mouse();
+        
+        init_graphical_console();
     }
+	
+    demo();
 
     // Load the shell
     //start_shell();
