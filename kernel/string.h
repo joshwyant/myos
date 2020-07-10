@@ -2,6 +2,8 @@
 #define __KERNEL_STRING_H__
 
 #ifdef __cplusplus
+#include <stddef.h>
+
 extern "C" {
 #endif
 
@@ -69,6 +71,74 @@ static inline char ktolower(char c)
 
 #ifdef __cplusplus
 }  // extern "C"
+
+namespace kernel
+{
+template<typename char_t>
+class _KString
+{
+public:
+    _KString() {}
+    _KString(const char_t *str)
+    {
+        size_t max_short_len = sizeof(storage.s.buffer) / sizeof(char_t) - 1;
+        int i;
+        for (i = 0; str[i] && i < max_short_len; i++)
+        {
+            storage.s.buffer[i] = str[i];
+            storage.s.length++;
+        }
+        if (str[i])
+        {
+            storage.l.is_long = true;
+            storage.l.length = 0;
+            for (i = 0; str[i]; i++)
+            {
+                storage.l.length++;
+            }
+            storage.l.buffer = new char_t[storage.l.length + 1];
+            for (i = 0; i < storage.l.length; i++)
+            {
+                storage.l.buffer[i] = str[i];
+            }
+        }
+    }
+    ~_KString()
+    {
+        if (storage.l.is_long && storage.l.buffer)
+        {
+            delete storage.l.buffer;
+        }
+        storage.l.buffer = nullptr;
+        storage.l.length = 0;
+        storage.l.is_long = false;
+    }
+    const char_t *c_str()
+    {
+        return storage.l.is_long ? storage.l.buffer : storage.s.buffer;
+    }
+    char_t operator[](size_t i) { return storage.l.is_long ? storage.l.buffer[i] : storage.s.buffer[i]; }
+protected:
+
+    struct short_string
+    {
+        char_t buffer[(sizeof(size_t) * 3) / sizeof(char_t) - sizeof(char_t)];
+        size_t length : sizeof(char_t) > 8 ? 15 : 7;
+        bool is_long : 1;
+    };
+    struct long_string
+    {
+        char_t *buffer;
+        size_t length : sizeof(size_t) - 1;
+        bool is_long : 1;
+    };
+    union
+    {
+        struct short_string s;
+        struct long_string l;
+    } storage;
+};
+}  // namespace kernel
 #endif
 
 #endif  // __KERNEL_STRING_H__
