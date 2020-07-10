@@ -65,11 +65,11 @@ void kmain(loader_info *li)
         
         //init_graphical_console();
     }
-	
-    //demo();
 
     // Load the shell
-    //start_shell();
+    start_shell();
+	
+    //demo();
 
     // Load vesadrvr.o
     if (!load_driver("/system/bin/vesadrvr.o"))
@@ -144,7 +144,7 @@ void show_splash()
 		RECT dest = {0, 0, ctx->get_width(), ctx->get_height()};
 		for (int color = 0; color <= 255; color += 17)
 		{
-			draw_image_ext(&b, &src, &dest, 255, RGB(color, color, color));
+			//draw_image_ext(&b, &src, &dest, 255, RGB(color, color, color));
 		}
 		bitblt(&b, 0, 0);
     }
@@ -156,8 +156,8 @@ void show_splash()
 	
 	// TODO: Remove
 	RECT r = {64, 160, ctx->get_width() - 64, ctx->get_height() - 160};
-	rect(&r, 1, 0, RGB(255, 255, 255), 0, 64);
-	rect(&r, 0, 8, 0, RGB(0, 0, 128), 192);
+	//rect(&r, 1, 0, RGB(255, 255, 255), 0, 64);
+	//rect(&r, 0, 8, 0, RGB(0, 0, 128), 192);
 	
 	KVector<const char*> strs;
 	strs.push_back("Hello");
@@ -168,13 +168,13 @@ void show_splash()
 	
 	for (auto i = 0; i < strs.len(); i++)
 	{
-		draw_text(strs[i], 0, i * 32, RGB(255, 255, 255), 255, 16, 32);
+		//draw_text(strs[i], 0, i * 32, RGB(255, 255, 255), 255, 16, 32);
 	}
 	
 	static const char *str = "Hello, world!\nI'm Josh!!";
 	int x = 96, y = 192, xsize = 16, ysize = 32;
-	draw_text(str, x + 2, y + 2, RGB(0, 0, 0), 85, xsize, ysize);  // shadow
-	draw_text(str, x, y, RGB(255, 0, 0), 255, xsize, ysize);
+	//draw_text(str, x + 2, y + 2, RGB(0, 0, 0), 85, xsize, ysize);  // shadow
+	//draw_text(str, x, y, RGB(255, 0, 0), 255, xsize, ysize);
 }
 
 void start_shell()

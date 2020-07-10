@@ -107,6 +107,7 @@ protected:
     int cols;
     char cursor_shown;
     unsigned short cursorpos;
+    unsigned short lastpos;
     bool videomem_provided;
     int fore_color;
     int back_color;

@@ -173,6 +173,8 @@ void kernel::GraphicalConsoleDriver::redraw()
 
 void kernel::GraphicalConsoleDriver::update_cursor_index()
 {
+    redraw(lastpos);
+    lastpos = cursorpos;
     redraw(cursorpos);
 }
 
