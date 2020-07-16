@@ -1,4 +1,4 @@
-FROM joshwyant/gcc-cross as compiler
+FROM joshwyant/gcc-myos as compiler
 WORKDIR /src
 COPY . .
 RUN chmod 777 build && ./build

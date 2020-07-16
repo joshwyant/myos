@@ -5,12 +5,12 @@ export PATH=/usr/local/cross/bin:usr/local/cross/i586-elf-bin:$PATH
 echo Build started.
 date
 
-export TARGET=i686-elf
+export TARGET=i686-myos
 export DISKTYPE=FAT32
 export DISKSIZE=33
 export DEFINES="-D$DISKTYPE -DDEBUG -DVESA"
 export CFLAGS="-c $DEFINES -O2 -g"
-export CPPFLAGS="$CFLAGS -fno-exceptions -fno-rtti"
+export CPPFLAGS="$CFLAGS"
 if [ ! -d bin ] ; then mkdir bin; fi
 if [ -e myos.sym ] ; then rm myos.sym; fi
 
@@ -42,6 +42,8 @@ echo building kernel...
 if [ ! -d obj ] ; then mkdir obj; fi
 ln $($TARGET-gcc $CFLAGS -print-file-name=crtbegin.o) ./obj/crtbegin.o 2> /dev/null || true
 ln $($TARGET-gcc $CFLAGS -print-file-name=crtend.o) ./obj/crtend.o 2> /dev/null || true
+ln $($TARGET-gcc $CFLAGS -print-file-name=libgcc.a) ./obj/libgcc.a 2> /dev/null || true
+ln $($TARGET-gcc $CFLAGS -print-file-name=libsupc++.a) ./obj/libsupc++.a 2> /dev/null || true
 nasm startup.S $DEFINES -O2 -felf -o./obj/startup.o
 nasm isr.asm $DEFINES -O2 -felf -o./obj/isr.o
 $TARGET-as crti.s -O2 -o ./obj/crti.o
@@ -71,6 +73,7 @@ $TARGET-gcc $CPPFLAGS VESA.cc -o ./obj/VESA.o
 $TARGET-ld -shared -Tkernel.ld
 $TARGET-ld -shared -Tkernel.ld -o ./obj/kernel -Ttext=0xC0000000
 $TARGET-nm -n -D ./obj/kernel>>../myos.sym
+$TARGET-objdump ./obj/kernel -t | grep \*UND\*
 
 cd ../vesadrvr
 echo building vesadrvr.o...

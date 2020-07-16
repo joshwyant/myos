@@ -9,7 +9,12 @@ extern "C" {
 static void demo();
 
 loader_info loaderInfo;
-void kmain(loader_info *li)
+
+// Need to set up memory, heap, etc. before
+// we can call global constructors, esp. for
+// exception support, which depends on library
+// support, which depends on memory management.
+void _pre_init(loader_info *li)
 {
     // Make a local copy of li
     loaderInfo = *li;
@@ -28,12 +33,15 @@ void kmain(loader_info *li)
 
     // Initialize exceptions
     init_exceptions(); // Dependent on IDT; Start right after paging for page faults
+}
 
+void kmain()
+{
     // Initialize FPU
     init_fpu();
     
     // Initialize symbol table
-    init_symbols(li);
+    init_symbols(&loaderInfo);
     
     // Initialize video so we can display errors
     init_video(); // Dependent on paging, Dependent on IDT (Page faults) (Maps video memory)
@@ -54,7 +62,7 @@ void kmain(loader_info *li)
     // System call interface (int 0x30)
     init_syscalls();
 
-    if (li->vbe)
+    if (loaderInfo.vbe)
     {
         // Temporary VESA mode
         init_vesa();
@@ -62,6 +70,15 @@ void kmain(loader_info *li)
         show_splash();
         
         init_mouse();
+
+        try
+        {
+            throw "Exception caught";
+        }
+        catch(const char*& c)
+        {
+            draw_text(c, 128, 128, RGB(255, 0, 0), 255, 16, 32);
+        }
         
         //init_graphical_console();
     }

@@ -8,6 +8,8 @@ static unsigned short crtbaseio;
 static char cursor_shown;
 static unsigned short cursorpos;
 
+volatile char* videomem;
+
 void init_video()
 {
     // Map video memory

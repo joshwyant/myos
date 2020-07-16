@@ -122,7 +122,7 @@ int load_kernel(loader_info *li)
                     case DT_REL:
                         rel = obj_base + d.d_un.d_val;
                         break;
-                    case DT_RELSZ:
+                    case DT_PLTRELSZ:
                         relsz = d.d_un.d_val;
                         break;
                     case DT_RELENT:
@@ -162,9 +162,9 @@ int load_kernel(loader_info *li)
             volatile unsigned* ptr = obj_base + (unsigned)rel[i].r_offset;
             int type = ELF32_R_TYPE(rel[i].r_info);
             int sym = ELF32_R_SYM(rel[i].r_info);
-            if ((type != R_386_RELATIVE) && (symtab[sym].st_shndx == SHN_UNDEF))
+            if ((symtab[sym].st_shndx == SHN_UNDEF) && (type != R_386_RELATIVE) && (type != R_386_NONE))
             {
-                if ((ELF32_ST_BIND(symtab[sym].st_info) == STB_WEAK))
+                if (ELF32_ST_BIND(symtab[sym].st_info) == STB_WEAK)
                 {
                     continue;
                 }
@@ -176,6 +176,9 @@ int load_kernel(loader_info *li)
             unsigned symval = (unsigned)symtab[sym].st_value;
             switch (type)
             {
+                case R_386_JMP_SLOT:
+                    *ptr = symval;
+                    break;
                 case R_386_32:
                     *ptr += symval;
                     break;

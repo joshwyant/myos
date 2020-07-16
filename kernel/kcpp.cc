@@ -2,13 +2,92 @@
 //   and on https://wiki.osdev.org/Calling_Global_Constructors
 
 #include <stddef.h>
+#include <reent.h>
 #include "kernel.h"
 
-extern "C" void __cxa_pure_virtual()
+extern "C" {
+	
+void __cxa_pure_virtual()
 {
     // Do nothing or print an error message.
 	print("Pure virtual function called erroneously in kernel.\n");  // TODO: remove
 }
+
+void *memcpy(void *dest, const void *src, size_t bytes)
+{
+	kmemcpy(dest, src, bytes);
+	return dest;
+}
+
+void *malloc(size_t bytes)
+{
+	return kmalloc(bytes);
+}
+
+void free(void *ptr)
+{
+	return kfree(ptr);
+}
+
+void abort()
+{
+	print ("ABORT\n");
+	do hlt(); while (1);
+}
+
+void *realloc(void *ptr, size_t size)
+{
+	return krealloc(ptr, size);
+}
+
+int strcmp(const char * str1, const char * str2)
+{
+	return kstrcmp(str1, str2);
+}
+
+int sprintf(char *str, const char *format, ...)
+{
+	str[0] = '\0';
+	// TODO
+	return 0;
+}
+
+int fputc (int character, void /*FILE*/ *stream)
+{
+	print_char(character);
+	return character;
+}
+
+size_t fwrite(const void *ptr, size_t size, size_t count, void /*FILE*/ *stream)
+{
+	for (int i = 0; i < size * count; i++)
+	{
+		print_char(((char*)ptr)[i]);
+	}
+	return count;
+}
+
+size_t strlen(const char * str)
+{
+	return kstrlen(str);
+}
+
+int fputs(const char * str, void /*FILE*/ *stream)
+{
+	int count = 0;
+	while (*str)
+	{
+		print_char(*str++);
+		count++;
+	}
+	return count;
+}
+
+// Stubs from newlib
+static struct _reent impure_data = _REENT_INIT (impure_data);
+struct _reent *_impure_ptr __ATTRIBUTE_IMPURE_PTR__ = &impure_data;
+
+} // extern "C"
 
 void *operator new(size_t size) 
 {

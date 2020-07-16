@@ -31,6 +31,8 @@ INPUT (
 ./obj/timer.o ,
 ./obj/vector.o ,
 ./obj/VESA.o ,
+./obj/libgcc.a ,
+./obj/libsupc++.a ,
 ./obj/crtend.o ,
 ./obj/crtn.o
 )
@@ -38,6 +40,12 @@ INPUT (
 SECTIONS
 {
     .text : { *(.text) }
+    .eh_frame : ALIGN(4)
+    {
+        start_eh_frame = .;
+        *(.eh_frame)
+        QUAD(0)
+    }
     .data : { *(.data) }
     .bss : { *(.bss) }
 }

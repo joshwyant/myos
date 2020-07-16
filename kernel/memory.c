@@ -409,8 +409,8 @@ static void* kbestfreeblock(int size)
     void* ptr = first_free;
     while (ptr)
     {
-        int s = ktagsize(ktag(ptr));
-        if (size < s && ((best == 0) || s < ktagsize(ktag(best)))) best = ptr;
+        int s = ktaginsize(ktag(ptr));
+        if (size < s && ((best == 0) || s < ktaginsize(ktag(best)))) best = ptr;
         ptr = knextfree(ptr);
     }
     return best;
@@ -421,10 +421,24 @@ static void* kfirstfreeblock(int size)
     void* ptr = first_free;
     while (ptr)
     {
-        if (size < ktagsize(ktag(ptr))) return ptr;
+        if (size < ktaginsize(ktag(ptr))) return ptr;
         ptr = knextfree(ptr);
     }
     return 0;
+}
+
+void *krealloc(void *ptr, int size)
+{
+    void *newptr = kmalloc(size);
+    kmemcpy(newptr, ptr, ktaginsize(ktag(ptr)));
+    return newptr;
+}
+
+void *kcalloc(int size)
+{
+    void *ptr = kmalloc(size);
+    kzeromem(ptr, size);
+    return ptr;
 }
 
 void* kmalloc(int size)

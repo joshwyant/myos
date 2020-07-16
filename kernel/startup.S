@@ -1,10 +1,12 @@
 extern _init
 extern _fini
+extern _pre_init   ; void pre_init()
 extern kmain      ; void kmain()
 global _start
 
 ; Initialization: Go to kmain
 _start:
+call _pre_init
 call _init  ; global constructors in crti.o/crtbegin.o/crtend.o/crtn.o
 call kmain
 call _fini  ; global destructors in crti.o/crtbegin.o/crtend.o/crtn.o
