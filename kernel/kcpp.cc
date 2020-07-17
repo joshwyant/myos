@@ -4,13 +4,15 @@
 #include <stddef.h>
 #include <reent.h>
 #include "kernel.h"
+#include "error.h"
+
+using namespace kernel;
 
 extern "C" {
 	
 void __cxa_pure_virtual()
 {
-    // Do nothing or print an error message.
-	print("Pure virtual function called erroneously in kernel.\n");  // TODO: remove
+	throw InvalidOperationError("Pure virtual function called erroneously in kernel.");
 }
 
 void *memcpy(void *dest, const void *src, size_t bytes)
@@ -91,28 +93,37 @@ struct _reent *_impure_ptr __ATTRIBUTE_IMPURE_PTR__ = &impure_data;
 
 void *operator new(size_t size) 
 {
-    return kmalloc(size);
+	void *ptr = kmalloc(size);
+	if (!ptr) [[unlikely]] throw OutOfMemoryError();
+	return ptr;
 }
- 
+
 void *operator new[](size_t size)
 {
-    return kmalloc(size);
+	void *ptr = kmalloc(size);
+	if (!ptr) [[unlikely]] throw OutOfMemoryError();
+	return ptr;
 }
- 
+
 void operator delete(void *p)
 {
     kfree(p);
 }
- 
+
 void operator delete(void *p, size_t size)
 {
     kfree(p);
 }
- 
+
 void operator delete[](void *p)
 {
     kfree(p);
 }
+
+void *operator new(size_t, void *p) { return p; }
+void *operator new[](size_t, void *p) { return p; }
+void operator delete(void *, void *) { };
+void operator delete[](void *, void *) { };
 
 namespace __cxxabiv1 
 {

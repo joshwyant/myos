@@ -427,10 +427,25 @@ static void* kfirstfreeblock(int size)
     return 0;
 }
 
+// Duplicates a heap object
+void *kdupheap(void *ptr)
+{
+    size_t size = ktaginsize(ktag(ptr));
+    void *newptr = kmalloc(size);
+    if (newptr)
+    {
+        kmemcpy(newptr, ptr, size);
+    }
+    return newptr;
+}
+
 void *krealloc(void *ptr, int size)
 {
     void *newptr = kmalloc(size);
-    kmemcpy(newptr, ptr, ktaginsize(ktag(ptr)));
+    if (ptr && newptr)
+    {
+        kmemcpy(newptr, ptr, ktaginsize(ktag(ptr)));
+    }
     return newptr;
 }
 
@@ -505,6 +520,7 @@ void* kmalloc(int size)
 
 void kfree(void* ptr)
 {
+    if (!ptr) return;
     while (lock(&heap_busy)) process_yield();
     // Unlink any adjacent free blocks and coalesce them.
     int s = ktagsize(ktag(ptr)); // The total size of the free block

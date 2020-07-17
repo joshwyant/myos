@@ -36,6 +36,8 @@ extern void init_paging(loader_info *li);
 extern void* kmalloc(int size);
 extern void* kcalloc(int size);
 extern void *krealloc(void *ptr, int size);
+// Duplicates a heap object
+extern void *kdupheap(void *ptr);
 extern void kfree(void* ptr);
 extern void page_free(void* addr, int count);
 extern void* page_alloc(int size);

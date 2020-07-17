@@ -9,7 +9,7 @@ export TARGET=i686-myos
 export DISKTYPE=FAT32
 export DISKSIZE=33
 export DEFINES="-D$DISKTYPE -DDEBUG -DVESA"
-export CFLAGS="-c $DEFINES -O2 -g"
+export CFLAGS="-c $DEFINES -g"
 export CPPFLAGS="$CFLAGS"
 if [ ! -d bin ] ; then mkdir bin; fi
 if [ -e myos.sym ] ; then rm myos.sym; fi
@@ -68,7 +68,6 @@ $TARGET-gcc $CFLAGS string.c -o ./obj/string.o
 $TARGET-gcc $CFLAGS syscall.c -o ./obj/syscall.o
 $TARGET-gcc $CFLAGS task.c -o ./obj/task.o
 $TARGET-gcc $CFLAGS timer.c -o ./obj/timer.o
-$TARGET-gcc $CPPFLAGS vector.cc -o ./obj/vector.o
 $TARGET-gcc $CPPFLAGS VESA.cc -o ./obj/VESA.o
 $TARGET-ld -shared -Tkernel.ld
 $TARGET-ld -shared -Tkernel.ld -o ./obj/kernel -Ttext=0xC0000000

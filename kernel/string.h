@@ -2,7 +2,11 @@
 #define __KERNEL_STRING_H__
 
 #ifdef __cplusplus
+
 #include <stddef.h>
+#include <utility>
+#include "error.h"
+#include "memory.h"
 
 extern "C" {
 #endif
@@ -74,62 +78,157 @@ static inline char ktolower(char c)
 
 namespace kernel
 {
-template<typename char_t>
-class _KString
+// Forward declarations
+template<typename CharT>
+class KBasicString;
+
+typedef KBasicString<char> KString;
+typedef KBasicString<wchar_t> KWString;
+
+template <typename CharT>
+class KBasicStringView;
+
+typedef KBasicStringView<char> KStringView;
+typedef KBasicStringView<wchar_t> KWStringView;
+
+template<typename CharT>
+class KBasicString
 {
 public:
-    _KString() {}
-    _KString(const char_t *str)
+    KBasicString()
     {
-        size_t max_short_len = sizeof(storage.s.buffer) / sizeof(char_t) - 1;
-        int i;
-        for (i = 0; str[i] && i < max_short_len; i++)
+        storage.s.is_long = false;
+        storage.s.buffer[0] = 0;
+        storage.s.length = 0;
+    }
+    KBasicString(const KBasicString& other)
+        : storage(other.storage)
+    {
+        if (storage.l.is_long)
         {
-            storage.s.buffer[i] = str[i];
-            storage.s.length++;
-        }
-        if (str[i])
-        {
-            storage.l.is_long = true;
-            storage.l.length = 0;
-            for (i = 0; str[i]; i++)
+            storage.l.buffer = kdupheap(storage.l.buffer);
+            if (!storage.l.buffer) [[unlikely]]
             {
-                storage.l.length++;
-            }
-            storage.l.buffer = new char_t[storage.l.length + 1];
-            for (i = 0; i < storage.l.length; i++)
-            {
-                storage.l.buffer[i] = str[i];
+                throw OutOfMemoryError();
             }
         }
     }
-    ~_KString()
+    KBasicString(KBasicString&& other) noexcept
+        : KBasicString()
+	{
+		swap(*this, other);
+	}
+    KBasicString& operator=(KBasicString other)
+	{
+		swap(*this, other);
+		return *this;
+	}
+    friend void swap(KBasicString& a, KBasicString& b)
+	{
+		using std::swap;
+		swap(a.storage, b.storage);
+	}
+    KBasicString(const KBasicStringView<CharT> str)
+    {
+        size_t short_capacity = sizeof(storage.s.buffer) / sizeof(CharT); // including null terminator
+        size_t length = 0;
+        CharT *buffer;
+        int i;
+        if (str.len() < short_capacity)
+        {
+            storage.s.is_long = false;
+            storage.s.length = str.len();
+            buffer = storage.s.buffer;
+        }
+        else
+        {
+            storage.l.is_long = true;
+            storage.l.length = str.len();
+            storage.l.buffer = (CharT *)kmalloc(str.len() + 1);
+            buffer = storage.l.buffer;
+            if (!buffer) [[unlikely]] throw OutOfMemoryError();
+        }
+        const CharT *other_buffer = str.c_str();
+        for (i = 0; i < str.len(); i++)
+        {
+            buffer[i] = other_buffer[i];
+        }
+        buffer[str.len()] = 0;
+    }
+    KBasicString(const CharT *str) : KBasicString(KBasicStringView<CharT>(str)) {}
+    ~KBasicString()
     {
         if (storage.l.is_long && storage.l.buffer)
         {
-            delete storage.l.buffer;
+            kfree(storage.l.buffer);
         }
         storage.l.buffer = nullptr;
         storage.l.length = 0;
         storage.l.is_long = false;
     }
-    const char_t *c_str()
+    const CharT *c_str() const
     {
         return storage.l.is_long ? storage.l.buffer : storage.s.buffer;
     }
-    char_t operator[](size_t i) { return storage.l.is_long ? storage.l.buffer[i] : storage.s.buffer[i]; }
+    const size_t len() const
+    {
+        return storage.l.is_long ? storage.l.length : storage.s.length;
+    }
+    CharT operator[](size_t i) const
+    {
+        if (i < 0 || i > len()) [[unlikely]]
+        {
+            throw OutOfBoundsError();
+        }
+        return storage.l.is_long ? storage.l.buffer[i] : storage.s.buffer[i];
+    }
+    KBasicString& concat(const KBasicStringView<CharT>& other)
+    {
+        size_t short_capacity = sizeof(storage.s.buffer) / sizeof(CharT); // including null terminator
+        size_t oldlen = len();
+        size_t newlen = oldlen + other.len();
+        CharT *buffer;
+        if (newlen < short_capacity)
+        {
+            storage.s.length = newlen;
+            buffer = storage.s.buffer;
+        }
+        else
+        {
+            storage.l.length = newlen;
+            if (!storage.l.is_long)
+            {
+                storage.l.buffer = nullptr; // prepare realloc
+                storage.l.is_long = true;
+            }
+            buffer = (CharT *)krealloc(storage.l.buffer, newlen + 1);
+            if (!buffer) [[unlikely]] throw OutOfMemoryError();
+            storage.l.buffer = buffer;
+        }
+        const CharT *other_buffer = other.c_str();
+        for (int i = 0; i < other.len(); i++)
+        {
+            buffer[oldlen + i] = other_buffer[i];
+        }
+        buffer[newlen] = 0;
+        return *this;
+    }
+    KBasicString& concat(const CharT *other)
+    {
+        return concat(KBasicStringView<CharT>(other));
+    }
 protected:
-
     struct short_string
     {
-        char_t buffer[(sizeof(size_t) * 3) / sizeof(char_t) - sizeof(char_t)];
-        size_t length : sizeof(char_t) > 8 ? 15 : 7;
+        CharT buffer[(sizeof(size_t) * 3) / sizeof(CharT) - 1];
+        size_t length : sizeof(CharT) * 8 - 1;
         bool is_long : 1;
     };
     struct long_string
     {
-        char_t *buffer;
-        size_t length : sizeof(size_t) - 1;
+        CharT *buffer;
+        size_t reserved;
+        size_t length : sizeof(size_t) * 8 - 1;
         bool is_long : 1;
     };
     union
@@ -138,6 +237,66 @@ protected:
         struct long_string l;
     } storage;
 };
+
+template <typename CharT>
+class KBasicStringView
+{
+public:
+    KBasicStringView()
+        : KBasicStringView(0, "", nullptr) {}
+    KBasicStringView(const KBasicStringView& other)
+        : KBasicStringView(other.length, other.cstr, other.str) {}
+    KBasicStringView(KBasicStringView&& other) noexcept
+        : KBasicStringView()
+	{
+		swap(*this, other);
+	}
+    KBasicStringView(const KBasicString<CharT> &str)
+        : KBasicStringView(0, nullptr, &str) {}
+    KBasicStringView(const CharT *str)
+        : KBasicStringView(0, str, nullptr)
+    {
+        while (*str++)
+        {
+            length++;
+        }
+    }
+    KBasicStringView& operator=(KBasicStringView other)
+	{
+		swap(*this, other);
+		return *this;
+	}
+    friend void swap(KBasicStringView& a, KBasicStringView &b)
+	{
+		using std::swap;
+		swap(a.cstr, b.cstr);
+		swap(a.str, b.str);
+		swap(a.length, b.length);
+	}
+    const CharT *c_str() const
+    {
+        return cstr ? cstr : str->c_str();
+    }
+    const size_t len() const
+    {
+        return str ? str->len() : length;
+    }
+    CharT operator[](size_t i) const
+    {
+        if (i < 0 || i > len()) [[unlikely]]
+        {
+            throw OutOfBoundsError();
+        }
+        return c_str()[i];
+    }
+protected:
+    const CharT *cstr;
+    const KBasicString<CharT> *str;
+    size_t length;
+private:
+    KBasicStringView(size_t length, const CharT *cstr, const KBasicString<CharT> *str)
+        : length(length), cstr(cstr), str(str) {}
+};  // KBasicStringView
 }  // namespace kernel
 #endif
 

@@ -30,7 +30,7 @@ void process_yield()
     // Tell the timer handler the switch was voluntary
     switch_voluntary = 1;
     // IRQ0, the timer handler; Switches tasks
-    int86(0x20);
+    asm volatile("int $0x20");
 }
 
 // Do not use in an ISR.

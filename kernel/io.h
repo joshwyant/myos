@@ -55,11 +55,6 @@ static inline void io_wait(void)
    asm volatile("outb %%al, $0x80" : : "a"(0));
 }
 
-static inline void int86(unsigned char num)
-{
-   asm volatile("int %0"::"N"(num));
-}
-
 static inline void lidt(volatile void* base, unsigned int size /* limit+1 */)
 {
     volatile unsigned int i[2];

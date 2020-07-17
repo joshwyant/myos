@@ -1,0 +1,21 @@
+{
+    "configurations": [
+        {
+            "name": "Mac",
+            "includePath": [
+                "${workspaceFolder}/**",
+                "/usr/local/i686-myos/include/**"
+            ],
+            "defines": [
+                "TARGET_MYOS",
+                "VESA"
+            ],
+            "macFrameworkPath": [],
+            "compilerPath": "/usr/local/bin/i686-myos-gcc",
+            "cStandard": "gnu18",
+            "cppStandard": "gnu++20",
+            "intelliSenseMode": "gcc-x86"
+        }
+    ],
+    "version": 4
+}

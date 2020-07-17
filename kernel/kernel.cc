@@ -71,13 +71,27 @@ void kmain()
         
         init_mouse();
 
+        KVector<KString> vec;
         try
         {
-            throw "Exception caught";
+            vec.push_back("Message 0");
+            vec.push_back("Message 1");
+            vec.push_back("Message 2");
+            vec.push_back("Message 3");
+            vec.push_back("Message 4");
+            vec.push_back("Message 5 -- this is a really long string.");
+
+            vec[6];
         }
-        catch(const char*& c)
+        catch(Error& e)
         {
-            draw_text(c, 128, 128, RGB(255, 0, 0), 255, 16, 32);
+            draw_text(
+                KString("Error occurred: ")
+                    .concat(e.what())
+                    .concat("\n")
+                    .concat(vec[5])
+                    .c_str(),
+                128, 128, RGB(255, 0, 0), 255, 16, 32);
         }
         
         //init_graphical_console();
