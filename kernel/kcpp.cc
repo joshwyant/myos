@@ -3,6 +3,7 @@
 
 #include <stddef.h>
 #include <reent.h>
+#include <stdio.h>
 #include "kernel.h"
 #include "error.h"
 
@@ -54,14 +55,22 @@ int sprintf(char *str, const char *format, ...)
 	return 0;
 }
 
-int fputc (int character, void /*FILE*/ *stream)
+int fputc (int character, FILE *stream)
 {
+	if (!(stream == stderr) || (stream == stdout)) [[unlikely]]
+	{
+		return 0;
+	}
 	print_char(character);
 	return character;
 }
 
-size_t fwrite(const void *ptr, size_t size, size_t count, void /*FILE*/ *stream)
+size_t fwrite(const void *ptr, size_t size, size_t count, FILE *stream)
 {
+	if (!(stream == stderr) || (stream == stdout)) [[unlikely]]
+	{
+		return 0;
+	}
 	for (int i = 0; i < size * count; i++)
 	{
 		print_char(((char*)ptr)[i]);
@@ -74,8 +83,12 @@ size_t strlen(const char * str)
 	return kstrlen(str);
 }
 
-int fputs(const char * str, void /*FILE*/ *stream)
+int fputs(const char * str, FILE *stream)
 {
+	if (!(stream == stderr) || (stream == stdout)) [[unlikely]]
+	{
+		return 0;
+	}
 	int count = 0;
 	while (*str)
 	{

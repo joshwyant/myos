@@ -13,6 +13,7 @@
 #include "error.h"
 #include "exceptions.h"
 #include "fat.h"
+#include "fs.h"
 #include "fpu.h"
 #include "interrupt.h"
 #include "keyboard.h"

@@ -87,7 +87,7 @@ $TARGET-gcc $CFLAGS memory.c -o ./obj/memory.o
 $TARGET-gcc $CPPFLAGS mouse.cc -o ./obj/mouse.o
 $TARGET-gcc $CFLAGS process.c -o ./obj/process.o
 $TARGET-gcc $CFLAGS string.c -o ./obj/string.o
-$TARGET-gcc $CFLAGS syscall.c -o ./obj/syscall.o
+$TARGET-gcc $CPPFLAGS syscall.cc -o ./obj/syscall.o
 $TARGET-gcc $CFLAGS task.c -o ./obj/task.o
 $TARGET-gcc $CFLAGS timer.c -o ./obj/timer.o
 $TARGET-gcc $CPPFLAGS VESA.cc -o ./obj/VESA.o
