@@ -5,9 +5,8 @@ export PATH=/cygdrive/y/src/github/vdisk-tools/vgui/bin/release:/cygdrive/z/src/
 echo Package started.
 date
 
-export DISKTYPE=FAT32
-export DISKSIZE=33
-export DEFINES="-D"$DISKTYPE" -DDEBUG"
+[[ -z "$DISKTYPE" ]] && DISKTYPE=FAT32
+[[ -z "$DISKSIZE" ]] && DISKSIZE=33
 
 echo creating disk image...
 if [ ! -f hdd.img ]; then
