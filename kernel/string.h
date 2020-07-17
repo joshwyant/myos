@@ -193,17 +193,23 @@ public:
             storage.s.length = newlen;
             buffer = storage.s.buffer;
         }
-        else
+        else [[likely]]
         {
-            storage.l.length = newlen;
             if (!storage.l.is_long)
             {
-                storage.l.buffer = nullptr; // prepare realloc
+                buffer = (CharT *)kmalloc(newlen + 1);
+                if (!buffer) [[unlikely]] throw OutOfMemoryError();
+                if (oldlen) [[likely]] kmemcpy(buffer, storage.s.buffer, sizeof(CharT) * oldlen);
+                storage.l.buffer = buffer;
                 storage.l.is_long = true;
             }
-            buffer = (CharT *)krealloc(storage.l.buffer, newlen + 1);
-            if (!buffer) [[unlikely]] throw OutOfMemoryError();
-            storage.l.buffer = buffer;
+            else
+            {
+                buffer = (CharT *)krealloc(storage.l.buffer, newlen + 1);
+                if (!buffer) [[unlikely]] throw OutOfMemoryError();
+                storage.l.buffer = buffer;
+            }
+            storage.l.length = newlen;
         }
         const CharT *other_buffer = other.c_str();
         for (int i = 0; i < other.len(); i++)

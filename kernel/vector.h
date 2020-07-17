@@ -81,6 +81,8 @@ public:
 		// result of assignment is lvalue
 		return buffer[elem_count++] = std::move(value);
 	}
+	T *begin() { return buffer; }
+	T *end() { return buffer + elem_count; }
 private:
 	KVector(size_t capacity, size_t count)
 		: elem_capacity(capacity),

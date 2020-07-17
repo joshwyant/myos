@@ -72,6 +72,7 @@ void kmain()
         init_mouse();
 
         KVector<KString> vec;
+        KString str;
         try
         {
             vec.push_back("Message 0");
@@ -85,11 +86,15 @@ void kmain()
         }
         catch(Error& e)
         {
+            for (auto& item : vec)
+            {
+                str.concat(item).concat("\n");
+            }
             draw_text(
                 KString("Error occurred: ")
                     .concat(e.what())
                     .concat("\n")
-                    .concat(vec[5])
+                    .concat(str)
                     .c_str(),
                 128, 128, RGB(255, 0, 0), 255, 16, 32);
         }
