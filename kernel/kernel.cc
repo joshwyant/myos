@@ -70,34 +70,6 @@ void kmain()
         show_splash();
         
         init_mouse();
-
-        KVector<KString> vec;
-        KString str;
-        try
-        {
-            vec.push_back("Message 0");
-            vec.push_back("Message 1");
-            vec.push_back("Message 2");
-            vec.push_back("Message 3");
-            vec.push_back("Message 4");
-            vec.push_back("Message 5 -- this is a really long string.");
-
-            vec[6];
-        }
-        catch(Error& e)
-        {
-            for (auto& item : vec)
-            {
-                str.concat(item).concat("\n");
-            }
-            draw_text(
-                KString("Error occurred: ")
-                    .concat(e.what())
-                    .concat("\n")
-                    .concat(str)
-                    .c_str(),
-                128, 128, RGB(255, 0, 0), 255, 16, 32);
-        }
         
         //init_graphical_console();
     }

@@ -12,29 +12,30 @@ template <typename T>
 class MemoryPool
 {
 public:
-    T& allocate(T value)
+    T *allocate(T value)
     {
         if (first_free)
         {
             // Remove the slot from the free list
-            auto item = *first_free;
-            remove(item);
+            auto item = first_free;
+            remove_free_item(item);
             // Place the value in the slot and return it.
-            return item = std::move(value);
+            return &(item->value = std::move(value));
         }
         else
         {
             // Just add the item to the vector.
-            return list.push_back(std::move(value));
+            Item item = { std::move(value) };
+            return &list.push_back(std::move(item)).value;
         }
     }
-    void deallocate(T& value)
+    void deallocate(T *value)
     {
         // Deconstruct the value item
-        value.~T();
+        value->~T();
         // Add the slot to the free list
-        auto item = (Item *)&value;
-        add(item->node);
+        auto item = (Item *)value;
+        add_free_item(item);
     }
     
 protected:
@@ -52,38 +53,38 @@ protected:
     Item *first_free = nullptr;
     Item *last_free = nullptr;
     KVector<Item> list;
-    void remove(Item& node)
+    void remove_free_item(Item *item)
     {
-        if (&node == first_free)
+        if (item == first_free)
         {
-            first_free = node.node.next;
+            first_free = item->node.next;
         }
-        if (&node == last_free)
+        if (item == last_free)
         {
-            last_free = node.node.prev;
+            last_free = item->node.prev;
         }
-        if (node.node.prev)
+        if (item->node.prev)
         {
-            node.node.prev.next = node.node.next;
+            item->node.prev->node.next = item->node.next;
         }
-        if (node.node.next)
+        if (item->node.next)
         {
-            node.node.next.prev = node.node.prev;
+            item->node.next->node.prev = item->node.prev;
         }
     }
-    void add(Item& node)
+    void add_free_item(Item *item)
     {
         if (!first_free)
         {
-            first_free = &node;
+            first_free = item;
         }
-        node.node.prev = last_free;
-        node.node.next = nullptr;
+        item->node.prev = last_free;
+        item->node.next = nullptr;
         if (last_free)
         {
-            last_free->next = &node;
-            last_free = &node;
+            last_free->node.next = item;
         }
+        last_free = item;
     }
 };
 }
