@@ -3,6 +3,16 @@
 
 #include "../include/loader_info.h"
 
+#undef LIKELY
+#undef UNLIKELY
+#ifdef __cplusplus
+#define LIKELY [[likely]]
+#define UNLIKELY [[unlikely]]
+#else
+#define LIKELY
+#define UNLIKELY
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -49,19 +59,72 @@ extern void init_paging(loader_info *li); // nonstatic so compiler doesn't optim
 
 static inline void kmemcpy(void* dest, const void* src, unsigned bytes)
 {
+    if (!dest || !src) UNLIKELY return;
+
+    // Undefined for backwards overlapped case.
+
+    unsigned words = bytes / 4;
+    unsigned rem = bytes %= 4;
+
+    if (words) LIKELY
+    {
+        asm volatile (
+            "rep; movsl":
+            "=c"(words),"=S"(src),"=D"(dest):
+            "c"(words),"S"(src),"D"(dest)
+        );
+    }
+
+    if (rem) UNLIKELY
+    {
+        asm volatile (
+            "rep; movsb":
+            "=c"(rem),"=S"(src),"=D"(dest):
+            "c"(rem),"S"(src),"D"(dest)
+        );
+    }
+}
+static inline void kmemmove(void* dest, const void* src, unsigned bytes)
+{
+    if (!dest || !src) UNLIKELY return;
+
+    if (dest > src) UNLIKELY  // Optimize for overlapped case
+    {
+        kmemcpy(dest, src, bytes); // Use this because it's faster
+        return;
+    }
+    // Backwards, potentially overlapped case:
+    dest = (char*)dest + bytes - 1;
+    src = (char*)src + bytes - 1;
     asm volatile (
-        "cld; rep; movsb":
+        "std; rep; movsb": // using movsl first is complicated
         "=c"(bytes),"=S"(src),"=D"(dest):
         "c"(bytes),"S"(src),"D"(dest)
     );
 }
 static inline void kzeromem(void* dest, unsigned bytes)
 {
-    asm volatile (
-        "cld; rep; stosb":
-        "=c"(bytes),"=D"(dest):
-        "c"(bytes),"D"(dest),"a"(0)
-    );
+    if (dest) LIKELY
+    {
+        unsigned words = bytes / 4;
+        bytes %= 4;
+        if (words) LIKELY
+        {
+            asm volatile (
+                "cld; rep; stosl":
+                "=c"(words),"=D"(dest):
+                "c"(words),"D"(dest),"a"(0)
+            );
+        }
+        if (bytes) UNLIKELY
+        {
+            asm volatile (
+                "cld; rep; stosb":
+                "=c"(bytes),"=D"(dest):
+                "c"(bytes),"D"(dest),"a"(0)
+            );
+        }
+    }
 }
 
 #ifdef __cplusplus

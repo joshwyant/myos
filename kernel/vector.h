@@ -66,7 +66,7 @@ public:
 	size_t capacity() const { return elem_capacity; }
 	T& push_back(T value)
 	{
-		if (elem_count >= elem_capacity)
+		if (elem_count >= elem_capacity) [[unlikely]]
 		{
 			size_t new_capacity = elem_capacity == 0 ? 4 : elem_capacity * 2;
 			T *newbuf = (T *)krealloc(buffer, new_capacity * sizeof(T));

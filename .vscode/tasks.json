@@ -8,6 +8,20 @@
                 "command": "./build"
             },
             "group": "build",
+            "problemMatcher": [
+                "$gcc"
+            ]
+        },
+        {
+            "label": "Build for Debugging",
+            "type": "shell",
+            "osx": {
+                "command": "DEBUG=true ./build"
+            },
+            "group": "build",
+            "problemMatcher": [
+                "$gcc"
+            ]
         },
         {
             "label": "Package",
@@ -16,35 +30,70 @@
                 "command": "./package"
             },
             "problemMatcher": [],
-            "group": "build",
+            "group": "build"
         },
         {
             "label": "Build and Package",
-            "dependsOrder":"sequence",
+            "dependsOrder": "sequence",
             "dependsOn": [
                 "Build",
-                "Package",
-            ]
+                "Package"
+            ],
+            "group": "build",
+            "problemMatcher": []
+        },
+        {
+            "label": "Build and Package for Debugging",
+            "dependsOrder": "sequence",
+            "dependsOn": [
+                "Build for Debugging",
+                "Package"
+            ],
+            "group": "build",
+            "problemMatcher": []
         },
         {
             "label": "Build and run",
-            "dependsOrder":"sequence",
+            "dependsOrder": "sequence",
             "dependsOn": [
-                "Build",
-                "Package",
-                "Launch QEMU",
-            ]
+                "Build and Package",
+                "Launch QEMU"
+            ],
+            "group": "build",
+            "problemMatcher": []
+        },
+        {
+            "label": "Build and launch for debugging",
+            "dependsOrder": "sequence",
+            "dependsOn": [
+                "Build and Package for Debugging",
+                "Launch QEMU for debugging"
+            ],
+            "group": "build",
+            "problemMatcher": []
         },
         {
             "label": "Launch QEMU for debugging",
             "type": "shell",
             "isBackground": true,
-            "command": "qemu-system-i386 hdd.img -s -S",
+            "command": "qemu-system-i386 -drive file=hdd.img,format=raw -s -S -monitor stdio",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "group": "build",
+            "problemMatcher": []
         },
         {
             "label": "Launch QEMU",
             "type": "shell",
-            "command": "qemu-system-i386 hdd.img",
+            "command": "qemu-system-i386 -drive file=hdd.img,format=raw",
+            "group": "build",
+            "problemMatcher": []
         }
     ]
 }

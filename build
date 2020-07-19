@@ -12,7 +12,7 @@ date
 [[ -z "$DISKSIZE" ]] && DISKSIZE=33
 export DEFINES="-D$DISKTYPE"
 export CFLAGS="-c -g"
-export NASMFLAGS="-felf"
+export NASMFLAGS="-felf -F dwarf -g"
 
 if [ "$DEBUG" = true ] ; then
   DEFINES="$DEFINES -DEBUG"

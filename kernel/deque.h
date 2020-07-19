@@ -26,6 +26,7 @@ public:
 		}
 	}
 	KDeque(KDeque&& other) noexcept
+        : KDeque()
 	{
 		swap(*this, other);
 	}
@@ -39,7 +40,7 @@ public:
 		{
 			for (auto i = 0; i < elem_count; i++)
 			{
-				this[i].~T();
+				(*this)[i].~T();
 			}
 			kfree(buffer);
 		}
@@ -59,18 +60,43 @@ public:
         swap(a.start, b.start);
         swap(a.end, b.end);
 	}
-    T& push_back(T);
-    T& push_front(T);
+    T& push_back(T value)
+    {
+		if (elem_count >= elem_capacity) [[unlikely]]
+		{
+            expand();
+		}
+        auto prev_end = end;
+        end = (end + 1) % elem_capacity;
+        elem_count++;
+		// result of assignment is lvalue
+		return buffer[prev_end] = std::move(value);
+    }
+    T& push_front(T value)
+    {
+		if (elem_count >= elem_capacity) [[unlikely]]
+		{
+            expand();
+		}
+        elem_count++;
+        start = (start + elem_capacity - 1) % elem_capacity;
+		// result of assignment is lvalue
+		return buffer[start] = std::move(value);
+    }
     T pop_back() {
+        if (!elem_count) [[unlikely]] throw OutOfBoundsError();
         --elem_count;
         end = (end + elem_capacity - 1) % elem_capacity;
-        return buffer[end];
+        if (elem_count == 0) start = end;
+        return std::move(buffer[end]);
     }
     T pop_front() {
-        auto val = this[start];
+        if (!elem_count) [[unlikely]] throw OutOfBoundsError();
+        auto val = std::move(buffer[start]);
         --elem_count;
         start = (start + 1) % elem_capacity;
-        return val;
+        if (elem_count == 0) end = start;
+        return std::move(val);
     }
     T& operator[](size_t index)
     {
@@ -91,9 +117,38 @@ protected:
 private:
     KDeque(size_t capacity, size_t count, size_t start, size_t end)
 		: elem_capacity(capacity),
+          elem_count(count),
 		  buffer(capacity ? (T *)kmalloc(capacity * sizeof(T)) : nullptr),
           start(start),
           end(end) {}
+    void expand()
+    {
+        if (elem_count < elem_capacity) [[unlikely]] return;
+
+        auto new_capacity = elem_capacity ? elem_capacity * 2 : 4;
+        auto expanded_count = new_capacity - elem_capacity;
+        T *new_buffer = (T *)krealloc(buffer, new_capacity * sizeof(T));
+        if (!new_buffer) [[unlikely]] throw OutOfMemoryError();
+        buffer = new_buffer;
+        // Recalculate end position
+        if (elem_count > 0 && end <= start)
+        {
+            auto tail_count = elem_capacity - start;
+            // todo: try std::move
+            kmemmove(buffer + start + expanded_count, buffer + start, tail_count * sizeof(T));
+            kzeromem(buffer + start, expanded_count * sizeof(T));
+            if (start != 0)
+            {
+                start += expanded_count;
+            }
+        }
+        else
+        {
+            end = (start + elem_count) % new_capacity;
+            kzeromem(buffer + end, expanded_count * sizeof(T));
+        }
+        elem_capacity = new_capacity;
+    }
 };  // class KDeque
 }  // namespace kernel
 

@@ -12,6 +12,26 @@ template <typename T>
 class MemoryPool
 {
 public:
+    MemoryPool()
+        : first_free(nullptr),
+          last_free(nullptr) {};
+    MemoryPool(MemoryPool&& other) noexcept
+        : MemoryPool()
+    {
+        swap(*this, other);
+    }
+    // Disallow copy and assign
+    MemoryPool(const MemoryPool&) = delete;
+    MemoryPool& operator=(MemoryPool) = delete;
+
+    friend void swap(MemoryPool& a, MemoryPool &b)
+	{
+		using std::swap;
+        swap(a.first_free, b.first_free);
+        swap(a.last_free, b.last_free);
+        swap(a.list, b.list);
+    }
+
     T *allocate(T value)
     {
         if (first_free)
@@ -50,8 +70,8 @@ protected:
         T value;
         FreeListNode node;
     };
-    Item *first_free = nullptr;
-    Item *last_free = nullptr;
+    Item *first_free;
+    Item *last_free;
     KVector<Item> list;
     void remove_free_item(Item *item)
     {

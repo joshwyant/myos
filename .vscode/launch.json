@@ -49,7 +49,7 @@
                     "description": "Break on page fault."
                 }
             ],
-            /*"preLaunchTask": "Launch QEMU for debugging"*/
+            //"preLaunchTask": "Build and launch for debugging"
         },
 
         {
@@ -100,7 +100,7 @@
                     "description": "Break on page fault."
                 }
             ],
-            /*"preLaunchTask": "Launch QEMU for debugging"*/
+            //"preLaunchTask": "Build and launch for debugging"
         }
     ]
 }

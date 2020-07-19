@@ -106,7 +106,7 @@ public:
     {
         if (storage.l.is_long)
         {
-            storage.l.buffer = kdupheap(storage.l.buffer);
+            storage.l.buffer = (CharT *)kdupheap(storage.l.buffer);
             if (!storage.l.buffer) [[unlikely]]
             {
                 throw OutOfMemoryError();
