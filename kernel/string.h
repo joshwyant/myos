@@ -7,6 +7,8 @@
 #include <utility>
 #include "error.h"
 #include "memory.h"
+#include "pool.h"
+#include "vector.h"
 
 extern "C" {
 #endif
@@ -91,6 +93,12 @@ class KBasicStringView;
 typedef KBasicStringView<char> KStringView;
 typedef KBasicStringView<wchar_t> KWStringView;
 
+template <typename CharT>
+class KBasicStringBuffer;
+
+typedef KBasicStringBuffer<char> KStringBuffer;
+typedef KBasicStringBuffer<wchar_t> KWStringBuffer;
+
 template<typename CharT>
 class KBasicString
 {
@@ -130,11 +138,10 @@ public:
 	}
     KBasicString(const KBasicStringView<CharT> str)
     {
-        size_t short_capacity = sizeof(storage.s.buffer) / sizeof(CharT); // including null terminator
         size_t length = 0;
         CharT *buffer;
         int i;
-        if (str.len() < short_capacity)
+        if (str.len() < short_capacity())
         {
             storage.s.is_long = false;
             storage.s.length = str.len();
@@ -144,6 +151,7 @@ public:
         {
             storage.l.is_long = true;
             storage.l.length = str.len();
+            storage.l.hash = 0;
             storage.l.buffer = (CharT *)kmalloc(str.len() + 1);
             buffer = storage.l.buffer;
             if (!buffer) [[unlikely]] throw OutOfMemoryError();
@@ -155,6 +163,23 @@ public:
         }
         buffer[str.len()] = 0;
     }
+    // Includes null terminator
+    static size_t short_capacity() { return sizeof(storage.s.buffer) / sizeof(CharT); }
+    static KBasicString preallocated(CharT *buffer, int length)
+    {
+        if (length < short_capacity())
+        {
+            KBasicString short_str(buffer);
+            kfree(buffer);
+            return short_str;
+        }
+        KBasicString s;
+        s.storage.l.is_long = true;
+        s.storage.l.length = length;
+        s.storage.l.hash = 0;
+        s.storage.l.buffer = buffer;
+        return s;
+    }
     KBasicString(const CharT *str) : KBasicString(KBasicStringView<CharT>(str)) {}
     ~KBasicString()
     {
@@ -164,6 +189,7 @@ public:
         }
         storage.l.buffer = nullptr;
         storage.l.length = 0;
+        storage.l.hash = 0;
         storage.l.is_long = false;
     }
     const CharT *c_str() const
@@ -174,13 +200,47 @@ public:
     {
         return storage.l.is_long ? storage.l.length : storage.s.length;
     }
-    CharT operator[](size_t i) const
+    CharT& operator[](int i) const
     {
         if (i < 0 || i > len()) [[unlikely]]
         {
             throw OutOfBoundsError();
         }
         return storage.l.is_long ? storage.l.buffer[i] : storage.s.buffer[i];
+    }
+    bool operator==(const KBasicString& other)
+    {
+        if (this == &other) [[unlikely]] return true;
+        if (hash() != other.hash()) [[unlikely]] return false;
+        auto aPtr = c_str();
+        auto bPtr = other.c_str();
+        while (*aPtr && *bPtr)
+        {
+            ++aPtr;
+            ++bPtr;
+        }
+        return *aPtr == *bPtr;
+    }
+    int hash()
+    {
+        int h = storage.l.is_long ? storage.l.hash : 0;
+        if (h == 0)
+        {
+            auto buffer = c_str();
+            for (int i = 0; i < len(); i++) {
+                h = 31 * h + buffer[i];
+            }
+            if (storage.l.is_long)
+            {
+                storage.l.hash = h;
+            }
+        }
+        return h;
+    }
+    KBasicString operator+(const KBasicString& other)
+    {
+        KBasicString str(*this);
+        return str.concat(other);
     }
     KBasicString& concat(const KBasicStringView<CharT>& other)
     {
@@ -233,7 +293,7 @@ protected:
     struct long_string
     {
         CharT *buffer;
-        size_t reserved;
+        int hash;
         size_t length : sizeof(size_t) * 8 - 1;
         bool is_long : 1;
     };
@@ -287,7 +347,7 @@ public:
     {
         return str ? str->len() : length;
     }
-    CharT operator[](size_t i) const
+    CharT& operator[](int i) const
     {
         if (i < 0 || i > len()) [[unlikely]]
         {
@@ -303,6 +363,74 @@ private:
     KBasicStringView(size_t length, const CharT *cstr, const KBasicString<CharT> *str)
         : length(length), cstr(cstr), str(str) {}
 };  // KBasicStringView
+
+template <typename CharT>
+class KBasicStringBuffer
+{
+public:
+    KBasicStringBuffer()
+        : length(0) {}
+    KBasicStringBuffer(KBasicStringBuffer&) = delete;
+    KBasicStringBuffer& operator=(KBasicStringBuffer) = delete;
+    KBasicStringBuffer(KBasicStringBuffer&& other) noexcept
+        : KBasicStringBuffer()
+    {
+        swap(*this, other);
+    }
+    ~KBasicStringBuffer()
+    {
+        for (auto& pool_item : pool_items)
+        {
+            pool.deallocate(pool_item);
+        }
+    }
+    friend void swap(KBasicStringBuffer& a, KBasicStringBuffer& b)
+    {
+        using std::swap;
+        swap(a.buffer, b.buffer);
+        swap(a.pool, b.pool);
+        swap(a.pool_items, b.pool_items);
+        swap(a.length, b.length);
+    }
+    void append(KBasicStringView<CharT> str)
+    {
+        buffer.push_back(std::move(str));
+    }
+    void append(KBasicString<CharT>&& str)
+    {
+        buffer.push_back(*pool_items.push_back(pool.allocate(std::move(str))));
+    }
+    void append(CharT value)
+    {
+        CharT chars[] = { value, 0 };
+        KBasicString<CharT> char_str(chars);
+        append(std::move(char_str));
+    }
+    KString to_string()
+    {
+        CharT *destBuffer = (CharT*)kmalloc((length + 1) * sizeof(CharT));
+        int pos = 0;
+        for (auto& str : buffer)
+        {
+            for (auto i = 0; i < str.len(); i++)
+            {
+                destBuffer[pos++] = str[i];
+            }
+        }
+        destBuffer[pos] = 0;
+        if (length < KBasicString<CharT>::short_capacity())
+        {
+            return KBasicString<CharT>(destBuffer);
+        }
+        return KBasicString<CharT>::preallocated(destBuffer, length);
+    }
+    size_t len() { return length; }
+protected:
+    KVector<KBasicStringView<CharT> > buffer;
+    MemoryPool<KBasicString<CharT> > pool;
+    KVector<KBasicString<CharT>*> pool_items;
+    int length;
+};  // KBasicStringBuffer
 }  // namespace kernel
 #endif
 

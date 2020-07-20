@@ -33,6 +33,13 @@ class InvalidOperationError : public Error
 public:
     InvalidOperationError(const char *msg) : Error(msg) {}
 };  // class InvalidOperationError
+
+class NotFoundError : public Error
+{
+public:
+    NotFoundError() : Error("Not found") {}
+    NotFoundError(const char *msg) : Error(msg) {}
+};  // class NotFoundError
 } // namespace kernel
 #endif  // __cplusplus
 #endif  // __KERNEL_ERROR_H__

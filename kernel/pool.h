@@ -9,12 +9,46 @@
 namespace kernel
 {
 template <typename T>
-class MemoryPool
+class Allocator
 {
 public:
-    MemoryPool()
+virtual T *allocate(T value) = 0;
+virtual void deallocate(T *value) = 0;
+};
+
+template <typename T>
+class HeapAllocator
+    : Allocator<T>
+{
+public:
+T *allocate(T value) override
+{
+    using std::swap;
+    T *ptr = kcalloc(sizeof(T));
+    swap(*ptr, value);
+    return ptr;
+}
+void deallocate(T *value) override
+{
+    value->~T();
+    kfree(value);
+}
+};
+
+template <typename T>
+class MemoryPool
+    : Allocator<T>
+{
+public:
+    MemoryPool(size_t capacity = 0)
         : first_free(nullptr),
-          last_free(nullptr) {};
+          last_free(nullptr)
+    {
+        if (capacity)
+        {
+            list.reserve(capacity);
+        }
+    };
     MemoryPool(MemoryPool&& other) noexcept
         : MemoryPool()
     {
@@ -32,7 +66,7 @@ public:
         swap(a.list, b.list);
     }
 
-    T *allocate(T value)
+    T *allocate(T value) override
     {
         if (first_free)
         {
@@ -49,7 +83,7 @@ public:
             return &list.push_back(std::move(item)).value;
         }
     }
-    void deallocate(T *value)
+    void deallocate(T *value) override
     {
         // Deconstruct the value item
         value->~T();
@@ -57,7 +91,10 @@ public:
         auto item = (Item *)value;
         add_free_item(item);
     }
-    
+    void reserve(size_t amount)
+    {
+        list.reserve(amount);
+    }
 protected:
     union Item;
     struct FreeListNode

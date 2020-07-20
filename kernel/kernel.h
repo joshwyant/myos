@@ -13,11 +13,14 @@
 #include "error.h"
 #include "exceptions.h"
 #include "fat.h"
+#include "forward_list.h"
 #include "fs.h"
 #include "fpu.h"
 #include "interrupt.h"
+#include "list.h"
 #include "keyboard.h"
 #include "klib.h"
+#include "map.h"
 #include "memory.h"
 #include "mouse.h"
 #include "pool.h"
@@ -31,15 +34,18 @@
 #include "video.h"
 
 #ifdef __cplusplus
-extern "C" {
 
-void *operator new(size_t size);
+#include <new>
+
+_GLIBCXX_NODISCARD void* operator new(std::size_t) _GLIBCXX_THROW (std::bad_alloc);
  
-void *operator new[](size_t size);
+_GLIBCXX_NODISCARD void* operator new[](std::size_t) _GLIBCXX_THROW (std::bad_alloc);
  
-void operator delete(void *p);
+void operator delete(void*) _GLIBCXX_USE_NOEXCEPT;
  
-void operator delete[](void *p);
+void operator delete[](void*) _GLIBCXX_USE_NOEXCEPT;
+
+extern "C" {
 #endif
 
 // main
