@@ -26,6 +26,8 @@
 #include "mouse.h"
 #include "priority_queue.h"
 #include "process.h"
+#include "queue.h"
+#include "stack.h"
 #include "string.h"
 #include "string_buffer.h"
 #include "syscall.h"

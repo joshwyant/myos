@@ -83,6 +83,32 @@ public:
 		// result of assignment is lvalue
 		return buffer[elem_count++] = std::move(value);
 	}
+	T pop_back()
+	{
+		if (!elem_count)
+			throw OutOfBoundsError();
+		return std::move(buffer[--elem_count]);
+	}
+	T& top()
+	{
+        return const_cast<T&>(static_cast<const KVector&>(*this).top());
+	}
+	T& bottom()
+	{
+        return const_cast<T&>(static_cast<const KVector&>(*this).bottom());
+	}
+	const T& top() const
+	{
+		if (!elem_count)
+			throw OutOfBoundsError();
+		return buffer[elem_count - 1];
+	}
+	const T& bottom() const
+	{
+		if (!elem_count)
+			throw OutOfBoundsError();
+		return buffer[0];
+	}
 	T *begin() { return const_cast<T*>(static_cast<const KVector&>(*this).begin()); }
 	T *end() { return const_cast<T*>(static_cast<const KVector&>(*this).end()); }
 	const T *begin() const { return buffer; }

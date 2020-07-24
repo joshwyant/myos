@@ -110,6 +110,26 @@ public:
         }
         return buffer[(start + index) % elem_capacity];
     }
+	T& top()
+	{
+        return const_cast<T&>(static_cast<const KDeque&>(*this).top());
+	}
+	T& bottom()
+	{
+        return const_cast<T&>(static_cast<const KDeque&>(*this).bottom());
+	}
+	const T& top() const
+	{
+		if (!elem_count)
+			throw OutOfBoundsError();
+		return this[elem_count - 1];
+	}
+	const T& bottom() const
+	{
+		if (!elem_count)
+			throw OutOfBoundsError();
+		return buffer[start];
+	}
     size_t len() { return elem_count; }
     size_t capacity() { return elem_capacity; }
 protected:
