@@ -1,14 +1,17 @@
 #include "fatc.h"
 
+extern "C"
+{
+
 // Call before using any FAT functions.
 void fat_init()
 {
     // Copy BIOS parameter block from where the boot sector was loaded
-    void* bootsect = kfindrange(0x1000)+0xC00;
+    char* bootsect = (char*)kfindrange(0x1000)+0xC00;
     page_map(bootsect, (void*)0x7000, PF_WRITE);
     bpb = *(BPBMain*)bootsect;
-    bpb16 = *(BPB16*)(bootsect+36);
-    bpb32 = *(BPB32*)(bootsect+36);
+    bpb16 = *(BPB16*)(void*)(bootsect+36);
+    bpb32 = *(BPB32*)(void*)(bootsect+36);
     page_unmap(bootsect);
     page_free((void*)0x7000, 1);
     // make current directory the root directory
@@ -37,16 +40,17 @@ int file_open(const char *filename, FileStream *fs)
     }
     fs->filesize = file_info.file_size;
     fs->position = 0;
-    fs->data = kmalloc(sizeof(struct fsdata));
-    fs->data->buffer = kmalloc(cluster_size);
+    fs->data = (fsdata *)kmalloc(sizeof(struct fsdata));
+    fs->data->buffer = (char *)kmalloc(cluster_size);
     const int clusterstacksize = 4;
-    fs->data->clusterstack = kmalloc(clusterstacksize*sizeof(unsigned));
+    fs->data->clusterstack = (unsigned *)kmalloc(clusterstacksize*sizeof(unsigned));
     fs->data->clusterstacksize = clusterstacksize;
     fs->data->firstcluster = file_info.cluster_low|(fat_type == TFAT32 ? (file_info.cluster_high<<16) : 0);
     fs->data->currentcluster = fs->data->firstcluster;
     fs->data->stack_index = 0;
     void* buffer = fs->data->buffer;
     read_cluster(fs->data->firstcluster, &buffer);
+    return 1;
 }
 
 void file_close(FileStream *fs)
@@ -69,6 +73,7 @@ static inline int eof(unsigned clus)
     } else if (fat_type == TFAT32) {
         return clus >= 0x0FFFFFF8;
     }
+    return -1;
 }
 
 int push_cluster(FileStream *fs)
@@ -79,7 +84,7 @@ int push_cluster(FileStream *fs)
     // Resize stack if needed
     if (fs->data->stack_index > fs->data->clusterstacksize)
     {
-        unsigned* newptr = kmalloc((fs->data->clusterstacksize ? fs->data->clusterstacksize*2 : 4)*sizeof(unsigned));
+        unsigned* newptr = (unsigned*)kmalloc((fs->data->clusterstacksize ? fs->data->clusterstacksize*2 : 4)*sizeof(unsigned));
         int i;
         for (i = 0; i < fs->data->stack_index; i++)
             newptr[i] = fs->data->clusterstack[i];
@@ -108,7 +113,7 @@ int pop_cluster(FileStream *fs)
     // Resize stack if needed
     if ((fs->data->stack_index < fs->data->clusterstacksize/2) && fs->data->clusterstacksize > 4)
     {
-        unsigned* newptr = kmalloc(fs->data->clusterstacksize/2*sizeof(unsigned));
+        unsigned* newptr = (unsigned *)kmalloc(fs->data->clusterstacksize/2*sizeof(unsigned));
         int i;
         for (i = 0; i < fs->data->stack_index; i++)
             newptr[i] = fs->data->clusterstack[i];
@@ -468,14 +473,14 @@ static void read_sector(int sector, void** buffer)
     // past the BPB, because BPB_HiddSec was treated as an offset
     // into an int array, not an int at a byte offset.
     sector += bpb.HiddSec;
-    ReadSectors(*buffer, 1, 0, 0, sector);
-    *buffer += 512;
+    ReadSectors(*(char**)buffer, 1, 0, 0, sector);
+    *(char*)buffer += 512;
 }
 
 static void write_sector(int sector, void* buffer)
 {
     sector += bpb.HiddSec;
-    WriteSectors(buffer, 1, 0, 0, sector);
+    WriteSectors((char*)buffer, 1, 0, 0, sector);
 }
 
 static int write_cluster(int cluster, void* buffer)
@@ -521,3 +526,5 @@ static unsigned int alloc_next_cluster(unsigned int cluster)
     return cluster_after;
 }
 */
+
+} // extern "C"

@@ -78,7 +78,7 @@ $TARGET-gcc $CFLAGS disk.c -o ./obj/disk.o
 $TARGET-gcc $CPPFLAGS drawing.cc -o ./obj/drawing.o
 $TARGET-gcc $CFLAGS elf.c -o ./obj/elf.o
 $TARGET-gcc $CFLAGS exceptions.c -o ./obj/exceptions.o
-$TARGET-gcc $CFLAGS fat.c -o ./obj/fat.o
+$TARGET-gcc $CPPFLAGS fat.cc -o ./obj/fat.o
 $TARGET-gcc $CPPFLAGS fpu.cc -o ./obj/fpu.o
 $TARGET-gcc $CFLAGS interrupt.c -o ./obj/interrupt.o
 $TARGET-gcc $CPPFLAGS kcpp.cc -o ./obj/kcpp.o
