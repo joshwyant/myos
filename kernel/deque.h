@@ -15,7 +15,7 @@ template <typename T>
 class KDeque
 {
 public:
-    KDeque(size_t capacity = 0)
+    explicit KDeque(size_t capacity = 0)
 		: KDeque(capacity, 0, 0, 0) {}
     KDeque(const KDeque& other)
 		: KDeque(other.capacity, other.elem_count, other.start, other.end)
@@ -35,7 +35,7 @@ public:
 		swap(*this, other);
 		return *this;
 	}
-    ~KDeque() {
+    virtual ~KDeque() {
 		if (buffer)
 		{
 			for (auto i = 0; i < elem_count; i++)
@@ -98,7 +98,11 @@ public:
         if (elem_count == 0) end = start;
         return std::move(val);
     }
-    T& operator[](size_t index)
+    T& operator[](int index)
+    {
+        return const_cast<T&>(static_cast<const KDeque&>(*this)[index]);
+    }
+    const T& operator[](int index) const
     {
         if (index < 0 || index >= elem_count) [[unlikely]]
         {

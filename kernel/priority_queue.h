@@ -11,7 +11,7 @@ class KPriorityQueue
 {
 public:
     KPriorityQueue() { /* TODO */ }
-    ~KPriorityQueue() { /* TODO */ }
+    virtual ~KPriorityQueue() { /* TODO */ }
     /* TODO */
 protected:
 };      // class KPriorityQueue

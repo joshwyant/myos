@@ -3,6 +3,7 @@
 
 #ifdef __cplusplus
 
+#include <new>
 #include <stddef.h>
 #include <utility>
 #include "error.h"
@@ -15,7 +16,7 @@ template <typename T>
 class KVector
 {
 public:
-	KVector(size_t capacity = 0)
+	explicit KVector(size_t capacity = 0)
 		: KVector(capacity, 0) {}
 	KVector(const KVector& other)
 		: KVector(other.capacity, other.elem_count)
@@ -26,6 +27,7 @@ public:
 		}
 	}
 	KVector(KVector&& other) noexcept
+		: KVector()
 	{
 		swap(*this, other);
 	}
@@ -34,7 +36,8 @@ public:
 		swap(*this, other);
 		return *this;
 	}
-	~KVector() {
+	virtual ~KVector()
+	{
 		if (buffer)
 		{
 			for (auto i = 0; i < elem_count; i++)
@@ -56,6 +59,10 @@ public:
 	}
 	T& operator[](int index)
 	{
+		return const_cast<T&>(static_cast<const KVector&>(*this)[index]);
+	}
+	const T& operator[](int index) const
+	{
 		if (index < 0 || index >= elem_count) [[unlikely]]
 		{
 			throw OutOfBoundsError();
@@ -70,11 +77,16 @@ public:
 		{
 			expand();
 		}
+		// Construct an empty object first -- this is important, even if memory is zeroed out!
+		// The constructor ensures the vTable, etc. is there.
+		new (&buffer[elem_count]) T();
 		// result of assignment is lvalue
 		return buffer[elem_count++] = std::move(value);
 	}
-	T *begin() { return buffer; }
-	T *end() { return buffer + elem_count; }
+	T *begin() { return const_cast<T*>(static_cast<const KVector&>(*this).begin()); }
+	T *end() { return const_cast<T*>(static_cast<const KVector&>(*this).end()); }
+	const T *begin() const { return buffer; }
+	const T *end() const { return buffer + elem_count; }
 	void reserve(size_t amount)
 	{
 		expand(amount);

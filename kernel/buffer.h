@@ -14,8 +14,8 @@ namespace kernel
 class Buffer
 {
 public:
-    Buffer(size_t capacity = 1024)
-        : mBuffer(capacity ? (char *)kmalloc(capacity) : nullptr),
+    explicit Buffer(size_t capacity = 1024)
+        : mBuffer(capacity ? new char[capacity] : nullptr),
           mCapacity(capacity),
           mStart(0),
           mEnd(0),
@@ -24,11 +24,20 @@ public:
         if (capacity && !mBuffer) throw OutOfMemoryError();
     }
     Buffer(Buffer&) = delete;
-    Buffer(Buffer&&) noexcept = delete;
     Buffer& operator=(Buffer) = delete;
+    Buffer(Buffer&& other) noexcept
+        : Buffer()
+    {
+        swap(*this, other);
+    }
+    Buffer& operator=(Buffer&& other)
+    {
+        swap(*this, other);
+        return *this;
+    }
     ~Buffer()
     {
-        kfree(mBuffer);
+        delete[] mBuffer;
         mBuffer = nullptr;
         mStart = 0;
         mEnd = 0;
@@ -44,57 +53,13 @@ public:
         swap(a.mEnd, b.mEnd);
         swap(a.mCount, b.mCount);
     }
-    size_t capacity() { return mCapacity; }
-    size_t available_capacity() { return mCapacity - mCount; }
-    bool has_capacity() { return available_capacity() > 0; }
-    bool has_bytes() { return len() > 0; }
-    size_t len() { return mCount; }
-    int write(const char *src, int pos, size_t bytes)
-    {
-        int bytes_written = 0;
-        int chunk = std::min(available_capacity(), capacity() - mEnd, bytes);
-        kmemcpy(mBuffer + mEnd, src + pos, chunk);
-        bytes_written += chunk;
-        bytes -= chunk;
-        mCount += chunk;
-        pos += chunk;
-        mEnd += chunk;
-        if (bytes > 0 && pos == capacity())
-        {
-            mEnd = 0;
-            chunk = std::min(available_capacity(), bytes);
-            kmemcpy(mBuffer + mEnd, src + pos, chunk);
-            bytes_written += chunk;
-            mCount += chunk;
-            mEnd += chunk;
-            // bytes -= chunk;
-            // pos += chunk;
-        }
-        return bytes_written;
-    }
-    int read(char *dest, int pos, size_t bytes)
-    {
-        int bytes_written = 0;
-        int chunk = std::min(len(), capacity() - mStart, bytes);
-        kmemcpy(dest + pos, mBuffer + mStart, chunk);
-        bytes_written += chunk;
-        bytes -= chunk;
-        mCount -= chunk;
-        pos += chunk;
-        mStart += chunk;
-        if (bytes > 0 && pos == capacity())
-        {
-            mStart = 0;
-            chunk = std::min(len(), bytes);
-            kmemcpy(mBuffer + mStart, dest + pos, chunk);
-            bytes_written += chunk;
-            mCount -= chunk;
-            mStart += chunk;
-            // bytes -= chunk;
-            // pos += chunk;
-        }
-        return bytes_written;
-    }
+    size_t capacity() const { return mCapacity; }
+    size_t available_capacity() const { return mCapacity - mCount; }
+    bool has_capacity() const { return available_capacity() > 0; }
+    bool has_bytes() const { return len() > 0; }
+    size_t len() const { return mCount; }
+    int write(const char *src, int pos, size_t bytes);
+    int read(char *dest, int pos, size_t bytes);
 protected:
     char *mBuffer;
     size_t mCapacity;
@@ -102,6 +67,7 @@ protected:
     size_t mEnd;
     size_t mCount;
 }; // class Buffer
+
 } // namespace kernel
 
 #endif  // __cplusplus

@@ -70,7 +70,7 @@ void kmain()
         show_splash();
         
         init_mouse();
-        
+
         //init_graphical_console();
     }
 

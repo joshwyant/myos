@@ -7,8 +7,6 @@
 #include <utility>
 #include "error.h"
 #include "memory.h"
-#include "pool.h"
-#include "vector.h"
 
 extern "C" {
 #endif
@@ -93,12 +91,6 @@ class KBasicStringView;
 typedef KBasicStringView<char> KStringView;
 typedef KBasicStringView<wchar_t> KWStringView;
 
-template <typename CharT>
-class KBasicStringBuffer;
-
-typedef KBasicStringBuffer<char> KStringBuffer;
-typedef KBasicStringBuffer<wchar_t> KWStringBuffer;
-
 template<typename CharT>
 class KBasicString
 {
@@ -181,7 +173,7 @@ public:
         return s;
     }
     KBasicString(const CharT *str) : KBasicString(KBasicStringView<CharT>(str)) {}
-    ~KBasicString()
+    virtual ~KBasicString()
     {
         if (storage.l.is_long && storage.l.buffer)
         {
@@ -192,6 +184,10 @@ public:
         storage.l.hash = 0;
         storage.l.is_long = false;
     }
+    CharT *c_str()
+    {
+        return const_cast<CharT*>(static_cast<const KBasicString&>(*this).c_str());
+    }
     const CharT *c_str() const
     {
         return storage.l.is_long ? storage.l.buffer : storage.s.buffer;
@@ -200,7 +196,11 @@ public:
     {
         return storage.l.is_long ? storage.l.length : storage.s.length;
     }
-    CharT& operator[](int i) const
+    CharT& operator[](int i)
+    {
+        return const_cast<CharT&>(static_cast<const KBasicString&>(*this)[i]);
+    }
+    const CharT& operator[](int i) const
     {
         if (i < 0 || i > len()) [[unlikely]]
         {
@@ -208,7 +208,7 @@ public:
         }
         return storage.l.is_long ? storage.l.buffer[i] : storage.s.buffer[i];
     }
-    bool operator==(const KBasicString& other)
+    bool operator==(const KBasicString& other) const
     {
         if (this == &other) [[unlikely]] return true;
         if (hash() != other.hash()) [[unlikely]] return false;
@@ -221,7 +221,7 @@ public:
         }
         return *aPtr == *bPtr;
     }
-    int hash()
+    int hash() const
     {
         int h = storage.l.is_long ? storage.l.hash : 0;
         if (h == 0)
@@ -232,12 +232,13 @@ public:
             }
             if (storage.l.is_long)
             {
-                storage.l.hash = h;
+                storage.l.hash = h; // hash is declared mutable, so it's
+                                    // okay to set in const function
             }
         }
         return h;
     }
-    KBasicString operator+(const KBasicString& other)
+    KBasicString operator+(const KBasicString& other) const
     {
         KBasicString str(*this);
         return str.concat(other);
@@ -293,7 +294,7 @@ protected:
     struct long_string
     {
         CharT *buffer;
-        int hash;
+        mutable int hash;
         size_t length : sizeof(size_t) * 8 - 1;
         bool is_long : 1;
     };
@@ -347,7 +348,7 @@ public:
     {
         return str ? str->len() : length;
     }
-    CharT& operator[](int i) const
+    const CharT& operator[](int i) const
     {
         if (i < 0 || i > len()) [[unlikely]]
         {
@@ -363,74 +364,6 @@ private:
     KBasicStringView(size_t length, const CharT *cstr, const KBasicString<CharT> *str)
         : length(length), cstr(cstr), str(str) {}
 };  // KBasicStringView
-
-template <typename CharT>
-class KBasicStringBuffer
-{
-public:
-    KBasicStringBuffer()
-        : length(0) {}
-    KBasicStringBuffer(KBasicStringBuffer&) = delete;
-    KBasicStringBuffer& operator=(KBasicStringBuffer) = delete;
-    KBasicStringBuffer(KBasicStringBuffer&& other) noexcept
-        : KBasicStringBuffer()
-    {
-        swap(*this, other);
-    }
-    ~KBasicStringBuffer()
-    {
-        for (auto& pool_item : pool_items)
-        {
-            pool.deallocate(pool_item);
-        }
-    }
-    friend void swap(KBasicStringBuffer& a, KBasicStringBuffer& b)
-    {
-        using std::swap;
-        swap(a.buffer, b.buffer);
-        swap(a.pool, b.pool);
-        swap(a.pool_items, b.pool_items);
-        swap(a.length, b.length);
-    }
-    void append(KBasicStringView<CharT> str)
-    {
-        buffer.push_back(std::move(str));
-    }
-    void append(KBasicString<CharT>&& str)
-    {
-        buffer.push_back(*pool_items.push_back(pool.allocate(std::move(str))));
-    }
-    void append(CharT value)
-    {
-        CharT chars[] = { value, 0 };
-        KBasicString<CharT> char_str(chars);
-        append(std::move(char_str));
-    }
-    KString to_string()
-    {
-        CharT *destBuffer = (CharT*)kmalloc((length + 1) * sizeof(CharT));
-        int pos = 0;
-        for (auto& str : buffer)
-        {
-            for (auto i = 0; i < str.len(); i++)
-            {
-                destBuffer[pos++] = str[i];
-            }
-        }
-        destBuffer[pos] = 0;
-        if (length < KBasicString<CharT>::short_capacity())
-        {
-            return KBasicString<CharT>(destBuffer);
-        }
-        return KBasicString<CharT>::preallocated(destBuffer, length);
-    }
-    size_t len() { return length; }
-protected:
-    KVector<KBasicStringView<CharT> > buffer;
-    MemoryPool<KBasicString<CharT> > pool;
-    KVector<KBasicString<CharT>*> pool_items;
-    int length;
-};  // KBasicStringBuffer
 }  // namespace kernel
 #endif
 

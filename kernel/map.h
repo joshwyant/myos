@@ -7,7 +7,6 @@
 #include <utility>
 #include "forward_list.h"
 #include "hash.h"
-#include "pool.h"
 #include "vector.h"
 
 namespace kernel
@@ -19,6 +18,7 @@ class Map
 public:
     Map(Map&) = delete;
     Map& operator=(Map&) = delete;
+    virtual ~Map() {}
     struct KeyValuePair
     {
         TKey key;
@@ -33,6 +33,7 @@ public:
         {
             swap(*this, other);
         }
+        virtual ~KeyValuePair() {}
         KeyValuePair& operator=(KeyValuePair other)
         {
             swap(*this, other);
@@ -45,8 +46,11 @@ public:
             swap(a.value, b.value);
         }
     };
-    virtual TValue& operator[](TKey&) = 0;
+    virtual TValue& operator[](const TKey&) = 0;
+    virtual const TValue& operator[](const TKey&) const = 0;
     virtual void insert(TKey key, TValue value) = 0;
+protected:
+    Map() {}
 }; // class Map
 
 template <
@@ -58,27 +62,16 @@ class UnorderedMap
     : Map<TKey, TValue>
 {
 public:
-    UnorderedMap(int capacity = 0)
+    explicit UnorderedMap(int capacity = 0)
         : mCapacity(capacity),
-          mCount(0),
-          mNodePool(
-            std::make_shared<
-                MemoryPool<
-                    typename ForwardList<
-                        typename Map<TKey, TValue>
-                            ::KeyValuePair
-                    >::Node
-                > 
-            >()
-          )
+          mCount(0)
     {
         if (capacity)
         {
             mBuckets.reserve(capacity);
-            mNodePool->reserve(capacity);
-            for (auto& bucket: mBuckets)
+            for (int i = 0; i < capacity; i++)
             {
-                bucket.allocator(mNodePool);
+                mBuckets.push_back(ForwardList<typename Map<TKey, TValue>::KeyValuePair>());
             }
         }
     }
@@ -93,21 +86,27 @@ public:
     {
         using std::swap;
         swap(a.mBuckets, b.mBuckets);
-        swap(a.mNodePool, b.mNodePool);
         swap(a.mCapacity, b.mCapacity);
         swap(a.mCount, b.mCount);
     }
-    ~UnorderedMap()
+    ~UnorderedMap() override
     {
-        // TODO
+        mCapacity = 0;
+        mCount = 0;
     }
-    TValue& operator[](TKey& key) override
+    TValue& operator[](const TKey& key) override
     {
-        int hash = FHash(key);
-        int bucket = hash % mCapacity;
+        return const_cast<TValue&>(static_cast<const UnorderedMap&>(*this)[key]);
+    }
+    const TValue& operator[](const TKey& key) const override
+    {
+        FHash hash;
+        FEqual equal;
+        int h = hash(key);
+        int bucket = h % mCapacity;
         for (auto& node : mBuckets[bucket])
         {
-            if ((FHash(node.value.key) == hash) && FEqual(node.value.key, key)) [[likely]]
+            if ((hash(node.value.key) == h) && equal(node.value.key, key)) [[likely]]
             {
                 return node.value.value;
             }
@@ -116,13 +115,15 @@ public:
     }
     void insert(TKey key, TValue value) override
     {
-        if (mCapacity >= mCount) [[unlikely]]
+        FHash hash;
+        if (mCount >= mCapacity) [[unlikely]]
         {
             expand();
         }
-        int hash = FHash(key);
-        int bucket = hash % mCapacity;
+        int h = hash(key);
+        int bucket = h % mCapacity;
         mBuckets[bucket].push_back(typename Map<TKey, TValue>::KeyValuePair(std::move(key), std::move(value)));
+        mCount++;
     }
     void reserve(size_t amount)
     {
@@ -132,7 +133,7 @@ protected:
     void expand(size_t size = 0)
     {
         if (size != 0 && size <= mCapacity) [[unlikely]] return;
-        UnorderedMap newMap(size ? size : mCapacity ? 4 : mCapacity);
+        UnorderedMap newMap(size ? size : mCapacity ? mCapacity * 2 : 4);
         for (auto& bucket: mBuckets)
         {
             for (auto& node : bucket)
@@ -146,7 +147,6 @@ private:
     size_t mCapacity;
     size_t mCount;
     KVector<ForwardList<typename Map<TKey, TValue>::KeyValuePair> > mBuckets;
-    std::shared_ptr<MemoryPool<typename ForwardList<typename Map<TKey, TValue>::KeyValuePair>::Node> > mNodePool;
 }; // class UnorderedMap
 
 } // namespace kernel

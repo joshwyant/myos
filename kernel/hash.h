@@ -15,15 +15,15 @@ public:
 int operator()(const T& value) { return 0; }
 }; // class Hash
 
-template<>
-class Hash<KString>
+template<typename CharT>
+class Hash<KBasicString<CharT> >
 {
 public:
-int operator()(const KString& value)
+int operator()(const KBasicString<CharT>& value)
 {
-    return const_cast<KString&>(value).hash();
+    return value.hash();
 }
-}; // Hash<KString>
+}; // Hash<KBasicString<CharT> >
 
 template<>
 class Hash<int>
@@ -99,7 +99,7 @@ template <typename T>
 class Equal
 {
 public:
-bool operator()(const T& a, const T&b) { return &a == &b; }
+bool operator()(const T& a, const T&b) { return &a == &b || a == b; }
 }; // class Equal
 
 }  // namespace kernel

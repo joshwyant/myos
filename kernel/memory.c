@@ -456,6 +456,20 @@ void *kcalloc(int size)
     return ptr;
 }
 
+#ifdef DEBUG
+static void mark_debug_mem(void *ptr, size_t size)
+{
+    unsigned pattern = 0xDEADBEEF;
+    char *pPattern = (char*)(void*)&pattern;
+    for (int i = 0; i < size; i++)
+    {
+        ((char*)ptr)[i] = pPattern[i&3];
+    }
+}
+#else
+#define mark_debug_mem(a, b)
+#endif // DEBUG
+
 void* kmalloc(int size)
 {
     // ALLOCATIONS:
@@ -501,6 +515,7 @@ void* kmalloc(int size)
             kptrlink(ptr+m);
         }
         heap_busy = 0;
+        mark_debug_mem(ptr, size);
         return ptr;
     }
     else
@@ -514,6 +529,7 @@ void* kmalloc(int size)
         if (ptr != (void*)0xD0000004)
             ksettag(kadjprev(ptr), ktag(kadjprev(ptr))&0xFBFFFFFF); // The previous block is no longer at the end of the memory.
         heap_busy = 0;
+        mark_debug_mem(ptr, size);
         return ptr;
     }
 }
@@ -524,6 +540,7 @@ void kfree(void* ptr)
     while (lock(&heap_busy)) process_yield();
     // Unlink any adjacent free blocks and coalesce them.
     int s = ktagsize(ktag(ptr)); // The total size of the free block
+    int _s = ktaginsize(ktag(ptr));
     void* ptr2 = ptr; // The leftmost adjacent free block
     void* ptr3 = ptr; // The rightmost adjacent free block
     // If this is not the first block and the previous block is free
@@ -551,6 +568,7 @@ void kfree(void* ptr)
         kptrlink(ptr2);
     }
     heap_busy = 0;
+    mark_debug_mem(ptr, _s);
 }
 
 // Allocates a number of pages in the given range

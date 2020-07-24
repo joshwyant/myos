@@ -4,8 +4,8 @@
 #ifdef __cplusplus
 
 #include <memory>
+#include <utility>
 #include "error.h"
-#include "pool.h"
 
 namespace kernel
 {
@@ -16,33 +16,37 @@ class ForwardList
 public:
     struct Node;
 
-    ForwardList(std::shared_ptr<MemoryPool<Node> > pool = nullptr)
+    ForwardList()
         : mFirst(nullptr),
-          mLast(nullptr),
-          mPool(pool ? pool : std::make_shared<MemoryPool<Node> >()) {}
+          mLast(nullptr) {}
     ForwardList(ForwardList&& other) noexcept
         : ForwardList()
     {
         swap(*this, other);
     }
     ForwardList(ForwardList&) = delete;
-    ForwardList& operator=(ForwardList) = delete;
+    ForwardList& operator=(ForwardList&& other) // Move assignment
+    {
+        swap(*this, other);
+        return *this;
+    }
     friend void swap(ForwardList& a, ForwardList& b)
     {
         using std::swap;
         swap(a.mFirst, b.mFirst);
         swap(a.mLast, b.mLast);
-        swap(a.mPool, b.mPool);
     }
-    ~ForwardList()
+    virtual ~ForwardList()
     {
         Node *n = mFirst;
         while (n)
         {
             auto next_node = n->next;
-            mPool->deallocate(*n);
+            delete n;
             n = next_node;
         }
+        mFirst = nullptr;
+        mLast = nullptr;
     }
     struct Node
     {
@@ -57,20 +61,30 @@ public:
             return *this;
         }
         Node()
-            : value(nullptr), next(nullptr) {}
-        Node(T value, Node *next)
-            : value(std::move(value)), next(next) {}
+            : next(nullptr) {}
+        Node(T&& value, Node *next)
+            : Node()
+        {
+            using std::swap;
+            swap(this->value, value);
+            swap(this->next, next);
+        }
         Node(Node&& other) noexcept
             : Node()
         {
             swap(*this, other);
         }
         Node(Node&) = delete;
-        ~Node()
+        Node& operator=(Node&) = delete; // Copy-assignment
+        virtual ~Node()
         {
             value.~T();
         }
-        Node& operator=(Node) = delete;
+        Node& operator=(Node&& other) // Move-assignment
+        {
+            swap(*this, other);
+            return *this;
+        }
         friend void swap(Node& a, Node& b)
         {
             using std::swap;
@@ -80,11 +94,11 @@ public:
     }; // struct Node
     struct Iterator
     {
-        ForwardList *list;
+        const ForwardList *list;
         Node *current;
         Iterator()
             : list(nullptr), current(nullptr) {}
-        Iterator(ForwardList *list, Node *current)
+        Iterator(const ForwardList *list, Node *current)
             : list(list), current(current) {}
         Iterator(Iterator&& other) noexcept
             : Iterator()
@@ -92,11 +106,22 @@ public:
             swap(*this, other);
         }
         Iterator(Iterator&) = delete;
-        Iterator& operator=(Iterator) = delete;
-
-        bool operator==(Iterator& other)
+        Iterator& operator=(Iterator) = delete; // Copy-assign
+        Iterator& operator=(Iterator&& other) // Move-assign
         {
-            return current = other.current;
+            swap(*this, other);
+            return *this;
+        }
+        friend void swap(Iterator& a, Iterator& b)
+        {
+            using std::swap;
+            swap(a.list, b.list);
+            swap(a.current, b.current);
+        }
+
+        bool operator!=(Iterator& other)
+        {
+            return current != other.current;
         }
         Iterator& operator++()
         {
@@ -105,14 +130,14 @@ public:
         }
         Node& operator*()
         {
-            return current;
+            return *current;
         }
     }; // struct Node
-    Iterator begin() { return Iterator(this, mFirst); }
-    Iterator end() { return Iterator(this, nullptr); }
+    Iterator begin() const { return Iterator(this, mFirst); }
+    Iterator end() const { return Iterator(this, nullptr); }
     Node& push_back(T value)
     {
-        Node *n = mPool->allocate(Node(std::move(value),  nullptr));
+        Node *n = new Node(std::move(value), nullptr);
         if (mLast)
         {
             mLast->next = n;
@@ -126,7 +151,7 @@ public:
     }
     Node& push_front(T value)
     {
-        Node *n = mPool->allocate(Node(std::move(value),  mFirst));
+        Node *n = new Node(std::move(value), mFirst);
         if (!mLast)
         {
             mLast = n;
@@ -134,8 +159,10 @@ public:
         mFirst = n;
         return *n;
     }
-    Node *front() { return mFirst; }
-    Node *back() { return mLast; }
+    Node *front() { return const_cast<Node*>(static_cast<const ForwardList&>(*this).front()); }
+    Node *back() { return const_cast<Node*>(static_cast<const ForwardList&>(*this).back()); }
+    const Node *front() const { return mFirst; }
+    const Node *back() const { return mLast; }
     void remove(Node *n)
     {
         if (n == mFirst)
@@ -145,7 +172,7 @@ public:
             {
                 mLast = nullptr;
             }
-            mPool->deallocate(*n);
+            delete n;
         }
         else if (n == mLast)
         {
@@ -158,21 +185,15 @@ public:
             }
             next_to_last->next = nullptr;
             mLast = next_to_last;
-            mPool->deallocate(*n);
+            delete n;
         }
         else
         {
             auto empty = n->next;
             swap(*n, *n->next);
             // Now n is the next node, and n->next should be deallocated.
-            mPool->deallocate(*empty);
+            delete empty;
         }
-    }
-    void allocator(std::shared_ptr<MemoryPool<Node> > allocator)
-    {
-        if (mFirst)
-            throw InvalidOperationError("Allocator already in use");
-        mPool = allocator;
     }
     T pop_front()
     {
@@ -184,7 +205,6 @@ public:
     // No pop_back because it's O(N) for singly linked list
 protected:
     Node *mFirst, *mLast;
-    std::shared_ptr<MemoryPool<Node> > mPool;
 }; // ForwardList
 
 } // namespace kernel

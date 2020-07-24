@@ -4,7 +4,6 @@
 #ifdef __cplusplus
 
 #include <memory>
-#include "pool.h"
 
 namespace kernel
 {
@@ -14,10 +13,9 @@ class List
 {
 public:
     struct Node;
-    List(std::shared_ptr<MemoryPool<Node> > pool = nullptr)
+    List()
         : mFirst(nullptr),
-          mLast(nullptr),
-          mPool(pool ? pool : std::make_shared<MemoryPool<Node> >()) {}
+          mLast(nullptr) {}
     List(List&& other) noexcept
         : List()
     {
@@ -32,13 +30,13 @@ public:
         swap(a.mLast, b.mLast);
         swap(a.mPool, b.mPool);
     }
-    ~List()
+    virtual ~List()
     {
         Node *n = mFirst;
         while (n)
         {
             auto next_node = n->next;
-            mPool->deallocate(*n);
+            delete n;
             n = next_node;
         }
     }
@@ -56,7 +54,7 @@ public:
         {
             swap(*this, other);
         }
-        ~Node()
+        virtual ~Node()
         {
             value.~T();
         }
@@ -104,7 +102,7 @@ public:
     Iterator end() { return Iterator(this, nullptr); }
     Node& push_back(T value)
     {
-        Node *n = mPool->allocate(Node(std::move(value),  nullptr, mLast));
+        Node *n = new Node(std::move(value), nullptr, mLast);
         if (mLast)
         {
             mLast->next = n;
@@ -118,7 +116,7 @@ public:
     }
     Node& push_front(T value)
     {
-        Node *n = mPool->allocate(Node(std::move(value),  mFirst, nullptr));
+        Node *n = new Node(std::move(value), mFirst, nullptr);
         if (mFirst)
         {
             mFirst->prev = n;
@@ -130,8 +128,10 @@ public:
         mFirst = n;
         return *n;
     }
-    Node *front() { return mFirst; }
-    Node *back() { return mLast; }
+    Node *front() { return const_cast<Node*>(static_cast<const List&>(*this).front()); }
+    Node *back() { return const_cast<Node*>(static_cast<const List&>(*this).back()); }
+    const Node *front() const { return mFirst; }
+    const Node *back() const { return mLast; }
     void remove(Node *n)
     {
         if (n->next)
@@ -150,7 +150,7 @@ public:
         {
             mLast = n->prev;
         }
-        mPool->deallocate(*n);
+        delete n;
     }
     T pop_front()
     {
@@ -166,15 +166,8 @@ public:
         remove(mLast);
         return val; // copy elision
     }
-    void allocator(std::shared_ptr<MemoryPool<Node> > allocator)
-    {
-        if (mFirst)
-            throw InvalidOperationError("Allocator already in use");
-        mPool = allocator;
-    }
 protected:
     Node *mFirst, *mLast;
-    std::shared_ptr<MemoryPool<Node> > mPool;
 }; // List
 
 } // namespace kernel

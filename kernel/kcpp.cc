@@ -4,7 +4,6 @@
 #include <stddef.h>
 #include <reent.h>
 #include <stdio.h>
-#include <new>
 #include "kernel.h"
 #include "error.h"
 
@@ -105,21 +104,26 @@ struct _reent *_impure_ptr __ATTRIBUTE_IMPURE_PTR__ = &impure_data;
 
 } // extern "C"
 
-_GLIBCXX_NODISCARD void* operator new(std::size_t size) _GLIBCXX_THROW (std::bad_alloc)
+void std::__throw_bad_alloc()
+{
+	throw OutOfMemoryError();
+}
+
+void* operator new(std::size_t size)
 {
 	void *ptr = kmalloc(size);
-	if (!ptr) [[unlikely]] throw std::bad_alloc();
+	if (!ptr) [[unlikely]] throw OutOfMemoryError();
 	return ptr;
 }
 
-_GLIBCXX_NODISCARD void* operator new[](std::size_t size) _GLIBCXX_THROW (std::bad_alloc)
+void* operator new[](std::size_t size)
 {
 	void *ptr = kmalloc(size);
-	if (!ptr) [[unlikely]] throw std::bad_alloc();
+	if (!ptr) [[unlikely]] throw OutOfMemoryError();
 	return ptr;
 }
 
-void operator delete(void* p) _GLIBCXX_USE_NOEXCEPT
+void operator delete(void* p) 
 {
     kfree(p);
 }
@@ -129,7 +133,7 @@ void operator delete(void *p, size_t size)
     kfree(p);
 }
 
-void operator delete[](void* p) _GLIBCXX_USE_NOEXCEPT
+void operator delete[](void* p)
 {
     kfree(p);
 }

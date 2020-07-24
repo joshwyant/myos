@@ -2,7 +2,6 @@
 #define __KERNEL_ERROR_H__
 
 #ifdef __cplusplus
-#include "string.h"
 
 namespace kernel
 {
@@ -10,8 +9,8 @@ class Error
 {
 public:
     Error() : msg("") {}
-    Error(const char *msg) : msg(msg) {}
-    virtual const char *what() { return msg; }
+    explicit Error(const char *msg) : msg(msg) {}
+    virtual const char *what() const { return msg; }
 private:
     const char *msg;
 };  // class Error

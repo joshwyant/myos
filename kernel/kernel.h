@@ -5,6 +5,7 @@
 #include "../include/VESA.h"
 #include "../include/loader_info.h"
 #include "VESA.h"
+#include "buffer.h"
 #include "clock.h"
 #include "deque.h"
 #include "disk.h"
@@ -23,10 +24,10 @@
 #include "map.h"
 #include "memory.h"
 #include "mouse.h"
-#include "pool.h"
 #include "priority_queue.h"
 #include "process.h"
 #include "string.h"
+#include "string_buffer.h"
 #include "syscall.h"
 #include "task.h"
 #include "timer.h"
@@ -35,15 +36,13 @@
 
 #ifdef __cplusplus
 
-#include <new>
-
-_GLIBCXX_NODISCARD void* operator new(std::size_t) _GLIBCXX_THROW (std::bad_alloc);
+void* operator new(std::size_t);
  
-_GLIBCXX_NODISCARD void* operator new[](std::size_t) _GLIBCXX_THROW (std::bad_alloc);
+void* operator new[](std::size_t);
  
-void operator delete(void*) _GLIBCXX_USE_NOEXCEPT;
+void operator delete(void*);
  
-void operator delete[](void*) _GLIBCXX_USE_NOEXCEPT;
+void operator delete[](void*);
 
 extern "C" {
 #endif

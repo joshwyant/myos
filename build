@@ -70,18 +70,19 @@ nasm startup.S $DEFINES $NASMFLAGS -o./obj/startup.o
 nasm isr.asm $DEFINES $NASMFLAGS -o./obj/isr.o
 $TARGET-as crti.s -o ./obj/crti.o
 $TARGET-as crtn.s -o ./obj/crtn.o
-$TARGET-gcc $CPPFLAGS video.cc -o ./obj/video.o
+$TARGET-gcc $CPPFLAGS VESA.cc -o ./obj/VESA.o
+$TARGET-gcc $CPPFLAGS buffer.cc -o ./obj/buffer.o
+$TARGET-gcc $CFLAGS clock.c -o ./obj/clock.o
+$TARGET-gcc $CFLAGS dictionary.c -o ./obj/dictionary.o
 $TARGET-gcc $CFLAGS disk.c -o ./obj/disk.o
+$TARGET-gcc $CPPFLAGS drawing.cc -o ./obj/drawing.o
+$TARGET-gcc $CFLAGS elf.c -o ./obj/elf.o
+$TARGET-gcc $CFLAGS exceptions.c -o ./obj/exceptions.o
 $TARGET-gcc $CFLAGS fat.c -o ./obj/fat.o
 $TARGET-gcc $CPPFLAGS fpu.cc -o ./obj/fpu.o
-$TARGET-gcc $CFLAGS elf.c -o ./obj/elf.o
-$TARGET-gcc $CPPFLAGS kernel.cc -o ./obj/kernel.o
-$TARGET-gcc $CFLAGS dictionary.c -o ./obj/dictionary.o
-$TARGET-gcc $CFLAGS clock.c -o ./obj/clock.o
-$TARGET-gcc $CPPFLAGS drawing.cc -o ./obj/drawing.o
-$TARGET-gcc $CFLAGS exceptions.c -o ./obj/exceptions.o
 $TARGET-gcc $CFLAGS interrupt.c -o ./obj/interrupt.o
 $TARGET-gcc $CPPFLAGS kcpp.cc -o ./obj/kcpp.o
+$TARGET-gcc $CPPFLAGS kernel.cc -o ./obj/kernel.o
 $TARGET-gcc $CFLAGS keyboard.c -o ./obj/keyboard.o
 $TARGET-gcc $CFLAGS memory.c -o ./obj/memory.o
 $TARGET-gcc $CPPFLAGS mouse.cc -o ./obj/mouse.o
@@ -90,7 +91,7 @@ $TARGET-gcc $CFLAGS string.c -o ./obj/string.o
 $TARGET-gcc $CPPFLAGS syscall.cc -o ./obj/syscall.o
 $TARGET-gcc $CFLAGS task.c -o ./obj/task.o
 $TARGET-gcc $CFLAGS timer.c -o ./obj/timer.o
-$TARGET-gcc $CPPFLAGS VESA.cc -o ./obj/VESA.o
+$TARGET-gcc $CPPFLAGS video.cc -o ./obj/video.o
 $TARGET-ld -shared -Tkernel.ld
 $TARGET-ld -shared -Tkernel.ld -o ./obj/kernel -Ttext=0xC0000000
 $TARGET-nm -n -D ./obj/kernel>>../myos.sym
