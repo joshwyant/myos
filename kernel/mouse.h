@@ -32,16 +32,11 @@ enum MousePacketFlags
 class MouseDriver
 {
 public:
-    MouseDriver()
-    {
-        current = this;
-    }
+    MouseDriver() {}
     virtual int screen_x() const = 0;
     virtual int screen_y() const = 0;
     virtual void show_cursor(bool bShow) = 0;
-    static MouseDriver *get_current() { return current; }
-protected:
-    static MouseDriver *current;
+    virtual void start() = 0;
 }; // class MouseDriver
 
 class PS2MouseDriver
@@ -70,6 +65,7 @@ public:
     int screen_y() const override { return mouse_screen_y; }
     void show_cursor(bool bShow) override;
     void mouse_handler();
+    void start() override;
     virtual ~PS2MouseDriver()
     {
         delete[] mouse_erase_buffer;
@@ -148,11 +144,6 @@ private:
     }
 }; // class PS2MouseDriver
 } // namespace kernel
-
-extern std::shared_ptr<kernel::MouseDriver>
-    init_mouse(
-        std::shared_ptr<kernel::GraphicsDriver> graphics_driver,
-        std::shared_ptr<kernel::FileSystemDriver> fs_driver);
 
 #endif // __cplusplus
 #endif  // __MOUSE_H__

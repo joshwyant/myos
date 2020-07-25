@@ -3,16 +3,6 @@
 
 using namespace kernel;
 
-MouseDriver *MouseDriver::current;
-
-std::shared_ptr<MouseDriver>
-    init_mouse(
-        std::shared_ptr<GraphicsDriver> graphics_driver,
-        std::shared_ptr<FileSystemDriver> fs_driver)
-{
-	return std::make_shared<PS2MouseDriver>(graphics_driver, fs_driver);
-}
-
 void PS2MouseDriver::init()
 {
   unsigned char _status;  //unsigned char
@@ -45,7 +35,10 @@ void PS2MouseDriver::init()
   read_bitmap(fs_driver, &cursor, "/system/bin/cursor");
 
   mouse_erase_buffer = new unsigned char[cursor.width * cursor.height * 3];
-  
+}
+
+void PS2MouseDriver::start()
+{
   show_cursor(true);
 
   //Setup the mouse handler
@@ -85,7 +78,7 @@ void PS2MouseDriver::show_cursor(bool bShow)
 //Mouse functions
 extern "C" void handle_mouse(void *a_r) //struct regs *a_r (not used but just there)
 {
-    ((kernel::PS2MouseDriver*)kernel::MouseDriver::get_current())->mouse_handler();
+    ((kernel::PS2MouseDriver*)kernel::DriverManager::current()->mouse_driver().get())->mouse_handler();
 }
 
 void PS2MouseDriver::mouse_handler()

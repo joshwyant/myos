@@ -38,9 +38,6 @@ private:
     void init();
 }; // class VESAGraphicsDriver
 } // namespace kernel
-
-std::shared_ptr<kernel::VESAGraphicsDriver>
-    init_vesa(std::shared_ptr<kernel::FileSystemDriver> fs_driver);
     
 #endif  // __cplusplus
 #endif  // __KERNEL_VESA_H__

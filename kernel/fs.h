@@ -66,13 +66,6 @@ public:
     virtual int chdir(const char* dir) = 0;
     virtual const char* current_directory() = 0;
     virtual std::unique_ptr<File> file_open(const char *filename) = 0;
-    static void register_root(std::weak_ptr<FileSystemDriver> root)
-    {
-        FileSystemDriver::root = root;
-    }
-    static std::shared_ptr<FileSystemDriver> get_root() { return root.lock(); }
-protected:
-    static std::weak_ptr<FileSystemDriver> root;
 }; // class FileSystemDriver
 }  // namespace kernel
 #endif  // __cplusplus

@@ -1,10 +1,5 @@
 #include "kernel.h"
 
-static kernel::ConsoleDriver *console;
-static kernel::TextModeConsoleDriver *text_mode_console;
-static kernel::GraphicsDriver *graphics_driver;
-kernel::GraphicsDriver *kernel::GraphicsDriver::current;
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -28,93 +23,118 @@ int console_palette[] = {
     RGB(255, 255, 255)  // White        (15)
 };
 
-void init_video()
-{
-    console
-        = text_mode_console 
-        = new kernel::TextModeConsoleDriver();
-}
 volatile char *get_console_videomem()
 {
-    return console->get_videomem();
+    return kernel::DriverManager::current()
+                ->console_driver()
+                ->get_videomem();
 }
 int get_console_rows()
 {
-    return console->get_rows();
+    return kernel::DriverManager::current()
+                ->console_driver()
+                ->get_rows();
 }
 int get_console_cols()
 {
-    return console->get_cols();
+    return kernel::DriverManager::current()
+                ->console_driver()
+                ->get_cols();
 }
 void move_cursor(int pos)
 {
-    console->move_cursor(pos);
+    kernel::DriverManager::current()
+                ->console_driver()
+                ->move_cursor(pos);
 }
 void print_char(char c)
 {
-    console->print_char(c);
+    kernel::DriverManager::current()
+                ->console_driver()
+                ->print_char(c);
 }
 void print(const char* str)
 {
-    console->print(str);
+    kernel::DriverManager::current()
+                ->console_driver()
+                ->print(str);
 }
 void printlen(const char* str, int len)
 {
-    console->printlen(str, len);
+    kernel::DriverManager::current()
+                ->console_driver()
+                ->printlen(str, len);
 }
 void show_cursor(int show)
 {
-    console->show_cursor(show);
+    kernel::DriverManager::current()
+                ->console_driver()
+                ->show_cursor(show);
 }
 void cls()
 {
-    console->cls();
+    kernel::DriverManager::current()
+                ->console_driver()
+                ->cls();
 }
 void cls_color(int fore, int back)
 {
-    console->cls(fore, back);
+    kernel::DriverManager::current()
+                ->console_driver()
+                ->cls(fore, back);
 }
 void printhexb(char x)
 {
-    console->printhexb(x);
+    kernel::DriverManager::current()
+                ->console_driver()
+                ->printhexb(x);
 }
 void printhexw(short x)
 {
-    console->printhexw(x);
+    kernel::DriverManager::current()
+                ->console_driver()
+                ->printhexw(x);
 }
 void printhexd(int x)
 {
-    console->printhexd(x);
+    kernel::DriverManager::current()
+                ->console_driver()
+                ->printhexd(x);
 }
 void printdec(int x)
 {
-    console->printdec(x);
+    kernel::DriverManager::current()
+                ->console_driver()
+                ->printdec(x);
 }
 void kprintdatetime(DateTime dt)
 {
-    console->kprintdatetime(dt);
+    kernel::DriverManager::current()
+                ->console_driver()
+                ->kprintdatetime(dt);
 }
 void kprintf(const char* format, ...)
 {
-    console->kprintf(format); // Possible due to the implementation of kprintf
+    kernel::DriverManager::current()
+                ->console_driver()
+                ->kprintf(format); // Possible due to the implementation of kprintf
 }
 void endl()
 {
-    console->endl();
+    kernel::DriverManager::current()
+                ->console_driver()
+                ->endl();
 }
 // void print_datetime()
-//{
-//    console->print_datetime();
-//}
+// {
+//    kernel::DriverManager::current()
+//                 ->console_driver()
+//                 ->print_datetime();
+// }
 
 #ifdef __cplusplus
 }  // extern "C"
 #endif
-
-void init_graphical_console(std::shared_ptr<kernel::FileSystemDriver> fs_driver)
-{
-    console = new kernel::GraphicalConsoleDriver(fs_driver, 25, 80);
-}
 
 kernel::GraphicalConsoleDriver::GraphicalConsoleDriver(std::shared_ptr<FileSystemDriver> fs_driver, int rows, int cols)
     : fs_driver(fs_driver),
@@ -157,7 +177,8 @@ void kernel::GraphicalConsoleDriver::redraw(int pos)
     {
         display->draw_text(c, char_rect.x1, char_rect.y1, fore, 255, 8, 16);
     }
-    GraphicsDriver::get_current()
+    DriverManager::current()
+        ->graphics_driver()
         ->get_screen_context()
         ->get_raw_context()
         ->draw_image_ext(

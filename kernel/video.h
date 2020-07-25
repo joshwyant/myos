@@ -30,7 +30,6 @@ extern "C" {
 
 extern int console_palette[];
 
-void init_video();
 volatile char *get_console_videomem();
 int get_console_rows();
 int get_console_cols();
@@ -52,8 +51,6 @@ void endl();
 
 #ifdef __cplusplus
 }  // extern "C"
-
-void init_graphical_console(std::shared_ptr<kernel::FileSystemDriver> fs_driver);
 
 namespace kernel
 {
@@ -214,11 +211,7 @@ class GraphicsDriver
 {
 public:
     virtual BufferedGraphicsContext *get_screen_context() = 0;
-    static GraphicsDriver *get_current() { return current; }
-    static void set_current(GraphicsDriver *driver) { current = driver; }
     virtual ~GraphicsDriver() {}
-protected:
-    static GraphicsDriver *current;
 }; // class GraphicsContext
 }  // namespace kernel
 #endif // __cplusplus

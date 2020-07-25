@@ -44,9 +44,14 @@ void kmain()
     
     // Initialize symbol table
     init_symbols(&loaderInfo);
+
+    auto manager = DriverManager::init();
     
     // Initialize video so we can display errors
-    init_video(); // Dependent on paging, Dependent on IDT (Page faults) (Maps video memory)
+    // Dependent on paging, Dependent on IDT (Page faults) (Maps video memory)
+    auto text_driver
+        = manager->register_text_console_driver(std::make_shared<TextModeConsoleDriver>());
+    manager->register_console_driver(text_driver);
 
     // Processes
     init_processes();
@@ -56,9 +61,11 @@ void kmain()
     init_timer(); // dependent on IDT and PIC
 
     // Filestystem
-    auto disk_driver = std::make_shared<PIODiskDriver>();
-    auto fat_driver = std::make_shared<FATDriver>(disk_driver);
-    FileSystemDriver::register_root(fat_driver);
+    auto disk_driver
+        = manager->register_disk_driver(std::make_shared<PIODiskDriver>());
+
+    auto fat_driver
+        = manager->register_file_system_driver(std::make_shared<FATDriver>(disk_driver));
     
     // System TSS
     init_tss();
@@ -66,32 +73,33 @@ void kmain()
     // System call interface (int 0x30)
     init_syscalls();
 
-    std::shared_ptr<GraphicsDriver> graphics_driver;
-    std::shared_ptr<MouseDriver> mouse_driver;
-
     if (loaderInfo.vbe)
     {
         // Temporary VESA mode
-        graphics_driver = init_vesa(fat_driver);
+        auto graphics_driver 
+            = manager->register_graphics_driver(std::make_shared<kernel::VESAGraphicsDriver>(fat_driver));
 
         show_splash(graphics_driver, fat_driver);
         
-        mouse_driver = init_mouse(graphics_driver, fat_driver);
+        auto mouse_driver 
+            = manager->register_mouse_driver(std::make_shared<PS2MouseDriver>(graphics_driver, fat_driver));
+        mouse_driver->start();
 
-        //init_graphical_console(fat_driver);
+        // auto console
+        //     = manager->register_console_driver(std::make_shared<GraphicalConsoleDriver>(fs_driver, 25, 80));
     }
 
     // Load the shell
-    start_shell(fat_driver);
+    // start_shell(fat_driver);
 	
-    //demo();
+    // //demo();
 
-    // Load vesadrvr.o
-    if (!load_driver(fat_driver, "/system/bin/vesadrvr.o"))
-    {
-		kprintf("Error: Could not load vesadrvr.o: %s\n", elf_last_error());
-        freeze();
-    }
+    // // Load vesadrvr.o
+    // if (!load_driver(fat_driver, "/system/bin/vesadrvr.o"))
+    // {
+	// 	kprintf("Error: Could not load vesadrvr.o: %s\n", elf_last_error());
+    //     freeze();
+    // }
 
     init_clock();
 

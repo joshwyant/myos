@@ -2,14 +2,6 @@
 #include "kernel.h"
 #include "VESA.h"
 
-std::shared_ptr<kernel::VESAGraphicsDriver>
-    init_vesa(std::shared_ptr<kernel::FileSystemDriver> fs_driver)
-{
-    auto graphics_driver = std::make_shared<kernel::VESAGraphicsDriver>(fs_driver);
-    kernel::GraphicsDriver::set_current(graphics_driver.get());
-    return graphics_driver;
-}
-
 void kernel::VESAGraphicsDriver::init()
 {
 	// Map in and copy the info struct

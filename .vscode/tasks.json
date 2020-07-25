@@ -94,6 +94,13 @@
             "command": "qemu-system-i386 -drive file=hdd.img,format=raw",
             "group": "build",
             "problemMatcher": []
+        },
+        {
+            "label": "Launch QEMU 64-bit",
+            "type": "shell",
+            "command": "qemu-system-x86_64 -accel hvf -drive file=hdd.img,format=raw",
+            "group": "build",
+            "problemMatcher": []
         }
     ]
 }

@@ -10,6 +10,7 @@
 #include "deque.h"
 #include "disk.h"
 #include "drawing.h"
+#include "drivers.h"
 #include "elf.h"
 #include "error.h"
 #include "exceptions.h"

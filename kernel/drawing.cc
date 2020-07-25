@@ -1,4 +1,5 @@
 #include <memory>
+#include "drivers.h"
 #include "error.h"
 #include "fs.h"
 #include "kernel.h"
@@ -7,70 +8,80 @@ extern "C" {
 
 void clear_color(int c)
 {
-	kernel::GraphicsDriver::get_current()
+	kernel::DriverManager::current()
+		->graphics_driver()
 		->get_screen_context()
 		->get_raw_context()
 		->clear_color(c);
 }
 void bitblt(Bitmap *bmp, int x, int y)
 {
-	kernel::GraphicsDriver::get_current()
+	kernel::DriverManager::current()
+		->graphics_driver()
 		->get_screen_context()
 		->get_raw_context()
 		->bitblt(bmp, x, y);
 }
 void draw_image(Bitmap *bmp, int x, int y, int opacity)
 {
-	kernel::GraphicsDriver::get_current()
+	kernel::DriverManager::current()
+		->graphics_driver()
 		->get_screen_context()
 		->get_raw_context()
 		->draw_image(bmp, x, y, opacity);
 }
 void draw_image_bgra(Bitmap *bmp, int x, int y, int opacity)
 {
-	kernel::GraphicsDriver::get_current()
+	kernel::DriverManager::current()
+		->graphics_driver()
 		->get_screen_context()
 		->get_raw_context()
 		->draw_image_bgra(bmp, x, y, opacity);
 }
 void draw_image_ext(Bitmap *bmp, RECT *src, RECT *dest, int opacity, int c)
 {
-	kernel::GraphicsDriver::get_current()
+	kernel::DriverManager::current()
+		->graphics_driver()
 		->get_screen_context()
 		->get_raw_context()
 		->draw_image_ext(bmp, src, dest, opacity, c);
 }
 void rect(RECT *r, char bSolid, int iborder, int c, int cborder, int opacity)
 {
-	kernel::GraphicsDriver::get_current()
+	kernel::DriverManager::current()
+		->graphics_driver()
 		->get_screen_context()
 		->get_raw_context()
 		->rect(r, bSolid, iborder, c, cborder, opacity);
 }
 void invert_rect(RECT *r)
 {
-	kernel::GraphicsDriver::get_current()
+	kernel::DriverManager::current()
+		->graphics_driver()
 		->get_screen_context()
 		->get_raw_context()
 		->invert_rect(r);
 }
 void screen_to_buffer(RECT *r, unsigned char *buffer)
 {
-	kernel::GraphicsDriver::get_current()
+	kernel::DriverManager::current()
+		->graphics_driver()
 		->get_screen_context()
 		->get_raw_context()
 		->screen_to_buffer(r, buffer);
 }
 void buffer_to_screen(unsigned char *buffer, RECT *r)
 {
-	kernel::GraphicsDriver::get_current()
+	kernel::DriverManager::current()
+		->graphics_driver()
 		->get_screen_context()
 		->get_raw_context()
 		->buffer_to_screen(buffer, r);
 }
 void draw_text(const char *str, int x, int y, int c, int opacity, int xsize, int ysize)
 {
-	kernel::GraphicsDriver::get_current()
+	kernel::DriverManager::current()
+		->graphics_driver()
 		->get_screen_context()
 		->get_raw_context()
 		->draw_text(str, x, y, c, opacity, xsize, ysize);
