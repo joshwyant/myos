@@ -1,92 +1,158 @@
 #ifndef __MOUSE_H__
 #define __MOUSE_H__
 
+#include "fs.h"
 #include "kernel.h"
+#include "drawing.h"
 
 #ifdef __cplusplus
-extern "C" {
-#endif
+#include <stddef.h>
+#include <memory>
 
-typedef struct
+extern "C"
 {
-	unsigned char flags;
-	int delta_x;
-	int delta_y;
-} MOUSE_PACKET;
-#define MPF_LEFT_BUTTON 	0x01
-#define MPF_RIGHT_BUTTON 	0x02
-#define MPF_MIDDLE_BUTTON 	0x04
-#define MPF_ALWAYS_SET	 	0x08
-#define MPF_X_NEGATIVE	 	0x10
-#define MPF_Y_NEGATIVE	 	0x20
-#define MPF_X_OVERFLOW 		0x40
-#define MPF_Y_OVERFLOW 		0x80
-
-inline static unsigned char mouse_read();
-inline static void mouse_write(unsigned char a_write);
-inline static int mouse_wait(unsigned char a_type);
-
-extern void init_mouse();
-extern unsigned char mouse_read();
-extern void show_mouse_cursor(int bShow);
-extern void irq12(); // mouse isr
-
-extern MOUSE_PACKET mouse_packet;
-extern int mouse_screen_x;
-extern int mouse_screen_y;
-extern int mouse_visible;
-extern unsigned char mouse_erase_buffer[];
-extern unsigned char mouse_cycle;
-
-inline static unsigned char mouse_read()
-{
-  //Get's response from mouse
-  mouse_wait(0);
-  return inb(0x60);
+    extern void irq12(); // mouse isr
+    extern void handle_mouse(void *a_r);
 }
 
-inline static void mouse_write(unsigned char a_write)
+namespace kernel
+{    
+enum MousePacketFlags
 {
-  //Wait to be able to send a command
-  mouse_wait(1);
-  //Tell the mouse we are sending a command
-  outb(0x64, 0xD4);
-  //Wait for the final part
-  mouse_wait(1);
-  //Finally write
-  outb(0x60, a_write);
-}
-
-inline static int mouse_wait(unsigned char a_type)
+    MPF_LEFT_BUTTON 	= 0x01,
+    MPF_RIGHT_BUTTON  =	0x02,
+    MPF_MIDDLE_BUTTON =	0x04,
+    MPF_ALWAYS_SET    = 0x08,
+    MPF_X_NEGATIVE    = 0x10,
+    MPF_Y_NEGATIVE    = 0x20,
+    MPF_X_OVERFLOW    =	0x40,
+    MPF_Y_OVERFLOW    =	0x80
+};
+    
+class MouseDriver
 {
-  io_wait();
-  unsigned int _time_out=100000;
-  if(a_type==0)
-  {
-    while(_time_out--) //Data
+public:
+    MouseDriver()
     {
-      if((inb(0x64) & 1)==1)
+        current = this;
+    }
+    virtual int screen_x() const = 0;
+    virtual int screen_y() const = 0;
+    virtual void show_cursor(bool bShow) = 0;
+    static MouseDriver *get_current() { return current; }
+protected:
+    static MouseDriver *current;
+}; // class MouseDriver
+
+class PS2MouseDriver
+    : public MouseDriver
+{
+public:
+    PS2MouseDriver(
+      std::shared_ptr<GraphicsDriver> graphics_driver,
+      std::shared_ptr<FileSystemDriver> fs_driver
+    ) : graphics_driver(graphics_driver),
+        fs_driver(fs_driver),
+        mouse_packet({0, 0, 0}),
+        mouse_screen_x(0),
+        mouse_screen_y(0),
+        mouse_visible(0),
+        mouse_erase_buffer(nullptr),
+        mouse_cycle(0),
+        MouseDriver()
+    {
+        init();
+    }
+    PS2MouseDriver(PS2MouseDriver&) = delete;
+    PS2MouseDriver(PS2MouseDriver&&) = delete;
+    PS2MouseDriver& operator=(PS2MouseDriver) = delete;
+    int screen_x() const override { return mouse_screen_x; }
+    int screen_y() const override { return mouse_screen_y; }
+    void show_cursor(bool bShow) override;
+    void mouse_handler();
+    virtual ~PS2MouseDriver()
+    {
+        delete[] mouse_erase_buffer;
+    }
+private:
+    std::shared_ptr<GraphicsDriver> graphics_driver;
+    std::shared_ptr<FileSystemDriver> fs_driver;
+
+    int mouse_screen_x;
+    int mouse_screen_y;
+    int mouse_visible;
+    unsigned char *mouse_erase_buffer;
+    unsigned char mouse_cycle = 0;
+
+    Bitmap cursor;
+
+    struct MOUSE_PACKET
+    {
+      unsigned char flags;
+      int delta_x;
+      int delta_y;
+    } mouse_packet = {0, 0, 0};
+
+    friend void handle_mouse(void *a_r);
+
+
+    void init();
+
+    void draw_mouse_cursor(int x, int y);
+
+    inline unsigned char mouse_read()
+    {
+      //Get's response from mouse
+      mouse_wait(0);
+      return inb(0x60);
+    }
+
+    inline void mouse_write(unsigned char a_write)
+    {
+      //Wait to be able to send a command
+      mouse_wait(1);
+      //Tell the mouse we are sending a command
+      outb(0x64, 0xD4);
+      //Wait for the final part
+      mouse_wait(1);
+      //Finally write
+      outb(0x60, a_write);
+    }
+
+    inline int mouse_wait(unsigned char a_type)
+    {
+      io_wait();
+      unsigned int _time_out=100000;
+      if(a_type==0)
       {
-        return 1;
+        while(_time_out--) //Data
+        {
+          if((inb(0x64) & 1)==1)
+          {
+            return 1;
+          }
+        }
+        return 0;
+      }
+      else
+      {
+        while(_time_out--) //Signal
+        {
+          if((inb(0x64) & 2)==0)
+          {
+            return 1;
+          }
+        }
+        return 0;
       }
     }
-    return 0;
-  }
-  else
-  {
-    while(_time_out--) //Signal
-    {
-      if((inb(0x64) & 2)==0)
-      {
-        return 1;
-      }
-    }
-    return 0;
-  }
-}
+}; // class PS2MouseDriver
+} // namespace kernel
 
-#ifdef __cplusplus
-}  // extern "C"
-#endif
+extern std::shared_ptr<kernel::MouseDriver>
+    init_mouse(
+        std::shared_ptr<kernel::GraphicsDriver> graphics_driver,
+        std::shared_ptr<kernel::FileSystemDriver> fs_driver);
 
+#endif // __cplusplus
 #endif  // __MOUSE_H__

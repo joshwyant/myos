@@ -1,12 +1,16 @@
+#include <memory>
 #include "kernel.h"
 #include "VESA.h"
 
-void init_vesa()
+std::shared_ptr<kernel::VESAGraphicsDriver>
+    init_vesa(std::shared_ptr<kernel::FileSystemDriver> fs_driver)
 {
-    kernel::GraphicsDriver::set_current(new kernel::VESAGraphicsDriver());
+    auto graphics_driver = std::make_shared<kernel::VESAGraphicsDriver>(fs_driver);
+    kernel::GraphicsDriver::set_current(graphics_driver.get());
+    return graphics_driver;
 }
 
-kernel::VESAGraphicsDriver::VESAGraphicsDriver()
+void kernel::VESAGraphicsDriver::init()
 {
 	// Map in and copy the info struct
     vbe_mode_info* vesa_orig = (vbe_mode_info*)kfindrange(4096);
@@ -26,6 +30,6 @@ kernel::VESAGraphicsDriver::VESAGraphicsDriver()
         page_map(frameBuffer+i,framebuffer_orig+i, PF_WRITE);
     
     // Create the graphics context
-    raw_screen_context = new MemoryGraphicsContext(frameBuffer, vesaMode.bpp, xres, yres);
+    raw_screen_context = new MemoryGraphicsContext(fs_driver, frameBuffer, vesaMode.bpp, xres, yres);
     buffered_screen_context = new BufferedMemoryGraphicsContext(raw_screen_context);
 }

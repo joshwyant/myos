@@ -130,7 +130,7 @@ void syscall(unsigned edi, unsigned esi, unsigned ebp, unsigned esp, unsigned eb
             break;
         // Start a new process (ebx = *name, esi = **argv, edi = **env)
         case SYSCALL_START:
-            eax = process_start((char*)ebx);
+            eax = process_start(kernel::FileSystemDriver::get_root(), (char*)ebx);
             break;
         // Get Process ID
         case SYSCALL_PID:

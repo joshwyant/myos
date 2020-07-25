@@ -540,7 +540,6 @@ void kfree(void* ptr)
     while (lock(&heap_busy)) process_yield();
     // Unlink any adjacent free blocks and coalesce them.
     int s = ktagsize(ktag(ptr)); // The total size of the free block
-    int _s = ktaginsize(ktag(ptr));
     void* ptr2 = ptr; // The leftmost adjacent free block
     void* ptr3 = ptr; // The rightmost adjacent free block
     // If this is not the first block and the previous block is free
@@ -560,15 +559,16 @@ void kfree(void* ptr)
     if (ktagisend(ktag(ptr3)))
     {
         if (!ktagisbegin(ktag(ptr2))) ksettag(kadjprev(ptr2), ktag(kadjprev(ptr2))|0x04000000); // Make the previous block the end of memory
+        mark_debug_mem(ptr2, ktaginsize(ktag(ptr2)));
         heap_end = ptr2 + (unsigned)(-4);
     }
     else
     {
         ksettag(ptr2, kmaketag(s, 0, ktagisbegin(ktag(ptr2)), ktagisend(ktag(ptr3))));
+        mark_debug_mem(ptr2, ktaginsize(ktag(ptr2)));
         kptrlink(ptr2);
     }
     heap_busy = 0;
-    mark_debug_mem(ptr, _s);
 }
 
 // Allocates a number of pages in the given range

@@ -2,6 +2,8 @@
 #define __DRAWING_H__
 
 #include "VESA.h"
+#include "disk.h"
+#include "fs.h"
 #include "video.h"
 #include "kernel.h"
 
@@ -13,6 +15,8 @@
 #define GET_A(rgba) (((unsigned)(rgba) >> 24) & 0xFF)
 
 #ifdef __cplusplus
+#include <memory>
+
 extern "C" {
 
 typedef struct
@@ -69,8 +73,6 @@ void invert_rect(RECT *r);
 void screen_to_buffer(RECT *r, unsigned char *buffer);
 void buffer_to_screen(unsigned char *buffer, RECT *r);
 void draw_text(const char *str, int x, int y, int c, int opacity, int xsize, int ysize);
-
-int read_bitmap(Bitmap *b, const char *filename);
 
 inline static void swap_int(int *a, int *b)
 {
@@ -150,6 +152,8 @@ inline static void get_bitmap_metrics(Bitmap *bmp, int *stride, int *pixelWidth)
 
 #ifdef __cplusplus
 }  // extern "C"
+
+int read_bitmap(std::shared_ptr<kernel::FileSystemDriver> fs_driver, Bitmap *b, const char *filename);
 
 namespace kernel
 {
@@ -234,22 +238,22 @@ class BufferedGraphicsContext
 public:
     virtual GraphicsContext *get_raw_context() = 0;
     virtual void swap_buffers() = 0;
+	virtual ~BufferedGraphicsContext() {}
 }; // class BufferedGraphicsContext
 
 class MemoryGraphicsContext
 	: public GraphicsContext
 {
 public:
-	MemoryGraphicsContext(unsigned char *buffer, int bpp, int width, int height, int stride = 0)
-	{
-		this->stride = stride ? stride : width * (bpp >> 3);
-		this->own_buffer = buffer ? false : true;
-		this->buffer = buffer ? buffer : new unsigned char[height * this->stride];
-		this->bpp = bpp;
-		this->width = width;
-		this->height = height;
-	}
-	~MemoryGraphicsContext()
+	MemoryGraphicsContext(std::shared_ptr<kernel::FileSystemDriver> fs_driver, unsigned char *buffer, int bpp, int width, int height, int stride = 0)
+		: fs_driver(fs_driver),
+		  stride(stride ? stride : width * (bpp >> 3)),
+		  own_buffer(buffer ? false : true),
+		  buffer(buffer ? buffer : new unsigned char[height * this->stride]),
+		  bpp(bpp),
+		  width(width),
+		  height(height) {}
+	virtual ~MemoryGraphicsContext()
 	{
 		if (own_buffer && buffer)
 		{
@@ -276,12 +280,14 @@ public:
 	{
 		RECT clipped_rect = r;
 		clip_to_screen(&clipped_rect);
-		return MemoryGraphicsContext(buffer + (r.x1 * (bpp >> 3)), r.x2 - r.x1, r.y2 - r.y1, stride);
+		return MemoryGraphicsContext(fs_driver, buffer + (r.x1 * (bpp >> 3)), r.x2 - r.x1, r.y2 - r.y1, stride);
 	}
 protected:
+	friend class BufferedMemoryGraphicsContext;
 	int width, height, stride, bpp;
 	unsigned char *buffer;
 	bool own_buffer;
+	std::shared_ptr<kernel::FileSystemDriver> fs_driver;
 }; // class MemoryGraphicsContext
 
 class BufferedMemoryGraphicsContext
@@ -294,19 +300,20 @@ public:
 		this->raw_context = raw_context;
 		this->buffer_context 
 			= new MemoryGraphicsContext(
+				raw_context->fs_driver,
 				nullptr,
 				raw_context->get_bpp(),
 				raw_context->get_width(),
 				raw_context->get_height(),
 				raw_context->get_stride());
 	}
-	BufferedMemoryGraphicsContext(int bpp, int width, int height, int stride = 0)
+	BufferedMemoryGraphicsContext(std::shared_ptr<kernel::FileSystemDriver> fs_driver, int bpp, int width, int height, int stride = 0)
 	{
 		own_raw_context = true;
-		this->raw_context = new MemoryGraphicsContext(nullptr, bpp, width, height, stride);
-		this->buffer_context = new MemoryGraphicsContext(nullptr, bpp, width, height, stride);
+		this->raw_context = new MemoryGraphicsContext(fs_driver, nullptr, bpp, width, height, stride);
+		this->buffer_context = new MemoryGraphicsContext(fs_driver, nullptr, bpp, width, height, stride);
 	}
-	~BufferedMemoryGraphicsContext()
+	virtual ~BufferedMemoryGraphicsContext()
 	{
 		if (own_raw_context && raw_context)
 		{
@@ -386,6 +393,7 @@ protected:
 	MemoryGraphicsContext *raw_context;
 	MemoryGraphicsContext *buffer_context;
 	bool own_raw_context;
+	std::shared_ptr<kernel::FileSystemDriver> fs_driver;
 }; // class BufferedMemoryGraphicsContext
 
 }	 	// namespace kernel

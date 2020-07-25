@@ -39,6 +39,13 @@ public:
     NotFoundError() : Error("Not found") {}
     NotFoundError(const char *msg) : Error(msg) {}
 };  // class NotFoundError
+
+class EndOfFileError : public Error
+{
+public:
+    EndOfFileError() : Error("End of file") {}
+    EndOfFileError(const char *msg) : Error(msg) {}
+};  // class EndOfFileError
 } // namespace kernel
 #endif  // __cplusplus
 #endif  // __KERNEL_ERROR_H__

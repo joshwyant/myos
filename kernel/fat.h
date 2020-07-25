@@ -1,36 +1,186 @@
-#ifndef __fat_h__
-#define __fat_h__
+#ifndef __FATC_H__
+#define __FATC_H__
 
 #ifdef __cplusplus
-extern "C" {
-#endif
+#include <memory>
+#include <stddef.h>
+#include <utility>
+#include "disk.h"
+#include "klib.h"
+#include "fs.h"
+#include "stack.h"
 
-typedef struct
+namespace kernel
 {
+class FATDriver;
+
+class FATFile
+    : public File
+{
+public:
     unsigned filesize;
     unsigned position;
-    unsigned reserved;
-} FileStream;
+    int seek(unsigned pos) override;
+    unsigned read(char *buffer, unsigned bytes) override;
+    char getch() override;
+    char peekc() override;
+    int eof() override;
+    void close() override { fat_close(); }
+    ~FATFile() override
+    {
+        fat_close();
+    }
+private:
+    FATFile(std::weak_ptr<FATDriver> fat_driver)
+        : filesize(0),
+          position(0),
+          fat_driver(fat_driver),
+          closed(false),
+          File() {}
+    void fat_close();
+    int push_cluster();
+    int pop_cluster();
+    friend class FATDriver;
+    std::weak_ptr<FATDriver> fat_driver;
+    Stack<unsigned> cluster_stack;
+    unsigned firstcluster;
+    unsigned currentcluster;
+    char* buffer;
+    bool closed;
+}; // class FATFile
 
-// Whatever is defined here MUST be defined in FATC.H!
+class FATDriver
+    : public FileSystemDriver,
+      public std::enable_shared_from_this<FATDriver>
+{
+public:
+    class FileStream;
+    FATDriver(std::shared_ptr<DiskDriver> disk_driver)
+        : disk_driver(std::move(disk_driver))
+    {
+        fat_init();
+    }
+    ~FATDriver() override {}
+    FATDriver(FATDriver&) = delete;
+    FATDriver(FATDriver&&) noexcept = delete;
+    FATDriver& operator=(FATDriver) = delete;
+    int read_file(const char* filename, void* buffer);
+    unsigned int file_size(const char* filename);
+    int file_exists(const char* filename);
+    int directory_exists(const char* dirname);
+    int chdir(const char* dir);
+    const char* current_directory();
+    std::unique_ptr<File> file_open(const char *filename) override;
+private:
+    friend class FATFile;
+    void fat_init();
+    int read_cluster(int, void**);
+    int write_cluster(int, void*);
+    int _read_file_info(const char*,int);
+    int trace_info(const char*, int);
+    int read_file_info(const char*);
+    int read_dir_info(const char*);
+    int read_dir(const char* dir);
+    int read_root_file(const char*, int is_dir);
+    int dot_to_83(const char*, char*);
+    int streq(const char*, const char*);
+    void read_sector(int sector, void** buffer);
+    void write_sector(int, void*);
+    int find_file(const char*, int size, int attributes);
+    unsigned int next_cluster(int cluster);
+    unsigned int alloc_cluster(unsigned int);
+    int set_next_cluster(unsigned int, unsigned int);
+    unsigned int alloc_next_cluster(unsigned int);
+    inline int eof(unsigned);
 
-void fat_init();
-int read_file(const char* filename, void* buffer);
-unsigned int file_size(const char* filename);
-int file_exists(const char* filename);
-int directory_exists(const char* dirname);
-int chdir(const char* dir);
-const char* current_directory();
-int  file_open(const char *filename, FileStream *fs);
-void file_close(FileStream *fs);
-int file_seek(FileStream *fs, unsigned pos);
-unsigned file_read(FileStream *fs, void *buffer, unsigned bytes);
-char file_getc(FileStream *fs);
-char file_peekc(FileStream *fs);
-int file_eof(FileStream *fs);
+    std::shared_ptr<DiskDriver> disk_driver;
+    struct __attribute__ ((__packed__)) BPBMain
+    {
+        unsigned char	jmpBoot[3];
+        unsigned char	OEMName[8];
+        unsigned short	BytsPerSec;
+        unsigned char	SecPerClus;
+        unsigned short	RsvdSecCnt;
+        unsigned char	NumFATs;
+        unsigned short	RootEntCnt;
+        unsigned short	TotSec16;
+        unsigned char	Media;
+        unsigned short	FATSz16;
+        unsigned short	SecPerTrk;
+        unsigned short	NumHeads;
+        unsigned int	HiddSec;
+        unsigned int	TotSec32;
+    } bpb;
+    struct __attribute__ ((__packed__)) BPB16
+    {
+        unsigned char	DrvNum;
+        unsigned char	Reserved1;
+        unsigned char	BootSig;
+        unsigned int	VolID;
+        unsigned char	VolLab[11];
+        unsigned char	FilSysType[8];
+    } bpb16;
+    struct __attribute__ ((__packed__)) BPB32
+    {
+        unsigned int	FATSz32;
+        unsigned short	ExtFlags;
+        unsigned short	FSVer;
+        unsigned int	RootClus;
+        unsigned short	FSInfo;
+        unsigned short	BkBootSec;
+        unsigned char	Reserved[12];
+        unsigned char	DrvNum;
+        unsigned char	Reserved1;
+        unsigned char	BootSig;
+        unsigned int	VolID;
+        unsigned char	VolLab[11];
+        unsigned char	FilSysType[8];
+    } bpb32;
+    char fat[1024]; // FAT sector cache, supports 512 byte sectors (space to read 2 sectors in case of fat12)
+    char disk[0x10000]; // up to 64k clusters (standard is 32k), some drivers 64k
+    struct __attribute__ ((__packed__)) file_entry
+    {
+        unsigned char filename[11];
+        unsigned char attributes;
+        unsigned char name_case;
+        unsigned char create_time_fine;
+        unsigned short create_time;
+        unsigned short create_date;
+        unsigned short last_access_date;
+        unsigned short cluster_high;
+        unsigned short last_modified_time;
+        unsigned short last_modified_date;
+        unsigned short cluster_low;
+        unsigned int file_size;
+    } file_info, // Current file entry
+      dir_info, // Currently handled directory entry
+      cdir_info; // Current (user) directory entry
+    char current_dir[256]; // Current directory pathname
+    int root_sectors; // Root directory sectors (FAT16)
+    int data_start; // First data sector
+    int root_start; // First root directory sector
+    int cluster_size; // Size of a cluster
+    int cur_fat_sec; // Cached FAT sector
+    int count_of_clusters; // Cluster count
+    enum
+    {
+        TFAT12,
+        TFAT16,
+        TFAT32
+    } fat_type;
 
-#ifdef __cplusplus
-}  // extern "C"
-#endif
-
-#endif
+    struct __attribute__ ((__packed__)) long_entry
+    {
+        unsigned char	ord;
+        unsigned short	name1[5];
+        unsigned char	attr;
+        unsigned char	type;
+        unsigned char	chksum;
+        unsigned short	name2[6];
+        unsigned short	fstcluslo;
+        unsigned short	name3[2];    
+    };
+}; // class FATDriver
+} // namespace kernel
+#endif // __cplusplus
+#endif // __FATC_H__

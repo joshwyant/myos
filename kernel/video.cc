@@ -34,10 +34,6 @@ void init_video()
         = text_mode_console 
         = new kernel::TextModeConsoleDriver();
 }
-void init_graphical_console()
-{
-    console = new kernel::GraphicalConsoleDriver(25, 80);
-}
 volatile char *get_console_videomem()
 {
     return console->get_videomem();
@@ -115,11 +111,17 @@ void endl()
 }  // extern "C"
 #endif
 
-kernel::GraphicalConsoleDriver::GraphicalConsoleDriver(int rows, int cols)
-    : ConsoleDriver(rows, cols)
+void init_graphical_console(std::shared_ptr<kernel::FileSystemDriver> fs_driver)
 {
-    read_bitmap(&font, "/system/bin/font");
-    display = new MemoryGraphicsContext(nullptr, 24, cols * 8, rows * 16);
+    console = new kernel::GraphicalConsoleDriver(fs_driver, 25, 80);
+}
+
+kernel::GraphicalConsoleDriver::GraphicalConsoleDriver(std::shared_ptr<FileSystemDriver> fs_driver, int rows, int cols)
+    : fs_driver(fs_driver),
+      ConsoleDriver(rows, cols)
+{
+    read_bitmap(fs_driver, &font, "/system/bin/font");
+    display = new MemoryGraphicsContext(fs_driver, nullptr, 24, cols * 8, rows * 16);
     update_cursor_index();
 }
 
@@ -179,13 +181,8 @@ void kernel::GraphicalConsoleDriver::update_cursor_index()
 }
 
 kernel::TextModeConsoleDriver::TextModeConsoleDriver()
+    : ConsoleDriver((void*)0xB8000)
 {
-    // Map video memory
-    videomem = (volatile char*)kfindrange(4000);
-    videomem_provided = true;
-    rows = 25;
-    cols = 80;
-    page_map((void*)videomem, (void*)0xB8000, PF_WRITE);
     // save CRT base IO port (map BDA first)
     void* bda = kfindrange(0x465);
     page_map(bda, 0, PF_WRITE);

@@ -28,6 +28,9 @@
 #define PF_LOCKED	PF_AVAIL1
 
 #ifdef __cplusplus
+#include <memory>
+#include "fs.h"
+
 extern "C" {
 #endif
 
@@ -108,12 +111,14 @@ extern char*			kernel_strtab;
 extern Elf32_Dyn*		kernel_dynamic;
 
 // elf.c
-extern int process_start(const char* filename);
-extern int load_driver(const char* filename);
-extern char *elf_last_error();
+extern const char *elf_last_error();
 
 #ifdef __cplusplus
 }  // extern "C"
+
+// elf.c
+extern int process_start(std::shared_ptr<kernel::FileSystemDriver> fs_driver, const char* filename);
+extern int load_driver(std::shared_ptr<kernel::FileSystemDriver> fs_driver, const char* filename);
 #endif
 
 #endif

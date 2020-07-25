@@ -47,6 +47,9 @@ void operator delete(void*);
 void operator delete[](void*);
 
 extern "C" {
+#include <memory>
+#include "fs.h"
+
 #endif
 
 // main
@@ -54,15 +57,17 @@ extern loader_info loaderInfo;
 extern void init_loader_info();
 extern void init_symbols(loader_info *li);
 
-// initialization
-extern void show_splash();
-extern void start_shell();
-
 // Misc
 extern void invoke(const char* function); // random fun test function (invoke("kmain"))
 
 #ifdef __cplusplus
 }  // extern "C"
+
+// initialization
+extern void show_splash(
+    std::shared_ptr<kernel::GraphicsDriver> graphics_driver,
+    std::shared_ptr<kernel::FileSystemDriver> fs_driver);
+extern void start_shell(std::shared_ptr<kernel::FileSystemDriver> fs_driver);
 #endif
 
 #endif  // __KERNEL_H__

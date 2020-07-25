@@ -15,7 +15,7 @@ export CFLAGS="-c -g"
 export NASMFLAGS="-felf -F dwarf -g"
 
 if [ "$DEBUG" = true ] ; then
-  DEFINES="$DEFINES -DEBUG"
+  DEFINES="$DEFINES -DDEBUG"
 else
   CFLAGS="$CFLAGS -O2"
   NASMFLAGS="$NASMFLAGS -O2"
@@ -74,12 +74,13 @@ $TARGET-gcc $CPPFLAGS VESA.cc -o ./obj/VESA.o
 $TARGET-gcc $CPPFLAGS buffer.cc -o ./obj/buffer.o
 $TARGET-gcc $CFLAGS clock.c -o ./obj/clock.o
 $TARGET-gcc $CFLAGS dictionary.c -o ./obj/dictionary.o
-$TARGET-gcc $CFLAGS disk.c -o ./obj/disk.o
+$TARGET-gcc $CPPFLAGS disk.cc -o ./obj/disk.o
 $TARGET-gcc $CPPFLAGS drawing.cc -o ./obj/drawing.o
-$TARGET-gcc $CFLAGS elf.c -o ./obj/elf.o
+$TARGET-gcc $CPPFLAGS elf.cc -o ./obj/elf.o
 $TARGET-gcc $CFLAGS exceptions.c -o ./obj/exceptions.o
 $TARGET-gcc $CPPFLAGS fat.cc -o ./obj/fat.o
 $TARGET-gcc $CPPFLAGS fpu.cc -o ./obj/fpu.o
+$TARGET-gcc $CPPFLAGS fs.cc -o ./obj/fs.o
 $TARGET-gcc $CFLAGS interrupt.c -o ./obj/interrupt.o
 $TARGET-gcc $CPPFLAGS kcpp.cc -o ./obj/kcpp.o
 $TARGET-gcc $CPPFLAGS kernel.cc -o ./obj/kernel.o

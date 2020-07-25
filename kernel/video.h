@@ -23,13 +23,14 @@
 #define C_WHITE         15
 
 #ifdef __cplusplus
+#include <memory>
+
 extern "C" {
 #endif
 
 extern int console_palette[];
 
 void init_video();
-void init_graphical_console();
 volatile char *get_console_videomem();
 int get_console_rows();
 int get_console_cols();
@@ -52,21 +53,37 @@ void endl();
 #ifdef __cplusplus
 }  // extern "C"
 
+void init_graphical_console(std::shared_ptr<kernel::FileSystemDriver> fs_driver);
+
 namespace kernel
 {
 class ConsoleDriver
 {
 public:
-    ConsoleDriver() {
-        fore_color = C_LIGHTGRAY;
-        back_color = C_BLACK;
+    ConsoleDriver(
+        void *videomem = nullptr,
+        int rows = 25, int cols = 80)
+        :  videomem_provided(videomem ? true : false),
+           videomem(videomem
+                        ? (volatile char*)kfindrange(rows * cols * 2) 
+                        : new char[rows * cols * 2]),
+           rows(rows), cols(cols),
+           fore_color(C_LIGHTGRAY),
+           back_color(C_BLACK),
+           cursor_shown(0),
+           cursorpos(0),
+           lastpos(0),
+           screenlock(0),
+           cursorlock(0),
+           show_cursorlock(0)
+    {
+        if (videomem_provided)
+        {
+            page_map((void*)this->videomem, (void*)videomem, PF_WRITE);
+        }
     }
     ConsoleDriver(int rows, int cols)
-        : ConsoleDriver() {
-        this->videomem = new char [rows * cols * 2];
-        this->rows = rows;
-        this->cols = cols;
-    }
+        : ConsoleDriver(nullptr, rows, cols) {}
     virtual ~ConsoleDriver() {
         if (videomem && videomem_provided)
         {
@@ -181,7 +198,7 @@ protected:
 class GraphicalConsoleDriver : public ConsoleDriver
 {
 public:
-    GraphicalConsoleDriver(int rows, int cols);
+    GraphicalConsoleDriver(std::shared_ptr<FileSystemDriver> fs_driver, int rows, int cols);
     ~GraphicalConsoleDriver() override;
     void show_cursor(int) override;
     void redraw() override;
@@ -189,6 +206,7 @@ public:
 protected:
     void update_cursor_index() override;
     Bitmap font;
+    std::shared_ptr<FileSystemDriver> fs_driver;
     MemoryGraphicsContext *display;
 }; // class TextModeConsoleDriver
 
@@ -198,6 +216,7 @@ public:
     virtual BufferedGraphicsContext *get_screen_context() = 0;
     static GraphicsDriver *get_current() { return current; }
     static void set_current(GraphicsDriver *driver) { current = driver; }
+    virtual ~GraphicsDriver() {}
 protected:
     static GraphicsDriver *current;
 }; // class GraphicsContext

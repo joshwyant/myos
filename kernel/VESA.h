@@ -6,13 +6,8 @@
 #include "kernel.h"
 
 #ifdef __cplusplus
-extern "C" {
-#endif
-
-void init_vesa();
-
-#ifdef __cplusplus
-}  // extern "C"
+#include <memory>
+#include "fs.h"
 
 namespace kernel
 {
@@ -20,8 +15,12 @@ class VESAGraphicsDriver
     : public GraphicsDriver
 {
 public:
-    VESAGraphicsDriver();
-    ~VESAGraphicsDriver()
+    VESAGraphicsDriver(std::shared_ptr<FileSystemDriver> fs_driver)
+        : fs_driver(fs_driver), GraphicsDriver()
+    {
+        init();
+    }
+    virtual ~VESAGraphicsDriver()
     {
         delete buffered_screen_context;
         delete raw_screen_context;
@@ -34,7 +33,14 @@ protected:
     vbe_mode_info vesaMode;
     BufferedMemoryGraphicsContext *buffered_screen_context;
     MemoryGraphicsContext *raw_screen_context;
+    std::shared_ptr<FileSystemDriver> fs_driver;
+private:
+    void init();
 }; // class VESAGraphicsDriver
 } // namespace kernel
+
+std::shared_ptr<kernel::VESAGraphicsDriver>
+    init_vesa(std::shared_ptr<kernel::FileSystemDriver> fs_driver);
+    
 #endif  // __cplusplus
 #endif  // __KERNEL_VESA_H__

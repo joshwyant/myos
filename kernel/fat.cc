@@ -1,10 +1,33 @@
-#include "fatc.h"
+#include <memory>
+#include "error.h"
+#include "fat.h"
+#include "fs.h"
 
-extern "C"
-{
+// File Attributes
+#define ATTR_READ_ONLY      0x01
+#define ATTR_HIDDEN         0x02
+#define ATTR_SYSTEM         0x04
+#define ATTR_VOLUME_ID      0x08
+#define ATTR_DIRECTORY      0x10
+#define ATTR_ARCHIVE        0x20
+#define ATTR_LONG_NAME      (ATTR_READ_ONLY | ATTR_HIDDEN | ATTR_SYSTEM | ATTR_VOLUME_ID)
+#define ATTR_LONG_NAME_MASK (ATTR_READ_ONLY | ATTR_HIDDEN | ATTR_SYSTEM | ATTR_VOLUME_ID | \
+                             ATTR_DIRECTORY | ATTR_ARCHIVE)
+
+// FAT Long Directory Entry Structure
+#define LDIR_Ord            0
+#define LDIR_Name1          1
+#define LDIR_Attr           11
+#define LDIR_Type           12
+#define LDIR_Chksum         13
+#define LDIR_Name2          14
+#define LDIR_FstClusLO      26
+#define LDIR_Name3          28
+
+#define LAST_LONG_ENTRY     0x40
 
 // Call before using any FAT functions.
-void fat_init()
+void kernel::FATDriver::fat_init()
 {
     // Copy BIOS parameter block from where the boot sector was loaded
     char* bootsect = (char*)kfindrange(0x1000)+0xC00;
@@ -29,42 +52,32 @@ void fat_init()
     cur_fat_sec = 0;
 }
 
-int file_open(const char *filename, FileStream *fs)
+std::unique_ptr<kernel::File> kernel::FATDriver::file_open(const char *filename)
 {
     if (!read_file_info(filename))
     {
-        fs->data = 0;
-        fs->position = 0;
-        fs->filesize = 0;
-        return 0;
+        throw NotFoundError();
     }
-    fs->filesize = file_info.file_size;
-    fs->position = 0;
-    fs->data = (fsdata *)kmalloc(sizeof(struct fsdata));
-    fs->data->buffer = (char *)kmalloc(cluster_size);
-    const int clusterstacksize = 4;
-    fs->data->clusterstack = (unsigned *)kmalloc(clusterstacksize*sizeof(unsigned));
-    fs->data->clusterstacksize = clusterstacksize;
-    fs->data->firstcluster = file_info.cluster_low|(fat_type == TFAT32 ? (file_info.cluster_high<<16) : 0);
-    fs->data->currentcluster = fs->data->firstcluster;
-    fs->data->stack_index = 0;
-    void* buffer = fs->data->buffer;
-    read_cluster(fs->data->firstcluster, &buffer);
-    return 1;
+    std::unique_ptr<FATFile> f(new FATFile(weak_from_this()));
+    f->filesize = file_info.file_size;
+    f->position = 0;
+    f->buffer = (char *)kmalloc(cluster_size);
+    f->firstcluster = file_info.cluster_low|(fat_type == TFAT32 ? (file_info.cluster_high<<16) : 0);
+    f->currentcluster = f->firstcluster;
+    void* buffer = f->buffer;
+    read_cluster(f->firstcluster, &buffer);
+    return f;
 }
 
-void file_close(FileStream *fs)
+void kernel::FATFile::fat_close()
 {
-    if (!fs) return;
-    kfree(fs->data->buffer);
-    kfree(fs->data->clusterstack);
-    kfree(fs->data);
-    fs->data = 0;
-    fs->position = 0;
-    fs->filesize = 0;
+    if (closed) return;
+    position = 0;
+    filesize = 0;
+    closed = true;
 }
 
-static inline int eof(unsigned clus)
+inline int kernel::FATDriver::eof(unsigned clus)
 {
     if (fat_type == TFAT12) {
         return clus >= 0xFF8;
@@ -76,117 +89,91 @@ static inline int eof(unsigned clus)
     return -1;
 }
 
-int push_cluster(FileStream *fs)
+int kernel::FATFile::push_cluster()
 {  
-    if (fs->data->currentcluster == 0) return 0;
-    unsigned nextcluster = next_cluster(fs->data->currentcluster);
-    if (eof(nextcluster)) nextcluster = 0;
-    // Resize stack if needed
-    if (fs->data->stack_index > fs->data->clusterstacksize)
-    {
-        unsigned* newptr = (unsigned*)kmalloc((fs->data->clusterstacksize ? fs->data->clusterstacksize*2 : 4)*sizeof(unsigned));
-        int i;
-        for (i = 0; i < fs->data->stack_index; i++)
-            newptr[i] = fs->data->clusterstack[i];
-        kfree(fs->data->clusterstack);
-        fs->data->clusterstack = newptr;
-        // THE BUG IS FIXED! >>>
-        fs->data->clusterstacksize *= 2;
-        if (!fs->data->clusterstacksize)
-        {
-            fs->data->clusterstacksize = 4;
-        }
-    }
+    if (currentcluster == 0) return 0;
+    auto fat = fat_driver.lock();
+    unsigned nextcluster = fat->next_cluster(currentcluster);
+    if (fat->eof(nextcluster)) nextcluster = 0;
     // Push cluster on stack
-    fs->data->clusterstack[fs->data->stack_index++] = fs->data->currentcluster;
+    cluster_stack.push_back(currentcluster);
     // Make cluster current
-    fs->data->currentcluster = nextcluster;
+    currentcluster = nextcluster;
     return 1;
 }
 
-int pop_cluster(FileStream *fs)
+int kernel::FATFile::pop_cluster()
 {
     // check for stack underflow
-    if (fs->data->stack_index == 0) return 0;
+    if (!cluster_stack.len()) return 0;
     // pop cluster
-    fs->data->currentcluster = fs->data->clusterstack[--fs->data->stack_index];
-    // Resize stack if needed
-    if ((fs->data->stack_index < fs->data->clusterstacksize/2) && fs->data->clusterstacksize > 4)
-    {
-        unsigned* newptr = (unsigned *)kmalloc(fs->data->clusterstacksize/2*sizeof(unsigned));
-        int i;
-        for (i = 0; i < fs->data->stack_index; i++)
-            newptr[i] = fs->data->clusterstack[i];
-        kfree(fs->data->clusterstack);
-        fs->data->clusterstack = newptr;
-        // THE BUG IS FIXED! >>>
-        if (fs->data->clusterstacksize > 4)
-            fs->data->clusterstacksize /= 2;
-    }
+    currentcluster = cluster_stack.pop_back();
     return 1;
 }
 
-int file_seek(FileStream *fs, unsigned pos)
+int kernel::FATFile::seek(unsigned pos)
 {
-    if (pos > fs->filesize) return 0;
-    unsigned cluster = pos / cluster_size;
-    fs->position = pos;
-    if (cluster == fs->data->stack_index)
+    if (pos > filesize) return 0;
+    auto fat = fat_driver.lock();
+    unsigned cluster = pos / fat->cluster_size;
+    position = pos;
+    if (cluster == cluster_stack.len())
         return 1;
-    while (fs->data->stack_index < cluster)
-        push_cluster(fs);
-    while (fs->data->stack_index > cluster)
-        pop_cluster(fs);
+    while (cluster_stack.len() < cluster)
+        push_cluster();
+    while (cluster_stack.len() > cluster)
+        pop_cluster();
     // read in the buffer
-    void* buffer = fs->data->buffer;
-    if (fs->data->currentcluster) read_cluster(fs->data->currentcluster, &buffer);
+    void* buffer = this->buffer;
+    if (currentcluster) fat->read_cluster(currentcluster, &buffer);
     return 1;
 }
 
-unsigned file_read(FileStream *fs, void *buffer, unsigned bytes)
+unsigned kernel::FATFile::read(char *buffer, unsigned bytes)
 {
     unsigned bytes_read = 0;
     unsigned bytes_to_read;
+    auto fat = fat_driver.lock();
     do
     {
-        unsigned offset = fs->position % cluster_size;
-        unsigned cluster_bytes = cluster_size - offset;
+        unsigned offset = position % fat->cluster_size;
+        unsigned cluster_bytes = fat->cluster_size - offset;
         unsigned user_bytes = bytes - bytes_read;
-        unsigned file_bytes = fs->filesize - fs->position;
+        unsigned file_bytes = filesize - position;
         unsigned minval = cluster_bytes < file_bytes ? cluster_bytes : file_bytes;
         bytes_to_read = user_bytes < minval ? user_bytes : minval;
         int i;
         for (i = 0; i < bytes_to_read; i++)
-            ((char*)buffer)[bytes_read+i] = ((char*)fs->data->buffer)[offset+i];
+            buffer[bytes_read+i] = this->buffer[offset+i];
         bytes_read += bytes_to_read;
-        file_seek(fs, fs->position+bytes_to_read);
+        seek(position+bytes_to_read);
     } while (bytes_to_read);
     return bytes_read;
 }
 
-char file_getc(FileStream *fs)
+char kernel::FATFile::getch()
 {
     char c = '\xFF';
-    file_read(fs, &c, 1);
+    read(&c, 1);
     return c;
 }
 
-char file_peekc(FileStream *fs)
+char kernel::FATFile::peekc()
 {
-    unsigned pos = fs->position;
-    char c = file_getc(fs);
-    file_seek(fs, pos);
+    unsigned pos = position;
+    char c = getch();
+    seek(pos);
     return c;
 }
 
-int file_eof(FileStream *fs)
+int kernel::FATFile::eof()
 {
-    return fs->position >= fs->filesize;
+    return position >= filesize;
 }
 
 // changes the current directory.
 // returns whether succesful.
-int chdir(const char* dir)
+int kernel::FATDriver::chdir(const char* dir)
 {
     if (!read_dir_info(dir)) return 0;
     kstrcpy(current_dir, dir);
@@ -195,7 +182,7 @@ int chdir(const char* dir)
 }
 
 // Copies the whole file to memory. Returns whether succeeded.
-int read_file(const char* filename, void* buffer)
+int kernel::FATDriver::read_file(const char* filename, void* buffer)
 {
     if (!read_file_info(filename)) return 0;
     int cluster = file_info.cluster_low;
@@ -215,28 +202,28 @@ int read_file(const char* filename, void* buffer)
     return 1;
 }
 
-unsigned int file_size(const char* filename)
+unsigned int kernel::FATDriver::file_size(const char* filename)
 {
     if (!read_file_info(filename)) return 0;
     return file_info.file_size;
 }
 
-int file_exists(const char* filename)
+int kernel::FATDriver::file_exists(const char* filename)
 {
     return (read_file_info(filename));
 }
 
-int directory_exists(const char* dirname)
+int kernel::FATDriver::directory_exists(const char* dirname)
 {
     return (read_dir_info(dirname));
 }
 
-const char* current_directory()
+const char* kernel::FATDriver::current_directory()
 {
     return current_dir;
 }
 
-static int streq(const char* str1, const char* str2)
+int kernel::FATDriver::streq(const char* str1, const char* str2)
 {
     while (1)
     {
@@ -251,7 +238,7 @@ static int streq(const char* str1, const char* str2)
 // returns whether a file was found.
 // specify whether a directory or a file. A block of size
 // of the directory table is in the disk[] buffer.
-static int find_file(const char* filename, int size, int is_dir)
+int kernel::FATDriver::find_file(const char* filename, int size, int is_dir)
 {
     int i, j, found;
     char fname83[11];
@@ -280,7 +267,7 @@ static int find_file(const char* filename, int size, int is_dir)
 // checks whether a file or folder exists in the root
 // directory. If it does, the appropriate info structure is
 // loaded when the function returns.
-static int read_root_file(const char* filename, int is_dir)
+int kernel::FATDriver::read_root_file(const char* filename, int is_dir)
 {
     int i;
     void* b;
@@ -309,7 +296,7 @@ static int read_root_file(const char* filename, int is_dir)
 
 // reads the FAT to determine the next cluster in the
 // list after the given cluster.
-static unsigned int next_cluster(int cluster)
+unsigned int kernel::FATDriver::next_cluster(int cluster)
 {
     void* b = fat;
     unsigned offset;
@@ -344,7 +331,7 @@ static unsigned int next_cluster(int cluster)
 // Takes a filename (without the directory)
 // and constructs the DOS 8.3 filename.
 // returns whether successful.
-static int dot_to_83(const char* fdot, char* f83)
+int kernel::FATDriver::dot_to_83(const char* fdot, char* f83)
 {
     int i;
     for (i = 0; i < 11; i++) f83[i] = 0x20;
@@ -376,7 +363,7 @@ static int dot_to_83(const char* fdot, char* f83)
 
 // returns whether the file or directory exists in the current directory,
 // and if it does, updates file_info or dir_info.
-static int _read_file_info(const char* filename, int is_dir)
+int kernel::FATDriver::_read_file_info(const char* filename, int is_dir)
 {
     if (dir_info.cluster_low == 0) return read_root_file(filename, is_dir);
     int cluster = dir_info.cluster_low;
@@ -392,7 +379,7 @@ static int _read_file_info(const char* filename, int is_dir)
 }
 
 // updates the structures and returns whether the file exists.
-static int trace_info(const char* filename, int is_dir)
+int kernel::FATDriver::trace_info(const char* filename, int is_dir)
 {
     dir_info = cdir_info;
     if (filename[0] == '/') dir_info.cluster_low = (filename++,0);
@@ -426,12 +413,12 @@ static int trace_info(const char* filename, int is_dir)
 
 // returns whether the file exists,
 // and if it does, updates file_info.
-static int read_file_info(const char* filename)
+int kernel::FATDriver::read_file_info(const char* filename)
 {
     return trace_info(filename,0);
 }
 
-static int read_dir_info(const char* name)
+int kernel::FATDriver::read_dir_info(const char* name)
 {
     return trace_info(name,1);
 }
@@ -440,7 +427,7 @@ static int read_dir_info(const char* name)
 // char* buffer;
 // read_cluster (cluster, &buffer);
 // read_cluster (next_cluster(cluster), &buffer);
-static int read_cluster(int cluster, void** buffer)
+int kernel::FATDriver::read_cluster(int cluster, void** buffer)
 {
     int i;
     if (cluster < 2) return 0;
@@ -453,7 +440,7 @@ static int read_cluster(int cluster, void** buffer)
 // Updates pointer past the bytes read.
 // sector: Linear Block Address
 // buffer: Address of pointer to current buffer position
-static void read_sector(int sector, void** buffer)
+void kernel::FATDriver::read_sector(int sector, void** buffer)
 {
     // // using CHS
     // int heads, spt;
@@ -473,17 +460,17 @@ static void read_sector(int sector, void** buffer)
     // past the BPB, because BPB_HiddSec was treated as an offset
     // into an int array, not an int at a byte offset.
     sector += bpb.HiddSec;
-    ReadSectors(*(char**)buffer, 1, 0, 0, sector);
+    disk_driver->read_sectors(*(char**)buffer, 1, sector);
     *(char*)buffer += 512;
 }
 
-static void write_sector(int sector, void* buffer)
+void kernel::FATDriver::write_sector(int sector, void* buffer)
 {
     sector += bpb.HiddSec;
-    WriteSectors((char*)buffer, 1, 0, 0, sector);
+    disk_driver->write_sectors((const char*)buffer, 1, sector);
 }
 
-static int write_cluster(int cluster, void* buffer)
+int kernel::FATDriver::write_cluster(int cluster, void* buffer)
 {
     int i;
     if (cluster < 2) return 0;
@@ -493,7 +480,7 @@ static int write_cluster(int cluster, void* buffer)
 }
 
 // This function only looks for free clusters starting from cluster_start.
-static unsigned int alloc_cluster(unsigned int cluster_start)
+unsigned int kernel::FATDriver::alloc_cluster(unsigned int cluster_start)
 {
     unsigned int i;
     for (i = cluster_start<2?2:cluster_start; i < count_of_clusters+2; i++)
@@ -502,29 +489,3 @@ static unsigned int alloc_cluster(unsigned int cluster_start)
     }
     return 0;
 }
-/*
-static int set_next_cluster(unsigned int cluster, unsigned int cluster_after)
-{
-    /*if ((cluster_after == cluster) || (cluster_after < 2) || (cluster >= (count_of_clusters+2)) || (cluster_after >= (count_of_clusters+2))) return 0;
-    int sector = cluster*2 / *(unsigned short*)(BPB+BPB_BytsPerSec) + *(unsigned short*)(BPB+BPB_RsvdSecCnt);
-    if ((sector-*(unsigned short*)(BPB+BPB_RsvdSecCnt)) >= *(unsigned short*)(BPB+BPB_FATSz16)) return 0;
-    void* b = fat;
-    if (sector != cur_fat_sec)
-        read_sector(sector, &b);
-    cur_fat_sec = sector;
-    int offset = ((cluster*2) % *(unsigned short*)(BPB+BPB_BytsPerSec));
-    *(unsigned short*)(fat+offset) = cluster_after;
-    write_sector(sector, fat);
-    return 1;*//*
-}
-
-static unsigned int alloc_next_cluster(unsigned int cluster)
-{
-    unsigned int cluster_after = alloc_cluster(0);
-    if (!cluster_after) return 0;
-    if (!set_next_cluster(cluster,cluster_after)) return 0;
-    return cluster_after;
-}
-*/
-
-} // extern "C"

@@ -20,6 +20,7 @@
 #define EI_NIDENT	16
 
 #ifdef __cplusplus
+
 extern "C" {
 #endif
 

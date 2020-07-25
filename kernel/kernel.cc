@@ -1,6 +1,8 @@
 #include "kernel.h"
 
 #ifdef __cplusplus
+#include <memory>
+
 using namespace kernel;
 
 extern "C" {
@@ -54,7 +56,9 @@ void kmain()
     init_timer(); // dependent on IDT and PIC
 
     // Filestystem
-    fat_init();
+    auto disk_driver = std::make_shared<PIODiskDriver>();
+    auto fat_driver = std::make_shared<FATDriver>(disk_driver);
+    FileSystemDriver::register_root(fat_driver);
     
     // System TSS
     init_tss();
@@ -62,25 +66,28 @@ void kmain()
     // System call interface (int 0x30)
     init_syscalls();
 
+    std::shared_ptr<GraphicsDriver> graphics_driver;
+    std::shared_ptr<MouseDriver> mouse_driver;
+
     if (loaderInfo.vbe)
     {
         // Temporary VESA mode
-        init_vesa();
+        graphics_driver = init_vesa(fat_driver);
 
-        show_splash();
+        show_splash(graphics_driver, fat_driver);
         
-        init_mouse();
+        mouse_driver = init_mouse(graphics_driver, fat_driver);
 
-        //init_graphical_console();
+        //init_graphical_console(fat_driver);
     }
 
     // Load the shell
-    start_shell();
+    start_shell(fat_driver);
 	
     //demo();
 
     // Load vesadrvr.o
-    if (!load_driver("/system/bin/vesadrvr.o"))
+    if (!load_driver(fat_driver, "/system/bin/vesadrvr.o"))
     {
 		kprintf("Error: Could not load vesadrvr.o: %s\n", elf_last_error());
         freeze();
@@ -140,61 +147,6 @@ void init_loader_info()
 	// TODO: Pass pages of mapped data in a more structured way.
 }
 
-void show_splash()
-{
-    auto ctx = kernel::GraphicsDriver::get_current()->get_screen_context();
-	clear_color(RGB(0, 0, 0));
-	
-    Bitmap b;
-    if (read_bitmap(&b, "/system/bin/splash"))
-    {
-		RECT src = {0, 0, b.width, b.height};
-		RECT dest = {0, 0, ctx->get_width(), ctx->get_height()};
-		for (int color = 0; color <= 255; color += 17)
-		{
-			//draw_image_ext(&b, &src, &dest, 255, RGB(color, color, color));
-		}
-		bitblt(&b, 0, 0);
-    }
-    else
-    {
-        print("Bitmap could not be read.\r\n");
-		clear_color(RGB(128, 128, 128));
-    }
-	
-	// TODO: Remove
-	RECT r = {64, 160, ctx->get_width() - 64, ctx->get_height() - 160};
-	//rect(&r, 1, 0, RGB(255, 255, 255), 0, 64);
-	//rect(&r, 0, 8, 0, RGB(0, 0, 128), 192);
-	
-	KVector<const char*> strs;
-	strs.push_back("Hello");
-	strs.push_back("World");
-	strs.push_back("How");
-	strs.push_back("Are");
-	strs.push_back("You?");
-	
-	for (auto i = 0; i < strs.len(); i++)
-	{
-		//draw_text(strs[i], 0, i * 32, RGB(255, 255, 255), 255, 16, 32);
-	}
-	
-	static const char *str = "Hello, world!\nI'm Josh!!";
-	int x = 96, y = 192, xsize = 16, ysize = 32;
-	//draw_text(str, x + 2, y + 2, RGB(0, 0, 0), 85, xsize, ysize);  // shadow
-	//draw_text(str, x, y, RGB(255, 0, 0), 255, xsize, ysize);
-}
-
-void start_shell()
-{
-    // Load the shell
-    if (!process_start("/system/bin/shell"))
-    {
-        kprintf("Error: Could not load the shell: %s\n", elf_last_error());
-        freeze();
-    }
-}
-
 static void demo()
 {	
     //cls();
@@ -238,4 +190,60 @@ static void demo()
 
 #ifdef __cplusplus
 }  // extern "C"
+
+void show_splash(std::shared_ptr<kernel::GraphicsDriver> graphics_driver, std::shared_ptr<kernel::FileSystemDriver> fs_driver)
+{
+    auto ctx = graphics_driver->get_screen_context();
+	clear_color(RGB(0, 0, 0));
+	
+    Bitmap b;
+    if (read_bitmap(fs_driver, &b, "/system/bin/splash"))
+    {
+		RECT src = {0, 0, b.width, b.height};
+		RECT dest = {0, 0, ctx->get_width(), ctx->get_height()};
+		for (int color = 0; color <= 255; color += 17)
+		{
+			//draw_image_ext(&b, &src, &dest, 255, RGB(color, color, color));
+		}
+		bitblt(&b, 0, 0);
+    }
+    else
+    {
+        print("Bitmap could not be read.\r\n");
+		clear_color(RGB(128, 128, 128));
+    }
+	
+	// TODO: Remove
+	RECT r = {64, 160, ctx->get_width() - 64, ctx->get_height() - 160};
+	//rect(&r, 1, 0, RGB(255, 255, 255), 0, 64);
+	//rect(&r, 0, 8, 0, RGB(0, 0, 128), 192);
+	
+	KVector<const char*> strs;
+	strs.push_back("Hello");
+	strs.push_back("World");
+	strs.push_back("How");
+	strs.push_back("Are");
+	strs.push_back("You?");
+	
+	for (auto i = 0; i < strs.len(); i++)
+	{
+		//draw_text(strs[i], 0, i * 32, RGB(255, 255, 255), 255, 16, 32);
+	}
+	
+	static const char *str = "Hello, world!\nI'm Josh!!";
+	int x = 96, y = 192, xsize = 16, ysize = 32;
+	//draw_text(str, x + 2, y + 2, RGB(0, 0, 0), 85, xsize, ysize);  // shadow
+	//draw_text(str, x, y, RGB(255, 0, 0), 255, xsize, ysize);
+}
+
+void start_shell(std::shared_ptr<kernel::FileSystemDriver> fs_driver)
+{
+    // Load the shell
+    if (!process_start(fs_driver, "/system/bin/shell"))
+    {
+        kprintf("Error: Could not load the shell: %s\n", elf_last_error());
+        freeze();
+    }
+}
+
 #endif

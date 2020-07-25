@@ -9,11 +9,21 @@
 
 using namespace kernel;
 
+// This symbol is undefined
+std::bad_weak_ptr::~bad_weak_ptr() {}
+const char* std::bad_weak_ptr::what() const { return "bad_weak_ptr"; }
+
 extern "C" {
 	
 void __cxa_pure_virtual()
 {
 	throw InvalidOperationError("Pure virtual function called erroneously in kernel.");
+}
+
+int __cxa_atexit(void (*destructor) (void *), void *arg, void *__dso_handle)
+{
+	// TODO
+	return 0;
 }
 
 void *memcpy(void *dest, const void *src, size_t bytes)

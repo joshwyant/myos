@@ -20,6 +20,7 @@ INPUT (
 ./obj/exceptions.o ,
 ./obj/fat.o ,
 ./obj/fpu.o ,
+./obj/fs.o ,
 ./obj/interrupt.o ,
 ./obj/isr.o ,
 ./obj/kcpp.o ,

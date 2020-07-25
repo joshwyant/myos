@@ -1,17 +1,19 @@
+#include <memory>
 #include "kernel.h"
 
-extern "C" {
+using namespace kernel;
 
-MOUSE_PACKET mouse_packet = {0, 0, 0};
-int mouse_screen_x;
-int mouse_screen_y;
-int mouse_visible = 0;
-unsigned char mouse_erase_buffer[1728];
-unsigned char mouse_cycle=0;
+MouseDriver *MouseDriver::current;
 
-static Bitmap cursor;
+std::shared_ptr<MouseDriver>
+    init_mouse(
+        std::shared_ptr<GraphicsDriver> graphics_driver,
+        std::shared_ptr<FileSystemDriver> fs_driver)
+{
+	return std::make_shared<PS2MouseDriver>(graphics_driver, fs_driver);
+}
 
-void init_mouse()
+void PS2MouseDriver::init()
 {
   unsigned char _status;  //unsigned char
 
@@ -36,23 +38,22 @@ void init_mouse()
   //Enable the mouse
   mouse_write(0xF4);
   mouse_read();  //Acknowledge
+  
+  mouse_screen_x = graphics_driver->get_screen_context()->get_width() / 2;
+  mouse_screen_y = graphics_driver->get_screen_context()->get_height() / 2;
+  
+  read_bitmap(fs_driver, &cursor, "/system/bin/cursor");
 
-  auto ctx = kernel::GraphicsDriver::get_current()->get_screen_context();
+  mouse_erase_buffer = new unsigned char[cursor.width * cursor.height * 3];
   
-  mouse_screen_x = ctx->get_width() / 2;
-  mouse_screen_y = ctx->get_height() / 2;
-  
-  read_bitmap(&cursor, "/system/bin/cursor");
-  
-  show_mouse_cursor(1);
+  show_cursor(true);
 
   //Setup the mouse handler
   register_isr(0x2c, 0, (void*)irq12);
   irq_unmask(12);
 }
 
-volatile int t;
-void draw_mouse_cursor(int x, int y)
+void PS2MouseDriver::draw_mouse_cursor(int x, int y)
 {
 	//RECT r1 = {x, y - 7, x + 1, y + 8};
 	//RECT r2 = {x - 7, y, x + 8, y + 1};
@@ -62,11 +63,35 @@ void draw_mouse_cursor(int x, int y)
 	draw_image(&cursor, x, y, 255);
 }
 
-//Mouse functions
-void handle_mouse(void *a_r) //struct regs *a_r (not used but just there)
+void PS2MouseDriver::show_cursor(bool bShow)
 {
-  	auto ctx = kernel::GraphicsDriver::get_current()->get_screen_context();
-	unsigned char b = inb(0x60);
+	if ((bShow && mouse_visible) || !(bShow || mouse_visible)) return;
+	
+	// TODO: programmable with cursor object
+	RECT mouse_rect = {mouse_screen_x, mouse_screen_y, mouse_screen_x + cursor.width, mouse_screen_y + cursor.height};
+	
+	if (bShow)
+	{
+		screen_to_buffer(&mouse_rect, mouse_erase_buffer);
+		draw_mouse_cursor(mouse_screen_x, mouse_screen_y);
+	}
+	else
+	{
+		buffer_to_screen(mouse_erase_buffer, &mouse_rect);
+	}
+	mouse_visible = bShow;
+}
+
+//Mouse functions
+extern "C" void handle_mouse(void *a_r) //struct regs *a_r (not used but just there)
+{
+    ((kernel::PS2MouseDriver*)kernel::MouseDriver::get_current())->mouse_handler();
+}
+
+void PS2MouseDriver::mouse_handler()
+{
+  	auto ctx = graphics_driver->get_screen_context();
+	auto b = (MousePacketFlags)inb(0x60);
 	switch(mouse_cycle)
 	{
 	case 0:
@@ -92,7 +117,7 @@ void handle_mouse(void *a_r) //struct regs *a_r (not used but just there)
 		if (mouse_visible)
 		{
 			// Erase the mouse cursor from the screen (re-write the background).
-			show_mouse_cursor(0);
+			show_cursor(false);
 		}
 
 		mouse_screen_x += mouse_packet.delta_x;
@@ -106,7 +131,7 @@ void handle_mouse(void *a_r) //struct regs *a_r (not used but just there)
 		
 		if (bMouseVisible)
 		{
-			show_mouse_cursor(1);
+			show_cursor(true);
 		}
 
 		mouse_cycle = 0;
@@ -114,24 +139,3 @@ void handle_mouse(void *a_r) //struct regs *a_r (not used but just there)
 	}
 	eoi(12);
 }
-
-void show_mouse_cursor(int bShow)
-{
-	if ((bShow && mouse_visible) || !(bShow || mouse_visible)) return;
-	
-	// TODO: programmable with cursor object
-	RECT mouse_rect = {mouse_screen_x, mouse_screen_y, mouse_screen_x + 24, mouse_screen_y + 24};
-	
-	if (bShow)
-	{
-		screen_to_buffer(&mouse_rect, mouse_erase_buffer);
-		draw_mouse_cursor(mouse_screen_x, mouse_screen_y);
-	}
-	else
-	{
-		buffer_to_screen(mouse_erase_buffer, &mouse_rect);
-	}
-	mouse_visible = bShow;
-}
-
-}  // extern "C"

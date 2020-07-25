@@ -1,3 +1,6 @@
+#include <memory>
+#include "error.h"
+#include "fs.h"
 #include "kernel.h"
 
 extern "C" {
@@ -101,7 +104,7 @@ void kernel::MemoryGraphicsContext::draw_text(const char *str, int x, int y, int
 	if (!pFont)
 	{
 		pFont = &font;
-		read_bitmap(pFont, "/system/bin/font");
+		read_bitmap(fs_driver, pFont, "/system/bin/font");
 	}
 	
 	RECT draw_r = {x, y, x + xsize, y + ysize};
@@ -471,32 +474,33 @@ void kernel::BufferedMemoryGraphicsContext::swap_buffers()
 	// TODO
 }
 
-int read_bitmap(Bitmap *b, const char *filename)
+int read_bitmap(std::shared_ptr<kernel::FileSystemDriver> fs_driver, Bitmap *b, const char *filename)
 {
-       FileStream fs;
-       if (!file_open(filename, &fs)) return 0;
-       BITMAPFILEHEADER bf;
-       file_read(&fs, &bf, sizeof(BITMAPFILEHEADER));
-       if (bf.bfType != 0x4D42)
-       {
-           file_close(&fs);
-           return 0;
-       }
-       BITMAPCOREHEADER bc;
-       file_read(&fs, &bc, sizeof(BITMAPCOREHEADER));
-       void* buffer = kmalloc(bc.bcWidth*bc.bcHeight*(bc.bcBitCount/8));
-       if (!buffer)
-       {
-           file_close(&fs);
-           return 0;
-       }
-       file_seek(&fs, bf.bfOffBits);
-       file_read(&fs, buffer, bc.bcWidth*bc.bcHeight*(bc.bcBitCount/8));
-       file_close(&fs);
-       b->width = bc.bcWidth;
-       b->height = bc.bcHeight;
-       b->bits = buffer;
-       b->bpp = bc.bcBitCount;
-	   b->direction = 1;
-       return 1;
+	try
+	{
+		std::unique_ptr<kernel::File> f = fs_driver->file_open(filename);
+		auto bf = f->read<BITMAPFILEHEADER>();
+		if (bf.bfType != 0x4D42)
+		{
+			return 0;
+		}
+		auto bc = f->read<BITMAPCOREHEADER>();
+		b->bits = new char[bc.bcWidth*bc.bcHeight*(bc.bcBitCount/8)];
+		b->width = bc.bcWidth;
+		b->height = bc.bcHeight;
+		b->bpp = bc.bcBitCount;
+		b->direction = 1;
+
+		f->seek(bf.bfOffBits);
+		f->read((char*)b->bits, bc.bcWidth*bc.bcHeight*(bc.bcBitCount/8));
+		return 1;
+	}
+	catch(const kernel::NotFoundError& e)
+	{
+		return 0;
+	}
+	catch(const kernel::OutOfMemoryError& e)
+	{
+		return 0;
+	}
 }
