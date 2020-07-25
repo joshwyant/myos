@@ -170,7 +170,7 @@ int process_start(std::shared_ptr<kernel::FileSystemDriver> fs_driver, const cha
     getpage(pgdir, (void*)0xBFFFE000, 1, 1);
 
     // Set up the process's DPL0 stack
-    unsigned* kstack = (unsigned*)pmapmem(pgdir, (void*)0xBFFFF000, 0x1000, 1, 0)+0x1000;
+    unsigned* kstack = (unsigned*)(void*)((char*)pmapmem(pgdir, (void*)0xBFFFF000, 0x1000, 1, 0)+0x1000);
     *--kstack = 0x43;                   // SS
     *--kstack = 0xBFFFF000;             // ESP initial value
     *--kstack = 0x0202;                 // EFLAGS

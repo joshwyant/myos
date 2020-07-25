@@ -90,16 +90,16 @@ void kmain()
     }
 
     // Load the shell
-    // start_shell(fat_driver);
+    start_shell(fat_driver);
 	
-    // //demo();
+    //demo();
 
-    // // Load vesadrvr.o
-    // if (!load_driver(fat_driver, "/system/bin/vesadrvr.o"))
-    // {
-	// 	kprintf("Error: Could not load vesadrvr.o: %s\n", elf_last_error());
-    //     freeze();
-    // }
+    // Load vesadrvr.o
+    if (!load_driver(fat_driver, "/system/bin/vesadrvr.o"))
+    {
+		kprintf("Error: Could not load vesadrvr.o: %s\n", elf_last_error());
+        freeze();
+    }
 
     init_clock();
 
