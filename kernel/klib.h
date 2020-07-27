@@ -3,7 +3,6 @@
 
 // Include inline IO functions with klib
 #include "io.h"
-#include "dictionary.h"
 #include "elf.h"
 #include "string.h"
 #include "memory.h"
@@ -110,9 +109,6 @@ extern unsigned*		kernel_chain;
 extern Elf32_Sym*		kernel_symtab;
 extern char*			kernel_strtab;
 extern Elf32_Dyn*		kernel_dynamic;
-
-// elf.c
-extern const char *elf_last_error();
 
 #ifdef __cplusplus
 }  // extern "C"

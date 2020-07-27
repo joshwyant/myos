@@ -95,9 +95,16 @@ void kmain()
     //demo();
 
     // Load vesadrvr.o
-    if (!load_driver(fat_driver, "/system/bin/vesadrvr.o"))
+    try
     {
-		kprintf("Error: Could not load vesadrvr.o: %s\n", elf_last_error());
+        if (!load_driver(fat_driver, "/system/bin/vesadrvr.o"))
+        {
+            throw ElfError("load_driver returned non-zero status.");
+        }
+    }
+    catch (ElfError& e)
+    {
+		kprintf("Error: Could not load vesadrvr.o: %s\n", e.what());
         freeze();
     }
 
@@ -246,10 +253,16 @@ void show_splash(std::shared_ptr<kernel::GraphicsDriver> graphics_driver, std::s
 
 void start_shell(std::shared_ptr<kernel::FileSystemDriver> fs_driver)
 {
-    // Load the shell
-    if (!process_start(fs_driver, "/system/bin/shell"))
+    try
     {
-        kprintf("Error: Could not load the shell: %s\n", elf_last_error());
+        if (!process_start(fs_driver, "/system/bin/shell"))
+        {
+            throw ElfError("process_start returned non-zero status.");
+        }
+    }
+    catch (ElfError& e)
+    {
+		kprintf("Error: Could not load the shell: %s\n", e.what());
         freeze();
     }
 }

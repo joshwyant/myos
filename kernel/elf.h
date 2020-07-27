@@ -21,6 +21,8 @@
 
 #ifdef __cplusplus
 
+#include "error.h"
+
 extern "C" {
 #endif
 
@@ -335,6 +337,15 @@ extern Elf32_Sym *find_symbol(const char* name);
 
 #ifdef __cplusplus
 }  // extern "C"
-#endif
+
+namespace kernel
+{
+class ElfError : public Error
+{
+public:
+    ElfError(const char *msg) : Error(msg) {}
+};  // class ElfError
+} // namespace kernel
+#endif // __cplusplus
 
 #endif /* __elf_h__ */

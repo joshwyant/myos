@@ -108,12 +108,13 @@ int fputs(const char * str, FILE *stream)
 	return count;
 }
 
-void *memset(void * ptr, int value, size_t num)
+void *memset(void *ptr, int value, size_t num)
 {
-	for (int i = 0; i < num; i++)
-	{
-		((unsigned char*)ptr)[i] = value;
-	}
+	asm volatile (
+		"cld; rep; stosb":
+		"=c"(num),"=D"(ptr):
+		"c"(num),"D"(ptr),"a"(value)
+	);
 	return ptr;
 }
 

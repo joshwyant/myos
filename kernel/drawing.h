@@ -160,6 +160,8 @@ namespace kernel
 class GraphicsContext
 {
 public:
+	GraphicsContext()
+		: bmp(nullptr) {}
 	virtual ~GraphicsContext()
 	{
 		if (bmp)
@@ -236,6 +238,8 @@ class BufferedGraphicsContext
     : public GraphicsContext
 {
 public:
+	BufferedGraphicsContext()
+		: GraphicsContext() {}
     virtual GraphicsContext *get_raw_context() = 0;
     virtual void swap_buffers() = 0;
 	virtual ~BufferedGraphicsContext() {}
@@ -252,7 +256,8 @@ public:
 		  buffer(buffer ? buffer : new unsigned char[height * this->stride]),
 		  bpp(bpp),
 		  width(width),
-		  height(height) {}
+		  height(height),
+		  GraphicsContext() {}
 	virtual ~MemoryGraphicsContext()
 	{
 		if (own_buffer && buffer)
@@ -295,6 +300,7 @@ class BufferedMemoryGraphicsContext
 {
 public:
 	BufferedMemoryGraphicsContext(MemoryGraphicsContext *raw_context)
+		: BufferedGraphicsContext()
 	{
 		own_raw_context = false;
 		this->raw_context = raw_context;

@@ -1,18 +1,19 @@
 // An address ABOVE 0xC0000000 is shared between ALL processes and is used by the kernel.
 // An address BELOW 0xC0000000 is only used by the CURRENT process, and may include NON-USER pages, such as the KERNEL STACK
 
-#include <memory.h>
+#include <memory>
 #include "kernel.h"
 #include "elf.h"
 #include "error.h"
 #include "fat.h"
+
+using namespace kernel;
 
 extern "C" {
 
 static void* getpage(unsigned* pgdir, void* vaddr, int, int);
 static void* pmapmem(unsigned* pgdir, void* vaddr, unsigned size, int, int);
 
-static const char* elf_error; // FIXME: FIX FOR MULTITHREADING
 static void* driver_end = (void*)0xE0000000; // FIXME: FIX FOR MULTITHREADING
 
 void* vm8086_gpfault;
@@ -93,69 +94,48 @@ static void* getpage(unsigned* pgdir, void* vaddr, int writeable, int user)
     return pg_p;
 }
 
-const char* elf_last_error()
-{
-    return elf_error;
-}
-
 } // extern "C"
 
 int process_start(std::shared_ptr<kernel::FileSystemDriver> fs_driver, const char* filename)
 {
-    elf_error = "";
     Elf32_Ehdr ehdr;
     int i;
     std::unique_ptr<kernel::File> elf;
-    try
-    {
-        elf = fs_driver->file_open(filename);
-    }
-    catch (const kernel::NotFoundError&)
-    {
-        elf_error = "Could not locate executable.";
-        return 0;
-    }
+    elf = fs_driver->file_open(filename);
     try
     {
         elf->read(ehdr);
     }
     catch(const kernel::EndOfFileError&)
     {
-        elf_error = "Invalid ELF header.";
-        return 0;
+        throw ElfError("Invalid ELF header.");
     }
     if ((ehdr.e_ident[EI_MAG0] != ELFMAG0) || 
         (ehdr.e_ident[EI_MAG1] != ELFMAG1) || 
         (ehdr.e_ident[EI_MAG2] != ELFMAG2) || 
         (ehdr.e_ident[EI_MAG3] != ELFMAG3))
     {
-        elf_error = "Invalid ELF header.";
-        return 0;
+        throw ElfError("Invalid ELF header.");
     }
     if (ehdr.e_version != EV_CURRENT || ehdr.e_ident[EI_VERSION] != EV_CURRENT)
     {
-        elf_error = "Unsupported ELF version.";
-        return 0;
+        throw ElfError("Unsupported ELF version.");
     }
     if (ehdr.e_type != ET_EXEC)
     {
-        elf_error = "ELF is not an executable.";
-        return 0;
+        throw ElfError("ELF is not an executable.");
     }
     if (ehdr.e_machine != K_ELF_MACHINE)
     {
-        elf_error = "Unsupported ELF machine.";
-        return 0;
+        throw ElfError("Unsupported ELF machine.");
     }
     if (ehdr.e_ident[EI_CLASS] != K_ELF_CLASS)
     {
-        elf_error = "Unsupported ELF class.";
-        return 0;
+        throw ElfError("Unsupported ELF class.");
     }
     if (ehdr.e_ident[EI_DATA] != K_ELF_DATA)
     {
-        elf_error = "Unsupported ELF data encoding.";
-        return 0;
+        throw ElfError("Unsupported ELF data encoding.");
     }
     // Allocate a page directory for the process
     void *pgdir_p = page_alloc(1);
@@ -233,81 +213,65 @@ int process_start(std::shared_ptr<kernel::FileSystemDriver> fs_driver, const cha
 int load_driver(std::shared_ptr<kernel::FileSystemDriver> fs_driver, const char* filename)
 {
     int ret = 0;
-    elf_error = "";
     std::unique_ptr<kernel::File> elf;
     Elf32_Ehdr ehdr;
     int i;
-    try
-    {
-        elf = fs_driver->file_open(filename);
-    }
-    catch (const kernel::NotFoundError&)
-    {
-        elf_error = "Could not locate executable.";
-        return 0;
-    }
+    elf = fs_driver->file_open(filename);
     try
     {
         elf->read(ehdr);
     }
     catch(const kernel::EndOfFileError&)
     {
-        elf_error = "Invalid ELF header.";
-        return 0;
+        throw ElfError("Invalid ELF header.");
     }
     if ((ehdr.e_ident[EI_MAG0] != ELFMAG0) || 
         (ehdr.e_ident[EI_MAG1] != ELFMAG1) || 
         (ehdr.e_ident[EI_MAG2] != ELFMAG2) || 
         (ehdr.e_ident[EI_MAG3] != ELFMAG3))
     {
-        elf_error = "Invalid ELF header.";
-        return 0;
+        throw ElfError("Invalid ELF header.");
     }
     if (ehdr.e_version != EV_CURRENT || ehdr.e_ident[EI_VERSION] != EV_CURRENT)
     {
-        elf_error = "Unsupported ELF version.";
-        return 0;
+        throw ElfError("Unsupported ELF version.");
     }
     if (ehdr.e_type != ET_REL)
     {
-        elf_error = "ELF is not a valid driver.";
-        return 0;
+        throw ElfError("ELF is not a valid driver.");
     }
     if (ehdr.e_machine != K_ELF_MACHINE)
     {
-        elf_error = "Unsupported ELF machine.";
-        return 0;
+        throw ElfError("Unsupported ELF machine.");
     }
     if (ehdr.e_ident[EI_CLASS] != K_ELF_CLASS)
     {
-        elf_error = "Unsupported ELF class.";
-        return 0;
+        throw ElfError("Unsupported ELF class.");
     }
     if (ehdr.e_ident[EI_DATA] != K_ELF_DATA)
     {
-        elf_error = "Unsupported ELF data encoding.";
-        return 0;
+        throw ElfError("Unsupported ELF data encoding.");
     }
 
-    volatile Elf32_Shdr *shdrs = (volatile Elf32_Shdr *)kmalloc(sizeof(Elf32_Shdr)*ehdr.e_shnum);
+    auto shdrs = std::make_unique<Elf32_Shdr[]>(ehdr.e_shnum);
     elf->seek(ehdr.e_shoff);
-    volatile Elf32_Sym *symtab = 0;
+    std::unique_ptr<Elf32_Sym[]> symtab(nullptr);
 
     // read section headers
     for (i = 0; i < ehdr.e_shnum; i++)
     {
         elf->seek(ehdr.e_shoff+ehdr.e_shentsize*i);
-        elf->read((Elf32_Shdr&)shdrs[i]);
+        elf->read(shdrs[i]);
     }
 
     // Read the section header string table
-    volatile char *shstrtab = (volatile char *)kmalloc(shdrs[ehdr.e_shstrndx].sh_size);
+    auto shstrtab = std::make_unique<char[]>(shdrs[ehdr.e_shstrndx].sh_size);
     elf->seek(shdrs[ehdr.e_shstrndx].sh_offset);
-    elf->read((char*)shstrtab, shdrs[ehdr.e_shstrndx].sh_size);
+    elf->read(shstrtab.get(), shdrs[ehdr.e_shstrndx].sh_size);
 
     int j, cnt;
-    volatile Elf32_Shdr *s;
-    volatile char *strtab;
+    Elf32_Shdr *s;
+    std::unique_ptr<char[]> strtab(nullptr);
     // Load sections and symbol table
     for (i = 1; i < ehdr.e_shnum; i++)
     {
@@ -336,31 +300,31 @@ int load_driver(std::shared_ptr<kernel::FileSystemDriver> fs_driver, const char*
             }
             break;
         case SHT_SYMTAB:
-            if (kstrcmp(".symtab", (const char*)shstrtab+s->sh_name) != 0) break;
+            if (kstrcmp(".symtab", shstrtab.get()+s->sh_name) != 0) break;
             cnt = s->sh_size/s->sh_entsize;
-            symtab = (volatile Elf32_Sym*)kmalloc(cnt*sizeof(Elf32_Sym));
+            symtab = std::make_unique<Elf32_Sym[]>(cnt);
             for (j = 0; j < cnt; j++)
             {
                 elf->seek(s->sh_offset+s->sh_entsize*j);
-                elf->read((Elf32_Sym&)symtab[j]);
+                elf->read(symtab[j]);
             }
     
             // Read the linked string table
-            strtab = (volatile char*)kmalloc(shdrs[s->sh_link].sh_size);
+            strtab = std::make_unique<char[]>(shdrs[s->sh_link].sh_size);
             elf->seek(shdrs[s->sh_link].sh_offset);
-            elf->read((char*)strtab, shdrs[s->sh_link].sh_size);
+            elf->read(strtab.get(), shdrs[s->sh_link].sh_size);
             break;
         }
     }
 
-    volatile void* drivermain = 0;
+    void* drivermain = 0;
     static char t[1024];
     // Update symbols
     for (i = 1; i < cnt; i++)
     {
         if (symtab[i].st_shndx == SHN_UNDEF)
         {
-            Elf32_Sym *ksym = find_symbol((const char*)strtab + symtab[i].st_name);
+            Elf32_Sym *ksym = find_symbol((const char*)strtab.get() + symtab[i].st_name);
             if (ksym)
             {
                 symtab[i].st_shndx = SHN_ABS;
@@ -368,22 +332,20 @@ int load_driver(std::shared_ptr<kernel::FileSystemDriver> fs_driver, const char*
             }
             else if (ELF32_ST_BIND(ksym->st_info) != STB_WEAK)
             {
-                ksprintf(t, "Undefined symbol '%s'", strtab+symtab[i].st_name);
-                elf_error = (const char*)t;
-                goto err1;
+                ksprintf(t, "Undefined symbol '%s'", strtab.get()+symtab[i].st_name);
+                throw ElfError(t);
             }
         }
         else if (symtab[i].st_shndx < SHN_LORESERVE)
         {
             symtab[i].st_value = (char*) symtab[i].st_value + (unsigned)shdrs[symtab[i].st_shndx].sh_addr;
-            if (!kstrcmp("driver_main", (const char*)strtab+symtab[i].st_name)) drivermain = symtab[i].st_value;
+            if (!kstrcmp("driver_main", (const char*)strtab.get()+symtab[i].st_name)) drivermain = symtab[i].st_value;
         }
     }
 
     if (!drivermain)
     {
-        elf_error = "Could not find entry driver_main.";
-        goto err1;
+        throw ElfError("Could not find entry driver_main.");
     }
 
     // Perform relocations
@@ -413,8 +375,8 @@ int load_driver(std::shared_ptr<kernel::FileSystemDriver> fs_driver, const char*
                     elf->seek(s->sh_offset+j*s->sh_entsize);
                     elf->read(rel);
                     unsigned soff = (unsigned)shdrs[s->sh_info].sh_addr;
-                    volatile unsigned* ptr = (unsigned*)(void*)((char*)rel.r_offset + soff);
-                    Elf32_Sym sym = const_cast<Elf32_Sym*>(symtab)[ELF32_R_SYM(rel.r_info)];
+                    unsigned* ptr = (unsigned*)(void*)((char*)rel.r_offset + soff);
+                    Elf32_Sym sym = symtab[ELF32_R_SYM(rel.r_info)];
                     unsigned symval = (unsigned)sym.st_value;
                     switch (ELF32_R_TYPE(rel.r_info))
                     {
@@ -437,11 +399,7 @@ int load_driver(std::shared_ptr<kernel::FileSystemDriver> fs_driver, const char*
     else
     {
         ksprintf(t, "Driver exited with status %l.", retval);
-        elf_error = (const char*)t;
+        throw ElfError(t);
     }
-err1:
-    kfree((void*)strtab);
-    kfree((void*)symtab);
-    kfree((void*)shdrs);
     return ret;
 }
