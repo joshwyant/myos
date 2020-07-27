@@ -13,7 +13,6 @@ INPUT (
 ./obj/buffer.o ,
 ./obj/video.o ,
 ./obj/clock.o ,
-./obj/dictionary.o ,
 ./obj/disk.o ,
 ./obj/drawing.o ,
 ./obj/drivers.o ,

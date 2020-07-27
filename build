@@ -73,7 +73,6 @@ $TARGET-as crtn.s -o ./obj/crtn.o
 $TARGET-gcc $CPPFLAGS VESA.cc -o ./obj/VESA.o
 $TARGET-gcc $CPPFLAGS buffer.cc -o ./obj/buffer.o
 $TARGET-gcc $CFLAGS clock.c -o ./obj/clock.o
-$TARGET-gcc $CFLAGS dictionary.c -o ./obj/dictionary.o
 $TARGET-gcc $CPPFLAGS disk.cc -o ./obj/disk.o
 $TARGET-gcc $CPPFLAGS drawing.cc -o ./obj/drawing.o
 $TARGET-gcc $CPPFLAGS drivers.cc -o ./obj/drivers.o
