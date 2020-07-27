@@ -21,7 +21,8 @@ void init_timer()
 // called by wrapper irq0()
 int handle_timer()
 {
-    if (!switch_voluntary)
+    int forced = switch_voluntary;
+    if (!forced)
     {
         // Calculate the amount of time passed
         asm volatile ("add %2,%0; adc $0,%1":
@@ -35,13 +36,17 @@ int handle_timer()
     if (!processes.first) return 0;
     if (current_process) // If we are already in a process
     {
-        if (current_process->timeslice--)
+        if (!forced && current_process->timeslice--)
         {
             return 0;
         }
-        ProcessNode* n = processes.first;
-        process_node_unlink(n); // Take the node off the head of the queue
-        process_node_link(n);   // Put it on the rear of the queue
+        ProcessNode* n;
+        do
+        {
+            n = processes.first;
+            process_node_unlink(n); // Take the node off the head of the queue
+            process_node_link(n);   // Put it on the rear of the queue
+        } while (n->process->blocked);
     }
     current_process = processes.first->process;
     current_process->timeslice = 3-current_process->priority;

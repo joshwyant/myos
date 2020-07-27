@@ -86,7 +86,7 @@ void kmain()
         mouse_driver->start();
 
         // auto console
-        //     = manager->register_console_driver(std::make_shared<GraphicalConsoleDriver>(fs_driver, 25, 80));
+        //     = manager->register_console_driver(std::make_shared<GraphicalConsoleDriver>(fat_driver, 25, 80));
     }
 
     // Load the shell

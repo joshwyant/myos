@@ -74,46 +74,46 @@ push fs
 push gs
 mov eax, [current_process]
 test eax,eax
-jz .1
-mov [eax],esp
+jz .1 ; Process running?
+    mov [eax],esp ; Save stack pointer
 .1:
 call handle_timer
 test eax,eax
-jz .2
-mov eax,[current_process]
-mov esp,[eax]
-mov ebx,[eax+16]
-mov [vm8086_gpfault],ebx
-cmp dword[eax+12],0
-jz .3
-cmp word[.5],0x50
-jz .6
-mov word[.5],0x50 ; VM8086 TSS
-jmp .4
-.3:
-cmp word[.5],0x48
-jz .6
-mov word[.5],0x48 ; System TSS
-.4:
-ltr word[.5]
-.6:
-mov ebx,[eax+8]
-mov eax,cr3
-cmp eax,ebx
-je .2
-mov eax,ebx
-mov cr3,eax
+jz .2 ; switch tasks? (returned from handle_timer)
+    mov eax,[current_process]   ; eax = process->esp
+    mov esp,[eax]               ; set stack pointer
+    mov ebx,[eax+16]            ; ebx = process->gpfault
+    mov [vm8086_gpfault],ebx
+    cmp dword[eax+12],0         ; process->vm8086
+    jz .3 ; is vm8086 process?
+        cmp word[.5],0x50
+        jz .6 ; TSS needs updating?
+            mov word[.5],0x50 ; VM8086 TSS
+            jmp .4 ; (update TSS)
+    .3:
+    cmp word[.5],0x48
+    jz .6 ; TSS needs updating?
+        mov word[.5],0x48 ; System TSS
+    .4:
+    ltr word[.5]
+    .6:
+    mov ebx,[eax+8]             ; process->cr3
+    mov eax,cr3
+    cmp eax,ebx
+    je .2 ; cr3 needs updating?
+        mov eax,ebx
+        mov cr3,eax
 .2:
 pop gs
 pop fs
 pop es
 pop ds
-mov al,20h
+mov al,20h ; end of interrupt
 out 20h,al
 popa
 iret
 .5:
-dw 0
+dw 0 ; cache TSS
 
 
 irq1:

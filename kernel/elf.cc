@@ -115,8 +115,16 @@ int process_start(std::shared_ptr<kernel::FileSystemDriver> fs_driver, const cha
         elf_error = "Could not locate executable.";
         return 0;
     }
-    if ((elf->read((char*)(void*)&ehdr, sizeof(ehdr)) < sizeof(ehdr)) ||
-        (ehdr.e_ident[EI_MAG0] != ELFMAG0) || 
+    try
+    {
+        elf->read(ehdr);
+    }
+    catch(const kernel::EndOfFileError&)
+    {
+        elf_error = "Invalid ELF header.";
+        return 0;
+    }
+    if ((ehdr.e_ident[EI_MAG0] != ELFMAG0) || 
         (ehdr.e_ident[EI_MAG1] != ELFMAG1) || 
         (ehdr.e_ident[EI_MAG2] != ELFMAG2) || 
         (ehdr.e_ident[EI_MAG3] != ELFMAG3))
@@ -195,12 +203,12 @@ int process_start(std::shared_ptr<kernel::FileSystemDriver> fs_driver, const cha
     {
         Elf32_Phdr phdr;
         elf->seek(ehdr.e_phoff+ehdr.e_phentsize*i);
-        elf->read((char*)(void*)&phdr, sizeof(phdr));
+        elf->read(phdr);
         if (phdr.p_type == PT_LOAD)
         {
             elf->seek(phdr.p_offset);
             char* pmap = (char*)pmapmem(pgdir, phdr.p_vaddr, phdr.p_memsz, phdr.p_flags&PF_W, 1);
-            elf->read((char*)pmap, phdr.p_filesz);
+            elf->read(pmap, phdr.p_filesz);
             char* t;
             for (t = pmap + phdr.p_filesz; t < pmap + phdr.p_memsz; t++)
                 *t = 0;
@@ -216,6 +224,7 @@ int process_start(std::shared_ptr<kernel::FileSystemDriver> fs_driver, const cha
     p->esp = 0xBFFFFFBC;
     p->priority = 3;
     p->vm8086 = 0;
+    p->blocked = 0;
     p->fpu_saved = 0;
     process_enqueue(p);
     return 1;
@@ -237,8 +246,16 @@ int load_driver(std::shared_ptr<kernel::FileSystemDriver> fs_driver, const char*
         elf_error = "Could not locate executable.";
         return 0;
     }
-    if ((elf->read((char*)(void*)&ehdr, sizeof(ehdr)) < sizeof(ehdr)) ||
-        (ehdr.e_ident[EI_MAG0] != ELFMAG0) || 
+    try
+    {
+        elf->read(ehdr);
+    }
+    catch(const kernel::EndOfFileError&)
+    {
+        elf_error = "Invalid ELF header.";
+        return 0;
+    }
+    if ((ehdr.e_ident[EI_MAG0] != ELFMAG0) || 
         (ehdr.e_ident[EI_MAG1] != ELFMAG1) || 
         (ehdr.e_ident[EI_MAG2] != ELFMAG2) || 
         (ehdr.e_ident[EI_MAG3] != ELFMAG3))
@@ -280,13 +297,13 @@ int load_driver(std::shared_ptr<kernel::FileSystemDriver> fs_driver, const char*
     for (i = 0; i < ehdr.e_shnum; i++)
     {
         elf->seek(ehdr.e_shoff+ehdr.e_shentsize*i);
-        elf->read((char*)(void*)&shdrs[i], sizeof(Elf32_Shdr));
+        elf->read((Elf32_Shdr&)shdrs[i]);
     }
 
     // Read the section header string table
     volatile char *shstrtab = (volatile char *)kmalloc(shdrs[ehdr.e_shstrndx].sh_size);
     elf->seek(shdrs[ehdr.e_shstrndx].sh_offset);
-    elf->read((char*)(void*)shstrtab, shdrs[ehdr.e_shstrndx].sh_size);
+    elf->read((char*)shstrtab, shdrs[ehdr.e_shstrndx].sh_size);
 
     int j, cnt;
     volatile Elf32_Shdr *s;
@@ -325,13 +342,13 @@ int load_driver(std::shared_ptr<kernel::FileSystemDriver> fs_driver, const char*
             for (j = 0; j < cnt; j++)
             {
                 elf->seek(s->sh_offset+s->sh_entsize*j);
-                elf->read((char*)(void*)&symtab[j], sizeof(Elf32_Sym));
+                elf->read((Elf32_Sym&)symtab[j]);
             }
     
             // Read the linked string table
             strtab = (volatile char*)kmalloc(shdrs[s->sh_link].sh_size);
             elf->seek(shdrs[s->sh_link].sh_offset);
-            elf->read((char*)(void*)strtab, shdrs[s->sh_link].sh_size);
+            elf->read((char*)strtab, shdrs[s->sh_link].sh_size);
             break;
         }
     }
@@ -394,7 +411,7 @@ int load_driver(std::shared_ptr<kernel::FileSystemDriver> fs_driver, const char*
                 {
                     Elf32_Rel rel;
                     elf->seek(s->sh_offset+j*s->sh_entsize);
-                    elf->read((char*)(void*)&rel, sizeof(Elf32_Rel));
+                    elf->read(rel);
                     unsigned soff = (unsigned)shdrs[s->sh_info].sh_addr;
                     volatile unsigned* ptr = (unsigned*)(void*)((char*)rel.r_offset + soff);
                     Elf32_Sym sym = const_cast<Elf32_Sym*>(symtab)[ELF32_R_SYM(rel.r_info)];

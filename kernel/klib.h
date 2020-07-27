@@ -72,6 +72,7 @@ typedef struct
     unsigned int     priority;  // Process priority
     unsigned char    name[64];  // Name of process
     void*	     node;	// Process_Node struct for scheduler
+    int             blocked;
     int             fpu_saved;
     FPUFile          fpu_file;
 } Process;

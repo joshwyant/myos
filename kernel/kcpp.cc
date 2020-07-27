@@ -108,6 +108,15 @@ int fputs(const char * str, FILE *stream)
 	return count;
 }
 
+void *memset(void * ptr, int value, size_t num)
+{
+	for (int i = 0; i < num; i++)
+	{
+		((unsigned char*)ptr)[i] = value;
+	}
+	return ptr;
+}
+
 // Stubs from newlib
 static struct _reent impure_data = _REENT_INIT (impure_data);
 struct _reent *_impure_ptr __ATTRIBUTE_IMPURE_PTR__ = &impure_data;
