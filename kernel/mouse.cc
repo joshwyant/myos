@@ -78,7 +78,7 @@ void PS2MouseDriver::show_cursor(bool bShow)
 //Mouse functions
 extern "C" void handle_mouse(void *a_r) //struct regs *a_r (not used but just there)
 {
-    ((kernel::PS2MouseDriver*)kernel::DriverManager::current()->mouse_driver().get())->mouse_handler();
+    kernel::DriverManager::current()->mouse_driver().get()->mouse_handler();
 }
 
 void PS2MouseDriver::mouse_handler()

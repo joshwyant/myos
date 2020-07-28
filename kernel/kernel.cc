@@ -8,7 +8,7 @@ using namespace kernel;
 extern "C" {
 #endif
 
-static void demo(std::shared_ptr<SymbolManager> symbols);
+static void demo(std::shared_ptr<KeyboardDriver> kbd_driver, std::shared_ptr<SymbolManager> symbols);
 
 loader_info loaderInfo;
 
@@ -56,7 +56,9 @@ void kmain()
     init_processes();
 
     // Interrupt related
-    kbd_init(); // dependent on IDT and PIC
+    auto keyboard_driver  // dependent on IDT and PIC
+        = manager->register_keyboard_driver(std::make_shared<PS2KeyboardDriver>());
+    keyboard_driver->start();
     init_timer(); // dependent on IDT and PIC
 
     // Filestystem
@@ -91,7 +93,7 @@ void kmain()
     // Load the shell
     start_shell(fat_driver);
 	
-    //demo(symbols);
+    //demo(keyboard_driver, symbols);
 
     // Load vesadrvr.o
     try
@@ -124,7 +126,7 @@ void init_loader_info()
 	// TODO: Pass pages of mapped data in a more structured way.
 }
 
-static void demo(std::shared_ptr<SymbolManager> symbols)
+static void demo(std::shared_ptr<KeyboardDriver> kbd_driver, std::shared_ptr<SymbolManager> symbols)
 {
     //cls();
 
@@ -144,7 +146,7 @@ static void demo(std::shared_ptr<SymbolManager> symbols)
 
     while (1)
     {
-        kbd_readln(buffer, 63);
+        kbd_driver->readln(buffer, 63);
 
         Elf32_Sym *s = symbols->find_symbol(buffer);
         if (s)
