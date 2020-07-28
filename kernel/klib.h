@@ -76,8 +76,6 @@ typedef struct
     FPUFile          fpu_file;
 } Process;
 
-// Functions
-extern Elf32_Sym *find_symbol(const char* name);
 // exceptions
 extern void register_isr(int num, int dpl, void* offset);
 extern void register_trap(int num, int dpl, void* offset);
@@ -115,7 +113,10 @@ extern Elf32_Dyn*		kernel_dynamic;
 
 // elf.c
 extern int process_start(std::shared_ptr<kernel::FileSystemDriver> fs_driver, const char* filename);
-extern int load_driver(std::shared_ptr<kernel::FileSystemDriver> fs_driver, const char* filename);
+extern int load_driver(
+    std::shared_ptr<kernel::FileSystemDriver> fs_driver,
+    std::shared_ptr<kernel::SymbolManager> symbols,
+    const char* filename);
 #endif
 
 #endif

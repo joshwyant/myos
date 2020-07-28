@@ -56,10 +56,6 @@ extern "C" {
 // main
 extern loader_info loaderInfo;
 extern void init_loader_info();
-extern void init_symbols(loader_info *li);
-
-// Misc
-extern void invoke(const char* function); // random fun test function (invoke("kmain"))
 
 #ifdef __cplusplus
 }  // extern "C"

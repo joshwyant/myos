@@ -24,6 +24,7 @@
 #include "error.h"
 
 extern "C" {
+void kprintf(const char* format, ...);
 #endif
 
 // ELF Header
@@ -330,16 +331,84 @@ extern Elf32_Addr	_GLOBAL_OFFSET_TABLE_[];
 #define K_ELF_CLASS	ELFCLASS32
 #define K_ELF_DATA	ELFDATA2LSB
 
-extern unsigned long elf_hash(const unsigned char *name);
-
-// Find Kernel symbol
-extern Elf32_Sym *find_symbol(const char* name);
-
 #ifdef __cplusplus
 }  // extern "C"
 
 namespace kernel
 {
+class SymbolManager
+{
+public:
+    SymbolManager(Elf32_Dyn dyn[], void *base)
+        : dynamic(dyn), base(base)
+    {
+        // Get the hash, string, and symbol tables
+        for (int i = 0; dyn[i].d_tag != DT_NULL; i++)
+        {
+            void* ptr = (void *)((char *)base + dyn[i].d_un.d_val);
+            switch (dyn[i].d_tag)
+            {
+            case DT_SYMTAB:
+                symtab = (Elf32_Sym*)ptr;
+                break;
+            case DT_STRTAB:
+                strtab = (char*)ptr;
+                break;
+            case DT_HASH:
+                hashtable = (unsigned*)ptr;
+                break;
+           }
+        }
+        nbucket = hashtable[0];
+        nchain = hashtable[1];
+        bucket = &hashtable[2];
+        chain = &bucket[nbucket];
+    }
+    Elf32_Sym *find_symbol(const char* name)
+    {
+        // Use the ELF hash table to find the symbol.
+        auto i = bucket[elf_hash((const unsigned char*)name)%nbucket];
+        while (i != SHN_UNDEF)
+        {
+            if (kstrcmp(strtab + symtab[i].st_name, name) == 0)
+            return symtab + i;
+            i = chain[i];
+        }
+        return nullptr;
+    }
+    // Calls the function with the given name. Pretty useless, but neat.
+    void invoke(const char* function)
+    {
+        auto s = find_symbol(function);
+        if (s && (ELF32_ST_TYPE (s->st_info) == STT_FUNC))
+            asm volatile("call *%0"::"g"(s->st_value));
+        else
+            kprintf("Function '%s' not found\n", function);
+    }
+private:
+    static unsigned long elf_hash(const unsigned char *name)
+    {
+        unsigned long h = 0, g;
+        while (*name)
+        {
+            h = (h << 4) + *name++;
+            if ((g = h & 0xf0000000))
+            h ^= g >> 24;
+            h &= ~g;
+        }
+        return h;
+    }
+    void                *base;
+    unsigned		*hashtable;
+    unsigned		nbucket;
+    unsigned		nchain;
+    unsigned		*bucket;
+    unsigned		*chain;
+    Elf32_Sym		*symtab;
+    char		*strtab;
+    Elf32_Dyn		*dynamic;
+}; // SymbolManager
+
 class ElfError : public Error
 {
 public:

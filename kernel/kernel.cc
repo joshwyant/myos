@@ -8,7 +8,7 @@ using namespace kernel;
 extern "C" {
 #endif
 
-static void demo();
+static void demo(std::shared_ptr<SymbolManager> symbols);
 
 loader_info loaderInfo;
 
@@ -41,9 +41,8 @@ void kmain()
 {
     // Initialize FPU
     init_fpu();
-    
-    // Initialize symbol table
-    init_symbols(&loaderInfo);
+
+    auto symbols = std::make_shared<SymbolManager>(_DYNAMIC, loaderInfo.loaded); // TODO: Persist somewhere
 
     auto manager = DriverManager::init();
     
@@ -92,12 +91,12 @@ void kmain()
     // Load the shell
     start_shell(fat_driver);
 	
-    //demo();
+    //demo(symbols);
 
     // Load vesadrvr.o
     try
     {
-        if (!load_driver(fat_driver, "/system/bin/vesadrvr.o"))
+        if (!load_driver(fat_driver, symbols, "/system/bin/vesadrvr.o"))
         {
             throw ElfError("load_driver returned non-zero status.");
         }
@@ -114,43 +113,6 @@ void kmain()
     irq_unmask(0);
 }
 
-void init_symbols(loader_info *li)
-{
-    kernel_dynamic = _DYNAMIC; // _DYNAMIC is the ELF symbol for the .dyn section
-    int i;
-    // Get the hash, string, and symbol tables
-    for (i = 0; _DYNAMIC[i].d_tag != DT_NULL; i++)
-    {
-        void* ptr = (void *)((char *)li->loaded + _DYNAMIC[i].d_un.d_val);
-        switch (_DYNAMIC[i].d_tag)
-        {
-            case DT_SYMTAB:
-                kernel_symtab = (Elf32_Sym*)ptr;
-                break;
-            case DT_STRTAB:
-                kernel_strtab = (char*)ptr;
-                break;
-            case DT_HASH:
-                kernel_hashtable = (unsigned*)ptr;
-                break;
-        }
-    }
-    kernel_nbucket = kernel_hashtable[0];
-    kernel_nchain = kernel_hashtable[1];
-    kernel_bucket = &kernel_hashtable[2];
-    kernel_chain = &kernel_bucket[kernel_nbucket];
-}
-
-// Calls the function with the given name. Pretty useless, but neat.
-void invoke(const char* function)
-{
-    Elf32_Sym *s = find_symbol(function);
-    if (s && (ELF32_ST_TYPE (s->st_info) == STT_FUNC))
-        asm volatile("call *%0"::"g"(s->st_value));
-    else
-        kprintf("Function '%s' not found\n", function);
-}
-
 void hello()
 {
     kprintf("Hello!");
@@ -162,8 +124,8 @@ void init_loader_info()
 	// TODO: Pass pages of mapped data in a more structured way.
 }
 
-static void demo()
-{	
+static void demo(std::shared_ptr<SymbolManager> symbols)
+{
     //cls();
 
     /*// Print all the kernel's symbols!!!
@@ -184,7 +146,7 @@ static void demo()
     {
         kbd_readln(buffer, 63);
 
-        Elf32_Sym *s = find_symbol(buffer);
+        Elf32_Sym *s = symbols->find_symbol(buffer);
         if (s)
         {
             kprintf("Symbol %s found: %l\n", kernel_strtab + s->st_name, s->st_value);
@@ -194,11 +156,11 @@ static void demo()
             kprintf("Symbol '%s' not found\n", buffer);
         }
 
-        //invoke(buffer);
+        //symbols.invoke(buffer);
     }
     
 
-    /*invoke("hello");
+    /*symbols.invoke("hello");
 
     while (1) ;*/
 }

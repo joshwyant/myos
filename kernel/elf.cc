@@ -142,32 +142,6 @@ static void* driver_end = (void*)0xE0000000; // FIXME: FIX FOR MULTITHREADING
 
 void* vm8086_gpfault;
 
-unsigned long elf_hash(const unsigned char *name)
-{
-    unsigned long h = 0, g;
-    while (*name)
-    {
-        h = (h << 4) + *name++;
-        if (g = h & 0xf0000000)
-            h ^= g >> 24;
-        h &= ~g;
-    }
-    return h;
-}
-
-Elf32_Sym *find_symbol(const char* name)
-{
-    // Use the ELF hash table to find the symbol.
-    auto i = kernel_bucket[elf_hash((const unsigned char*)name)%kernel_nbucket];
-    while (i != SHN_UNDEF)
-    {
-        if (kstrcmp(kernel_strtab + kernel_symtab[i].st_name, name) == 0)
-            return kernel_symtab + i;
-        i = kernel_chain[i];
-    }
-    return 0;
-}
-
 } // extern "C"
 
 int process_start(std::shared_ptr<kernel::FileSystemDriver> fs_driver, const char* filename)
@@ -274,7 +248,7 @@ int process_start(std::shared_ptr<kernel::FileSystemDriver> fs_driver, const cha
     return 1;
 }
 
-int load_driver(std::shared_ptr<kernel::FileSystemDriver> fs_driver, const char* filename)
+int load_driver(std::shared_ptr<kernel::FileSystemDriver> fs_driver, std::shared_ptr<kernel::SymbolManager> symbols, const char* filename)
 {
     int ret = 0;
     std::unique_ptr<kernel::File> elf;
@@ -388,7 +362,7 @@ int load_driver(std::shared_ptr<kernel::FileSystemDriver> fs_driver, const char*
     {
         if (symtab[i].st_shndx == SHN_UNDEF)
         {
-            Elf32_Sym *ksym = find_symbol((const char*)strtab.get() + symtab[i].st_name);
+            Elf32_Sym *ksym = symbols->find_symbol((const char*)strtab.get() + symtab[i].st_name);
             if (ksym)
             {
                 symtab[i].st_shndx = SHN_ABS;
