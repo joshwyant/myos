@@ -14,6 +14,9 @@
 #endif
 
 #ifdef __cplusplus
+#include <stddef.h>
+#include <utility>
+
 extern "C" {
 #endif
 
@@ -130,8 +133,69 @@ static inline void kzeromem(void* dest, unsigned bytes)
 #ifdef __cplusplus
 }  // extern "C"
 
-
-
+namespace kernel
+{
+// Safe, RAII wrapper around page_map
+template <typename T = char>
+class MappedMemory
+{
+public:
+    MappedMemory()
+        : ptr(nullptr), bytes(0) {}
+    MappedMemory(T *logical, void *physical, unsigned flags, unsigned bytes = 4096)
+        : ptr(logical), bytes(bytes)
+    {
+        for (unsigned t = 0; t < bytes; t += 4096)
+        {
+            page_map((char*)(void*)ptr+t, (char*)physical+t, flags);
+        }
+    }
+    MappedMemory(void *physical, unsigned flags, unsigned bytes = 4096)
+        : MappedMemory((T*)kfindrange(bytes), physical, flags) {}
+    MappedMemory(MappedMemory&) = delete;
+    MappedMemory(MappedMemory&& other) noexcept
+        : MappedMemory()
+    {
+        swap(*this, other);
+    }
+    MappedMemory& operator=(MappedMemory&& other) // move assign
+    {
+        swap(*this, other);
+        return *this;
+    }
+    friend void swap(MappedMemory& a, MappedMemory& b)
+    {
+        using std::swap;
+        swap(a.ptr, b.ptr);
+        swap(a.bytes, b.bytes);
+    }
+    ~MappedMemory()
+    {
+        if (ptr == nullptr || bytes <= 0) return;
+        for (unsigned t = 0; t < bytes; t += 4096)
+        {
+            page_unmap((char*)(void*)ptr+t);
+        }
+    }
+    const T *get() const { return ptr; }
+	T *get() { return const_cast<T*>(static_cast<const MappedMemory&>(*this).get()); }
+	T& operator[](int index)
+	{
+		return const_cast<T&>(static_cast<const MappedMemory&>(*this)[index]);
+	}
+	const T& operator[](int index) const
+	{
+		if (index < 0 || index * sizeof(T) >= bytes) [[unlikely]]
+		{
+			throw OutOfBoundsError();
+		}
+		return ptr[index];
+	}
+private:
+    T *ptr;
+    unsigned bytes;
+}; // class MappedMemory
+} // namespace kernel
 
 #endif
 
