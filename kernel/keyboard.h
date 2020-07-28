@@ -3,6 +3,8 @@
 
 #ifdef __cplusplus
 #include <memory>
+#include "interrupt.h"
+#include "driver.h"
 
 extern "C" {
 #endif
@@ -32,8 +34,11 @@ private:
 }; // class AmericanKeymap
 
 class KeyboardDriver
+    : public Driver
 {
 public:
+    KeyboardDriver(KString device_name = "kbd")
+        : Driver(device_name) {}
     virtual void keyboard_handler() = 0;
     virtual void start() = 0;
     virtual char peekc() = 0;
@@ -46,12 +51,16 @@ class PS2KeyboardDriver
     : public KeyboardDriver
 {
 public:
-    PS2KeyboardDriver()
+    PS2KeyboardDriver(KString device_name = "kbd")
         : keymap(std::make_unique<AmericanKeymap>()),
           kbd_escaped(0),
           kbd_shift(0),
           kbd_count(0),
-          KeyboardDriver() {}
+          KeyboardDriver(device_name)
+    {
+        // fill descriptor 0x21 (irq 1) for keyboard handler
+        register_isr(0x21,0,(void*)irq1);
+    }
     void keyboard_handler() override;
     void start() override;
     char peekc() override;

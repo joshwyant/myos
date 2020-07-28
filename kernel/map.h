@@ -46,9 +46,12 @@ public:
             swap(a.value, b.value);
         }
     };
+    virtual KeyValuePair *find(const TKey& key) const = 0;
+    virtual bool contains (const TKey& key) const = 0;
     virtual TValue& operator[](const TKey&) = 0;
     virtual const TValue& operator[](const TKey&) const = 0;
-    virtual void insert(TKey key, TValue value) = 0;
+    virtual KeyValuePair& insert(TKey key, TValue value) = 0;
+    virtual KeyValuePair& set(TKey key, TValue value) = 0;
 protected:
     Map() {}
 }; // class Map
@@ -94,12 +97,9 @@ public:
         mCapacity = 0;
         mCount = 0;
     }
-    TValue& operator[](const TKey& key) override
+    typename Map<TKey, TValue>::KeyValuePair *find(const TKey& key) const override
     {
-        return const_cast<TValue&>(static_cast<const UnorderedMap&>(*this)[key]);
-    }
-    const TValue& operator[](const TKey& key) const override
-    {
+        if (mCapacity == 0 || mCount == 0) [[unlikely]] return nullptr;
         FHash hash;
         FEqual equal;
         int h = hash(key);
@@ -108,13 +108,31 @@ public:
         {
             if ((hash(node.value.key) == h) && equal(node.value.key, key)) [[likely]]
             {
-                return node.value.value;
+                return &node.value;
             }
+        }
+        return nullptr;
+    }
+    bool contains(const TKey& key) const override
+    {
+        return find(key) != nullptr;
+    }
+    TValue& operator[](const TKey& key) override
+    {
+        return const_cast<TValue&>(static_cast<const UnorderedMap&>(*this)[key]);
+    }
+    const TValue& operator[](const TKey& key) const override
+    {
+        auto pair = find(key);
+        if (pair != nullptr)
+        {
+            return pair->value;
         }
         throw NotFoundError();
     }
-    void insert(TKey key, TValue value) override
+    typename Map<TKey, TValue>::KeyValuePair& insert(TKey key, TValue value) override
     {
+        if (contains(key)) throw DuplicateKeyError();
         FHash hash;
         if (mCount >= mCapacity) [[unlikely]]
         {
@@ -122,8 +140,22 @@ public:
         }
         int h = hash(key);
         int bucket = h % mCapacity;
-        mBuckets[bucket].push_back(typename Map<TKey, TValue>::KeyValuePair(std::move(key), std::move(value)));
+        auto& pair = mBuckets[bucket].push_back(typename Map<TKey, TValue>::KeyValuePair(std::move(key), std::move(value))).value;
         mCount++;
+        return pair;
+    }
+    typename Map<TKey, TValue>::KeyValuePair& set(TKey key, TValue value) override
+    {
+        auto pair = find(key);
+        if (pair != nullptr)
+        {
+            pair->value = std::move(value);
+            return *pair;
+        }
+        else
+        {
+            return insert(std::move(key), std::move(value));
+        }
     }
     void reserve(size_t amount)
     {

@@ -46,6 +46,13 @@ public:
     EndOfFileError() : Error("End of file") {}
     EndOfFileError(const char *msg) : Error(msg) {}
 };  // class EndOfFileError
+
+class DuplicateKeyError : public Error
+{
+public:
+    DuplicateKeyError() : Error("Duplicate Key") {}
+    DuplicateKeyError(const char *msg) : Error(msg) {}
+};  // class DuplicateKeyError
 } // namespace kernel
 #endif  // __cplusplus
 #endif  // __KERNEL_ERROR_H__

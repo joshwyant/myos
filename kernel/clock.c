@@ -3,8 +3,8 @@
 void init_clock()
 {
     // TODO: Figure out how to do this (I want irq8 fired each second)
-    //register_isr(0x28,0,(void*)irq8);
-    //irq_unmask(8);
+    register_isr(0x28,0,(void*)irq8);
+    irq_unmask(8);
 }
 
 void handle_clock()

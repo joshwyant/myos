@@ -59,7 +59,8 @@ void kmain()
     auto keyboard_driver  // dependent on IDT and PIC
         = manager->register_keyboard_driver(std::make_shared<PS2KeyboardDriver>());
     keyboard_driver->start();
-    init_timer(); // dependent on IDT and PIC
+    auto timer_driver  // dependent on IDT and PIC
+        = manager->register_timer_driver(std::make_shared<PITTimerDriver>());
 
     // Filestystem
     auto disk_driver
@@ -112,7 +113,7 @@ void kmain()
     init_clock();
 
     // Unmask timer IRQ
-    irq_unmask(0);
+    timer_driver->start();
 }
 
 void hello()

@@ -4,6 +4,7 @@
 #include "fs.h"
 #include "kernel.h"
 #include "drawing.h"
+#include "driver.h"
 
 #ifdef __cplusplus
 #include <stddef.h>
@@ -30,9 +31,11 @@ enum MousePacketFlags
 };
     
 class MouseDriver
+  : public Driver
 {
 public:
-    MouseDriver() {}
+    MouseDriver(KString device_name = "mouse")
+        : Driver(device_name) {}
     virtual int screen_x() const = 0;
     virtual int screen_y() const = 0;
     virtual void show_cursor(bool bShow) = 0;
@@ -46,7 +49,8 @@ class PS2MouseDriver
 public:
     PS2MouseDriver(
       std::shared_ptr<GraphicsDriver> graphics_driver,
-      std::shared_ptr<FileSystemDriver> fs_driver
+      std::shared_ptr<FileSystemDriver> fs_driver,
+      KString device_name = "mouse"
     ) : graphics_driver(graphics_driver),
         fs_driver(fs_driver),
         mouse_packet({0, 0, 0}),
@@ -55,7 +59,7 @@ public:
         mouse_visible(0),
         mouse_erase_buffer(nullptr),
         mouse_cycle(0),
-        MouseDriver()
+        MouseDriver(device_name)
     {
         init();
     }

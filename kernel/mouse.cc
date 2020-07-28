@@ -35,14 +35,15 @@ void PS2MouseDriver::init()
   read_bitmap(fs_driver, &cursor, "/system/bin/cursor");
 
   mouse_erase_buffer = new unsigned char[cursor.width * cursor.height * 3];
+  
+  //Setup the mouse handler
+  register_isr(0x2c, 0, (void*)irq12);
 }
 
 void PS2MouseDriver::start()
 {
   show_cursor(true);
 
-  //Setup the mouse handler
-  register_isr(0x2c, 0, (void*)irq12);
   irq_unmask(12);
 }
 

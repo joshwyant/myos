@@ -5,6 +5,7 @@
 #include <memory>
 #include <stddef.h>
 #include <utility>
+#include "driver.h"
 #include "disk.h"
 #include "klib.h"
 #include "fs.h"
@@ -55,8 +56,9 @@ class FATDriver
 {
 public:
     class FileStream;
-    FATDriver(std::shared_ptr<DiskDriver> disk_driver)
-        : disk_driver(std::move(disk_driver))
+    FATDriver(std::shared_ptr<DiskDriver> disk_driver, KString device_name = "hda1")
+        : disk_driver(std::move(disk_driver)),
+          FileSystemDriver(device_name)
     {
         fat_init();
     }

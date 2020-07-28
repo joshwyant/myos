@@ -88,8 +88,6 @@ void PS2KeyboardDriver::keyboard_handler()
 // Keyboard initialization
 void PS2KeyboardDriver::start()
 {
-    // fill descriptor 0x21 (irq 1) for keyboard handler
-    register_isr(0x21,0,(void*)irq1);
     // unmask IRQ
     irq_unmask(1);
 }

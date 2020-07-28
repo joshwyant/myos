@@ -4,6 +4,7 @@
 #include "../include/VESA.h"
 #include "video.h"
 #include "kernel.h"
+#include "string.h"
 
 #ifdef __cplusplus
 #include <memory>
@@ -15,8 +16,8 @@ class VESAGraphicsDriver
     : public GraphicsDriver
 {
 public:
-    VESAGraphicsDriver(std::shared_ptr<FileSystemDriver> fs_driver)
-        : fs_driver(fs_driver), GraphicsDriver()
+    VESAGraphicsDriver(std::shared_ptr<FileSystemDriver> fs_driver, KString device_name = "vesa")
+        : fs_driver(fs_driver), GraphicsDriver(device_name)
     {
         init();
     }

@@ -7,6 +7,7 @@
 #include <sys/stat.h>
 #include <stddef.h>
 #include <utility>
+#include "driver.h"
 #include "string.h"
 
 extern "C" {
@@ -56,8 +57,11 @@ public:
 }; // class File
 
 class FileSystemDriver
+    : public Driver
 {
 public:
+    FileSystemDriver(KString device_name = "hda1")
+        : Driver(device_name) {}
     virtual ~FileSystemDriver() {}
     virtual int read_file(const char* filename, void* buffer) = 0;
     virtual unsigned int file_size(const char* filename) = 0;

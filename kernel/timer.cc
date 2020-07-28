@@ -1,25 +1,39 @@
 #include "kernel.h"
 
+using namespace kernel;
+
 int pit_reload;
 unsigned timer_seconds;
 unsigned timer_fractions;
 
 // Initialize the system timer - the Programmable Interval Timer
-void init_timer()
+PITTimerDriver::PITTimerDriver(KString device_name)
+    : pit_reload(17898),  // roughly every 15ms
+      timer_seconds(0),
+      timer_fractions(0),
+      TimerDriver(device_name)
 {
-    timer_seconds = 0;
-    timer_fractions = 0;
-    pit_reload = 17898; // 17898 = roughly every 15ms
     outb(0x43, 0x34); // Channel 0: rate generator
     outb(0x40, pit_reload&0xFF); // reload value lo byte channel 0
     outb(0x40, pit_reload>>8); // reload value hi byte channel 0
     // fill descriptor 0x20 (irq 0) for timer handler
     register_isr(0x20,0,(void*)irq0);
-    // unmask IRQ later
+}
+
+void PITTimerDriver::start()
+{
+    irq_unmask(0);
 }
 
 // called by wrapper irq0()
-int handle_timer()
+extern "C" int handle_timer()
+{
+    return DriverManager::current()
+        ->timer_driver().get()
+        ->timer_handler();
+}
+
+int PITTimerDriver::timer_handler()
 {
     int forced = switch_voluntary;
     if (!forced)

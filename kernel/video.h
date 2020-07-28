@@ -24,6 +24,7 @@
 
 #ifdef __cplusplus
 #include <memory>
+#include "driver.h"
 
 extern "C" {
 #endif
@@ -55,6 +56,7 @@ void endl();
 namespace kernel
 {
 class ConsoleDriver
+    : public Driver
 {
 public:
     ConsoleDriver(
@@ -72,7 +74,8 @@ public:
            lastpos(0),
            screenlock(0),
            cursorlock(0),
-           show_cursorlock(0)
+           show_cursorlock(0),
+           Driver("console")
     {
         if (videomem_provided)
         {
@@ -208,8 +211,11 @@ protected:
 }; // class TextModeConsoleDriver
 
 class GraphicsDriver
+    : public Driver
 {
 public:
+    GraphicsDriver(KString device_name)
+        : Driver(device_name) {}
     virtual BufferedGraphicsContext *get_screen_context() = 0;
     virtual ~GraphicsDriver() {}
 }; // class GraphicsContext

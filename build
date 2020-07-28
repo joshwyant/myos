@@ -90,7 +90,7 @@ $TARGET-gcc $CFLAGS process.c -o ./obj/process.o
 $TARGET-gcc $CFLAGS string.c -o ./obj/string.o
 $TARGET-gcc $CPPFLAGS syscall.cc -o ./obj/syscall.o
 $TARGET-gcc $CFLAGS task.c -o ./obj/task.o
-$TARGET-gcc $CFLAGS timer.c -o ./obj/timer.o
+$TARGET-gcc $CPPFLAGS timer.cc -o ./obj/timer.o
 $TARGET-gcc $CPPFLAGS video.cc -o ./obj/video.o
 $TARGET-ld -shared -Tkernel.ld
 $TARGET-ld -shared -Tkernel.ld -o ./obj/kernel -Ttext=0xC0000000
