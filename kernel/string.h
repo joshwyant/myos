@@ -100,10 +100,16 @@ public:
         storage.s.is_long = false;
         storage.s.buffer[0] = 0;
         storage.s.length = 0;
+#ifdef DEBUG
+        buffer = storage.s.buffer;
+#endif
     }
     KBasicString(const KBasicString& other)
         : storage(other.storage)
     {
+#ifdef DEBUG
+        buffer = storage.s.buffer;
+#endif
         if (storage.l.is_long)
         {
             storage.l.buffer = (CharT *)kdupheap(storage.l.buffer);
@@ -111,6 +117,9 @@ public:
             {
                 throw OutOfMemoryError();
             }
+#ifdef DEBUG
+            buffer = storage.l.buffer;
+#endif
         }
     }
     KBasicString(KBasicString&& other) noexcept
@@ -154,6 +163,9 @@ public:
             buffer[i] = other_buffer[i];
         }
         buffer[str.len()] = 0;
+#ifdef DEBUG
+        this->buffer = buffer;
+#endif
     }
     // Includes null terminator
     static size_t short_capacity() { return sizeof(storage.s.buffer) / sizeof(CharT); }
@@ -170,6 +182,9 @@ public:
         s.storage.l.length = length;
         s.storage.l.hash = 0;
         s.storage.l.buffer = buffer;
+#ifdef DEBUG
+        s.buffer = buffer;
+#endif
         return s;
     }
     KBasicString(const CharT *str) : KBasicString(KBasicStringView<CharT>(str)) {}
@@ -183,6 +198,9 @@ public:
         storage.l.length = 0;
         storage.l.hash = 0;
         storage.l.is_long = false;
+#ifdef DEBUG
+        buffer = nullptr;
+#endif
     }
     CharT *c_str()
     {
@@ -278,13 +296,33 @@ public:
             buffer[oldlen + i] = other_buffer[i];
         }
         buffer[newlen] = 0;
+#ifdef DEBUG
+        this->buffer = buffer;
+#endif
         return *this;
+    }
+    KBasicString substring(int begin_pos, int end_pos)
+    {
+        if (begin_pos < 0 || begin_pos > len()) throw OutOfBoundsError();
+        if (end_pos < begin_pos || end_pos > len()) throw OutOfBoundsError();
+        auto length = end_pos - begin_pos;
+        CharT *buffer = (CharT*)kmalloc(length + 1);
+        int i;
+        for (i = 0; i < length; i++)
+        {
+            buffer[i] = (*this)[begin_pos + i];
+        }
+        buffer[i] = 0;
+        return preallocated(buffer, length);
     }
     KBasicString& concat(const CharT *other)
     {
         return concat(KBasicStringView<CharT>(other));
     }
 protected:
+#ifdef DEBUG
+    const char *buffer;
+#endif
     struct short_string
     {
         CharT buffer[(sizeof(size_t) * 3) / sizeof(CharT) - 1];

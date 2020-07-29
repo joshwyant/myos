@@ -79,6 +79,7 @@ $TARGET-gcc $CPPFLAGS elf.cc -o ./obj/elf.o
 $TARGET-gcc $CFLAGS exceptions.c -o ./obj/exceptions.o
 $TARGET-gcc $CPPFLAGS fat.cc -o ./obj/fat.o
 $TARGET-gcc $CPPFLAGS fpu.cc -o ./obj/fpu.o
+$TARGET-gcc $CPPFLAGS fs.cc -o ./obj/fs.o
 $TARGET-gcc $CFLAGS interrupt.c -o ./obj/interrupt.o
 $TARGET-gcc $CPPFLAGS kcpp.cc -o ./obj/kcpp.o
 $TARGET-gcc $CPPFLAGS kernel.cc -o ./obj/kernel.o

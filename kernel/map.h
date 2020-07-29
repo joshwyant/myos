@@ -25,7 +25,7 @@ public:
         TValue value;
         KeyValuePair() {}
         KeyValuePair(TKey key, TValue value)
-            : key(key), value(value) {}
+            : key(std::move(key)), value(std::move(value)) {}
         KeyValuePair(KeyValuePair& other)
             : KeyValuePair(other.key, other.value) {}
         KeyValuePair(KeyValuePair&& other) noexcept

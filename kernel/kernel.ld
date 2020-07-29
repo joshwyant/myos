@@ -18,6 +18,7 @@ INPUT (
 ./obj/elf.o ,
 ./obj/exceptions.o ,
 ./obj/fat.o ,
+./obj/fs.o ,
 ./obj/fpu.o ,
 ./obj/interrupt.o ,
 ./obj/isr.o ,

@@ -4,7 +4,9 @@
 #include <sys/stat.h>
 #include <stddef.h>
 #include "driver.h"
+#include "map.h"
 #include "string.h"
+#include "vector.h"
 
 #ifdef __cplusplus
 #include <memory>
@@ -18,6 +20,16 @@ extern "C" {
 
 namespace kernel
 {
+class FileSystemNode;
+class FileSystemDirectoryNode;
+class File;
+class FileSystemDriver;
+class MemoryFile;
+class VirtualFileEntry;
+class ScratchVirtualFileEntry;
+class VirtualDirectoryEntry;
+class FileSystem;
+
 class FileSystemNode
 {
 public:
@@ -42,6 +54,7 @@ public:
     virtual char peekc() = 0;
     virtual bool eof() = 0;
     virtual void close() = 0;
+    virtual void write(const char *buffer, unsigned bytes) = 0;
     template <typename O> void read(O& o)
     {
         O obj;
@@ -71,6 +84,108 @@ public:
     virtual const char* current_directory() = 0;
     virtual std::unique_ptr<File> file_open(const char *filename) = 0;
 }; // class FileSystemDriver
+
+class MemoryFile
+    : public File
+{
+public:
+    MemoryFile(std::shared_ptr<KVector<char> > data)
+        : data(data),
+          pos(0) {}
+    MemoryFile()
+        : MemoryFile(std::make_shared<KVector<char> >()) {}
+    ~MemoryFile() {}
+    bool seek(unsigned pos) override
+    {
+        if (pos > data->len()) return false;
+        this->pos = pos;
+        return true;
+    }
+    unsigned read(char *buffer, unsigned bytes) override
+    {
+        unsigned bytes_read = 0;
+        while (pos < data->len() && bytes--)
+        {
+            *(buffer++) = (*data)[pos++];
+            bytes_read++;
+        }
+        return bytes_read;
+    }
+    char getch() override { return (*data)[pos++]; }
+    char peekc() override { return (*data)[pos]; }
+    bool eof() override { return pos >= data->len(); }
+    void close() override {}
+    void write(const char *buffer, unsigned bytes) override
+    {
+        while (bytes--)
+        {
+            if (pos < data->len())
+            {
+                (*data)[pos++] = *(buffer++);
+            }
+            else
+            {
+                data->push_back(*(buffer++));
+                pos++;
+            }
+        }
+    }
+private:
+    std::shared_ptr<KVector<char> > data;
+    unsigned pos;
+}; // class MemoryFile
+
+class VirtualFileEntry
+{
+public:
+    virtual std::unique_ptr<File> open() = 0;
+private:
+}; // class VirtualFile
+
+class ScratchVirtualFileEntry
+    : public VirtualFileEntry
+{
+public:
+    ScratchVirtualFileEntry()
+        : ScratchVirtualFileEntry(std::make_shared<KVector<char> >()) {}
+    ScratchVirtualFileEntry(std::shared_ptr<KVector<char> > data)
+        : data(data) {}
+    std::unique_ptr<File> open() override
+    {
+        // TODO: Exclusive mode
+        return std::make_unique<MemoryFile>(data);
+    }
+private:
+    std::shared_ptr<KVector<char> > data;
+}; // class VirtualScratchFile
+
+class VirtualDirectoryEntry
+{
+public:
+    bool contains_dir(KString dir) { return sub_dirs.contains(dir); }
+    bool contains_file(KString file) { return virtual_files.contains(file); }
+    std::unique_ptr<VirtualFileEntry>& get_file(KString file) { return virtual_files[file]; }
+    std::unique_ptr<VirtualDirectoryEntry>& get_dir(KString dir) { return sub_dirs[dir]; }
+    std::unique_ptr<VirtualDirectoryEntry>& mkdir(KString dir) { return sub_dirs.insert(dir, std::make_unique<VirtualDirectoryEntry>()).value; }
+    std::unique_ptr<VirtualFileEntry>& create_file(KString file, std::unique_ptr<VirtualFileEntry>&& entry) { return virtual_files.insert(file, std::move(entry)).value; }
+    std::unique_ptr<VirtualFileEntry>& create_file(KString file) { return create_file(file, std::make_unique<ScratchVirtualFileEntry>()); }
+private:
+    UnorderedMap<KString, std::unique_ptr<VirtualDirectoryEntry> > sub_dirs;
+    UnorderedMap<KString, std::unique_ptr<VirtualFileEntry> > virtual_files;
+};
+
+class FileSystem
+{
+public:
+    FileSystem()
+        : _virtual_root(std::make_unique<VirtualDirectoryEntry>()) {}
+    void mount(KString, std::shared_ptr<FileSystemDriver>);
+    std::unique_ptr<File> open(KString);
+    std::unique_ptr<VirtualDirectoryEntry>& virtual_root() { return _virtual_root; }
+private:
+    UnorderedMap<KString, std::shared_ptr<FileSystemDriver> > _mount_points;
+    std::unique_ptr<VirtualDirectoryEntry> _virtual_root;
+};
 }  // namespace kernel
 #endif  // __cplusplus
 

@@ -27,6 +27,13 @@ public:
     OutOfBoundsError() : Error("Out of bounds") {}
 };  // class OutOfBoundsError
 
+class ArgumentError : public Error
+{
+public:
+    ArgumentError() : Error("Invalid argument") {}
+    ArgumentError(const char *msg) : Error(msg) {}
+};  // class ArgumentError
+
 class InvalidOperationError : public Error
 {
 public:
@@ -39,6 +46,13 @@ public:
     NotFoundError() : Error("Not found") {}
     NotFoundError(const char *msg) : Error(msg) {}
 };  // class NotFoundError
+
+class NotImplementedError : public Error
+{
+public:
+    NotImplementedError() : Error("Not implemented") {}
+    NotImplementedError(const char *msg) : Error(msg) {}
+};  // class NotImplementedError
 
 class EndOfFileError : public Error
 {

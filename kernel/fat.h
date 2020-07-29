@@ -4,6 +4,7 @@
 #include <stddef.h>
 #include "driver.h"
 #include "disk.h"
+#include "error.h"
 #include "fs.h"
 #include "stack.h"
 
@@ -23,6 +24,10 @@ public:
     unsigned position;
     bool seek(unsigned pos) override;
     unsigned read(char *buffer, unsigned bytes) override;
+    void write(const char *buffer, unsigned bytes) override
+    {
+        throw NotImplementedError();
+    }
     char getch() override;
     char peekc() override;
     bool eof() override;
