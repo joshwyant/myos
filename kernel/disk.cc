@@ -1,5 +1,6 @@
 #include "disk.h"
-#include "klib.h"
+#include "io.h"
+#include "process.h"
 
 void kernel::PIODiskDriver::read_sectors(char *buffer, int sectors, int lba)
 {

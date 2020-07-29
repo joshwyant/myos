@@ -1,9 +1,9 @@
 #ifndef __KERNEL_HASH_H__
 #define __KERNEL_HASH_H__
 
-#ifdef __cplusplus
-
 #include "string.h"
+
+#ifdef __cplusplus
 
 namespace kernel
 {

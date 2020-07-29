@@ -1,5 +1,4 @@
 #include "shell.h"
-#include "../kernel/klib.h"
 
 int main()
 {

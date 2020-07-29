@@ -1,4 +1,8 @@
+#include "io.h"
+#include "interrupt.h"
 #include "kernel.h"
+#include "process.h"
+#include "timer.h"
 
 using namespace kernel;
 
@@ -28,9 +32,10 @@ void PITTimerDriver::start()
 // called by wrapper irq0()
 extern "C" int handle_timer()
 {
-    return DriverManager::current()
-        ->timer_driver().get()
-        ->timer_handler();
+    return Kernel::current()
+            ->drivers()
+            ->timer_driver().get()
+            ->timer_handler();
 }
 
 int PITTimerDriver::timer_handler()

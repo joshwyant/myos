@@ -1,13 +1,12 @@
 #ifndef __KERNEL_BUFFER_H__
 #define __KERNEL_BUFFER_H__
 
-#ifdef __cplusplus
-
-#include <utility>
 #include <stddef.h>
-#include <algorithm>
 #include "error.h"
-#include "memory.h"
+
+#ifdef __cplusplus
+#include <utility>
+#include <algorithm>
 
 namespace kernel
 {

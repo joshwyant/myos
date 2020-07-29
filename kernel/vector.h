@@ -1,13 +1,13 @@
 #ifndef __KERNEL_VECTOR_H__
 #define __KERNEL_VECTOR_H__
 
-#ifdef __cplusplus
-
-#include <new>
 #include <stddef.h>
-#include <utility>
 #include "error.h"
 #include "memory.h"
+
+#ifdef __cplusplus
+#include <new>
+#include <utility>
 
 namespace kernel
 {

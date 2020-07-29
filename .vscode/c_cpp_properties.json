@@ -9,8 +9,7 @@
             "defines": [
                 "TARGET_MYOS",
                 "VESA",
-                "DEBUG",
-                "__cplusplus"
+                "DEBUG"
             ],
             "macFrameworkPath": [],
             "compilerPath": "/usr/local/bin/i686-myos-gcc",

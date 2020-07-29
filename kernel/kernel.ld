@@ -15,7 +15,6 @@ INPUT (
 ./obj/clock.o ,
 ./obj/disk.o ,
 ./obj/drawing.o ,
-./obj/drivers.o ,
 ./obj/elf.o ,
 ./obj/exceptions.o ,
 ./obj/fat.o ,

@@ -1,4 +1,5 @@
-#include "kernel.h"
+#include "io.h"
+#include "interrupt.h"
 
 volatile int __attribute__ ((aligned(8))) idt [512];
 

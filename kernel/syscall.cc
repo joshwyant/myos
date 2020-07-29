@@ -1,7 +1,14 @@
 #include <errno.h>
 #include <reent.h>
 #include <sys/stat.h>
+#include "interrupt.h"
+#include "io.h"
 #include "kernel.h"
+#include "process.h"
+#include "syscall.h"
+#include "video.h"
+
+using namespace kernel;
 
 #define SYSCALL_EXIT    0
 #define SYSCALL_CLOSE   1
@@ -130,7 +137,7 @@ void syscall(unsigned edi, unsigned esi, unsigned ebp, unsigned esp, unsigned eb
             break;
         // Start a new process (ebx = *name, esi = **argv, edi = **env)
         case SYSCALL_START:
-            eax = process_start(kernel::DriverManager::current()->file_system_driver(), (char*)ebx);
+            eax = process_start(Kernel::current()->drivers()->file_system_driver(), (char*)ebx);
             break;
         // Get Process ID
         case SYSCALL_PID:

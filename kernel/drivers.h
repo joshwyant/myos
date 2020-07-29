@@ -1,9 +1,6 @@
 #ifndef __KERNEL_DRIVERS_H__
 #define __KERNEL_DRIVERS_H__
 
-#ifdef __cplusplus
-#include <memory>
-#include "kernel.h"
 #include "video.h"
 #include "disk.h"
 #include "driver.h"
@@ -13,20 +10,15 @@
 #include "mouse.h"
 #include "string.h"
 #include "timer.h"
+
+#ifdef __cplusplus
+#include <memory>
+
 namespace kernel
 {
 class DriverManager
 {
 public:
-    static std::shared_ptr<DriverManager>& set_current(std::shared_ptr<DriverManager> manager) { return _current = manager; }
-    static std::shared_ptr<DriverManager>& set_root(std::shared_ptr<DriverManager> manager) { return _root = manager; }
-    static std::shared_ptr<DriverManager> current() { return _current; }
-    static std::shared_ptr<DriverManager> root() { return _root; }
-    static std::shared_ptr<DriverManager>& init()
-    {
-        return set_current(set_root(std::make_shared<DriverManager>()));
-    }
-
     std::shared_ptr<ConsoleDriver>
         register_console_driver(std::shared_ptr<ConsoleDriver> driver) { return register_device(_console_driver = driver); }
 
@@ -89,8 +81,6 @@ private:
     std::shared_ptr<KeyboardDriver> _keyboard_driver;
     std::shared_ptr<TimerDriver> _timer_driver;
     UnorderedMap<KString, std::shared_ptr<Driver> > _device_map;
-    static std::shared_ptr<DriverManager> _root;
-    static std::shared_ptr<DriverManager> _current;
 };
 } // namespace kernel
 #endif // __cplusplus

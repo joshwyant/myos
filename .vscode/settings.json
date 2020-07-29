@@ -73,6 +73,7 @@
         "stop_token": "cpp",
         "cinttypes": "cpp",
         "__functional_03": "cpp",
-        "__memory": "cpp"
+        "__memory": "cpp",
+        "clock.h": "c"
     }
 }

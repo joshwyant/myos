@@ -1,4 +1,8 @@
+#include "exceptions.h"
+#include "io.h"
+#include "interrupt.h"
 #include "kernel.h"
+#include "process.h"
 
 // count of RAM
 unsigned int total_memory;

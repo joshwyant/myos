@@ -75,7 +75,6 @@ $TARGET-gcc $CPPFLAGS buffer.cc -o ./obj/buffer.o
 $TARGET-gcc $CFLAGS clock.c -o ./obj/clock.o
 $TARGET-gcc $CPPFLAGS disk.cc -o ./obj/disk.o
 $TARGET-gcc $CPPFLAGS drawing.cc -o ./obj/drawing.o
-$TARGET-gcc $CPPFLAGS drivers.cc -o ./obj/drivers.o
 $TARGET-gcc $CPPFLAGS elf.cc -o ./obj/elf.o
 $TARGET-gcc $CFLAGS exceptions.c -o ./obj/exceptions.o
 $TARGET-gcc $CPPFLAGS fat.cc -o ./obj/fat.o

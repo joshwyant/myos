@@ -1,9 +1,54 @@
 #ifndef __PROCESS_H__
 #define __PROCESS_H__
 
+#include "fs.h"
+
 #ifdef __cplusplus
+#include <memory>
+
 extern "C" {
 #endif
+
+typedef unsigned char TBYTE[10];
+typedef struct
+{
+    unsigned short  control_word;
+    unsigned short  unused1;
+    unsigned short  status_word;
+    unsigned short  unused2;
+    unsigned short  tag_word;
+    unsigned short  unused3;
+    unsigned int    instruction_pointer;
+    unsigned short  code_segment;
+    unsigned short  unused4;
+    unsigned int    operand_address;
+    unsigned short  data_segment;
+    TBYTE           st0;
+    TBYTE           st1;
+    TBYTE           st2;
+    TBYTE           st3;
+    TBYTE           st4;
+    TBYTE           st5;
+    TBYTE           st6;
+    TBYTE           st7;
+} FPUFile;
+
+typedef struct
+{
+    unsigned int     esp;       // kernel esp
+    unsigned short   ss, __ssh; // kernel ss
+    unsigned int     cr3;       // process cr3
+    unsigned int     vm8086;    // vm8086 process
+    void*            gpfault;   // vm8086 gpfault handler
+    unsigned int     pid;       // process id
+    unsigned int     timeslice; // Amount of time to run
+    unsigned int     priority;  // Process priority
+    unsigned char    name[64];  // Name of process
+    void*	     node;	// Process_Node struct for scheduler
+    int             blocked;
+    int             fpu_saved;
+    FPUFile          fpu_file;
+} Process;
 
 // Processes
 typedef struct _ProcessNode
@@ -22,17 +67,10 @@ typedef struct
 extern void	process_yield();
 extern void	process_node_unlink(ProcessNode* n);
 extern void	process_node_link(ProcessNode* n);
+extern Process*	process_create(const char* name);
+extern void	process_enqueue(Process* p);
 extern void init_processes();
 extern void	init_tss();
-
-extern unsigned		*kernel_hashtable;
-extern unsigned		kernel_nbucket;
-extern unsigned		kernel_nchain;
-extern unsigned		*kernel_bucket;
-extern unsigned		*kernel_chain;
-extern Elf32_Sym	*kernel_symtab;
-extern char			*kernel_strtab;
-extern Elf32_Dyn	*kernel_dynamic;
 
 extern Process					*current_process;
 extern volatile unsigned		*system_pdt;
@@ -43,6 +81,8 @@ extern int						switch_voluntary; // Whether the current task switch was explici
 
 #ifdef __cplusplus
 }  // extern "C"
+
+extern int process_start(std::shared_ptr<kernel::FileSystemDriver> fs_driver, const char* filename);
 #endif
 
 #endif  // __PROCESS_H__

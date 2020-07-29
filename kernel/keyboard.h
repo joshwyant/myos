@@ -1,10 +1,11 @@
 #ifndef __KEYBOARD_H__
 #define __KEYBOARD_H__
 
-#ifdef __cplusplus
-#include <memory>
 #include "interrupt.h"
 #include "driver.h"
+
+#ifdef __cplusplus
+#include <memory>
 
 extern "C" {
 #endif

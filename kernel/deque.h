@@ -1,13 +1,13 @@
 #ifndef __KERNEL_DEQUE_H__
 #define __KERNEL_DEQUE_H__
 
-#ifdef __cplusplus
-
 #include <stddef.h>
-#include <utility>
 #include "error.h"
 #include "memory.h"
 #include "vector.h"
+
+#ifdef __cplusplus
+#include <utility>
 
 namespace kernel
 {

@@ -1,9 +1,17 @@
 #ifndef __video_h__
 #define __video_h__
 
-#include "kernel.h"
+#include "clock.h"
 #include "drawing.h"
-#include "klib.h"
+#include "driver.h"
+#include "memory.h"
+#include "process.h"
+
+#ifdef __cplusplus
+#include <memory>
+
+extern "C" {
+#endif
 
 #define C_BLACK         0
 #define C_BLUE          1
@@ -21,13 +29,6 @@
 #define C_PINK          13
 #define C_YELLOW        14
 #define C_WHITE         15
-
-#ifdef __cplusplus
-#include <memory>
-#include "driver.h"
-
-extern "C" {
-#endif
 
 extern int console_palette[];
 
@@ -209,16 +210,6 @@ protected:
     std::shared_ptr<FileSystemDriver> fs_driver;
     MemoryGraphicsContext *display;
 }; // class TextModeConsoleDriver
-
-class GraphicsDriver
-    : public Driver
-{
-public:
-    GraphicsDriver(KString device_name)
-        : Driver(device_name) {}
-    virtual BufferedGraphicsContext *get_screen_context() = 0;
-    virtual ~GraphicsDriver() {}
-}; // class GraphicsContext
 }  // namespace kernel
 #endif // __cplusplus
 #endif // __video_h__

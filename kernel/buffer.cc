@@ -1,4 +1,5 @@
 #include "buffer.h"
+#include "memory.h"
 
 namespace kernel
 {

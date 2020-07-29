@@ -2,11 +2,13 @@
 // An address BELOW 0xC0000000 is only used by the CURRENT process, and may include NON-USER pages, such as the KERNEL STACK
 
 #include <memory>
-#include "kernel.h"
 #include "elf.h"
+#include "drawing.h"
 #include "error.h"
-#include "fat.h"
+#include "fs.h"
 #include "memory.h"
+#include "process.h"
+#include "video.h"
 
 using namespace kernel;
 

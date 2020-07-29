@@ -1,7 +1,7 @@
 #ifndef __KERNEL_FPU__
 #define __KERNEL_FPU__
 
-#include "klib.h"
+#include "process.h"
 
 #ifdef __cplusplus
 extern "C" {

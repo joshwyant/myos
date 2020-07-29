@@ -1,6 +1,7 @@
 #include <memory>
-#include "kernel.h"
 #include "VESA.h"
+#include "kernel.h"
+#include "memory.h"
 
 void kernel::VESAGraphicsDriver::init()
 {

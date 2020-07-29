@@ -1,10 +1,11 @@
 #ifndef __KERNEL_QUEUE_H__
 #define __KERNEL_QUEUE_H__
 
+#include "deque.h"
+
 #ifdef __cplusplus
 
 #include <utility>
-#include "deque.h"
 
 namespace kernel
 {

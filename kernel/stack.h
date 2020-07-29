@@ -1,10 +1,10 @@
 #ifndef __KERNEL_STACK_H__
 #define __KERNEL_STACK_H__
 
-#ifdef __cplusplus
-
-#include <utility>
 #include "vector.h"
+
+#ifdef __cplusplus
+#include <utility>
 
 namespace kernel
 {

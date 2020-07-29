@@ -1,13 +1,7 @@
-#include "kernel.h"
-
-unsigned	*kernel_hashtable;
-unsigned	kernel_nbucket;
-unsigned	kernel_nchain;
-unsigned	*kernel_bucket;
-unsigned	*kernel_chain;
-Elf32_Sym	*kernel_symtab;
-char		*kernel_strtab;
-Elf32_Dyn	*kernel_dynamic;
+#include "io.h"
+#include "memory.h"
+#include "process.h"
+#include "string.h"
 
 Process					*current_process;
 volatile unsigned		*system_pdt;

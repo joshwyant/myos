@@ -1,12 +1,25 @@
-#include "kernel.h"
-
-#ifdef __cplusplus
 #include <memory>
+#include "VESA.h"
+#include "clock.h"
+#include "drawing.h"
+#include "drivers.h"
+#include "exceptions.h"
+#include "fpu.h"
+#include "io.h"
+#include "elf.h"
+#include "fat.h"
+#include "kernel.h"
+#include "process.h"
+#include "syscall.h"
+#include "task.h"
+#include "video.h"
 
 using namespace kernel;
 
+// The Kernel singleton
+std::shared_ptr<KernelInterface> KernelInterface::_kernel(nullptr);
+
 extern "C" {
-#endif
 
 static void demo(std::shared_ptr<KeyboardDriver> kbd_driver, std::shared_ptr<SymbolManager> symbols);
 
@@ -35,39 +48,48 @@ void _pre_init(loader_info *li)
 
     // Initialize exceptions
     init_exceptions(); // Dependent on IDT; Start right after paging for page faults
+
+    // Initialize FPU
+    init_fpu();
 }
+
+}  // extern "C"
+
+Kernel::Kernel()
+    : _symbols(std::make_shared<SymbolManager>(_DYNAMIC, loaderInfo.loaded)),
+      _current_drivers(std::make_shared<DriverManager>()),
+      _root_drivers(_current_drivers)
+{
+}
+
+extern "C" {
 
 void kmain()
 {
-    // Initialize FPU
-    init_fpu();
+    auto kernel = Kernel::init();
 
-    auto symbols = std::make_shared<SymbolManager>(_DYNAMIC, loaderInfo.loaded); // TODO: Persist somewhere
-
-    auto manager = DriverManager::init();
-    
     // Initialize video so we can display errors
     // Dependent on paging, Dependent on IDT (Page faults) (Maps video memory)
     auto text_driver
-        = manager->register_text_console_driver(std::make_shared<TextModeConsoleDriver>());
-    manager->register_console_driver(text_driver);
+        = kernel->drivers()->register_text_console_driver(std::make_shared<TextModeConsoleDriver>());
+    kernel->drivers()->register_console_driver(text_driver);
 
     // Processes
     init_processes();
 
     // Interrupt related
     auto keyboard_driver  // dependent on IDT and PIC
-        = manager->register_keyboard_driver(std::make_shared<PS2KeyboardDriver>());
+        = kernel->drivers()->register_keyboard_driver(std::make_shared<PS2KeyboardDriver>());
     keyboard_driver->start();
     auto timer_driver  // dependent on IDT and PIC
-        = manager->register_timer_driver(std::make_shared<PITTimerDriver>());
+        = kernel->drivers()->register_timer_driver(std::make_shared<PITTimerDriver>());
 
     // Filestystem
     auto disk_driver
-        = manager->register_disk_driver(std::make_shared<PIODiskDriver>());
+        = kernel->drivers()->register_disk_driver(std::make_shared<PIODiskDriver>());
 
     auto fat_driver
-        = manager->register_file_system_driver(std::make_shared<FATDriver>(disk_driver));
+        = kernel->drivers()->register_file_system_driver(std::make_shared<FATDriver>(disk_driver));
     
     // System TSS
     init_tss();
@@ -79,12 +101,12 @@ void kmain()
     {
         // Temporary VESA mode
         auto graphics_driver 
-            = manager->register_graphics_driver(std::make_shared<kernel::VESAGraphicsDriver>(fat_driver));
+            = kernel->drivers()->register_graphics_driver(std::make_shared<kernel::VESAGraphicsDriver>(fat_driver));
 
         show_splash(graphics_driver, fat_driver);
         
         auto mouse_driver 
-            = manager->register_mouse_driver(std::make_shared<PS2MouseDriver>(graphics_driver, fat_driver));
+            = kernel->drivers()->register_mouse_driver(std::make_shared<PS2MouseDriver>(graphics_driver, fat_driver));
         mouse_driver->start();
 
         // auto console
@@ -94,12 +116,12 @@ void kmain()
     // Load the shell
     start_shell(fat_driver);
 	
-    //demo(keyboard_driver, symbols);
+    //demo(keyboard_driver, symbols());
 
     // Load vesadrvr.o
     try
     {
-        if (!load_driver(fat_driver, symbols, "/system/bin/vesadrvr.o"))
+        if (!load_driver(fat_driver, kernel->symbols(), "/system/bin/vesadrvr.o"))
         {
             throw ElfError("load_driver returned non-zero status.");
         }
@@ -152,7 +174,7 @@ static void demo(std::shared_ptr<KeyboardDriver> kbd_driver, std::shared_ptr<Sym
         Elf32_Sym *s = symbols->find_symbol(buffer);
         if (s)
         {
-            kprintf("Symbol %s found: %l\n", kernel_strtab + s->st_name, s->st_value);
+            kprintf("Symbol %s found: %l\n", symbols->symbol_name(s), s->st_value);
         }
         else
         {
@@ -168,7 +190,6 @@ static void demo(std::shared_ptr<KeyboardDriver> kbd_driver, std::shared_ptr<Sym
     while (1) ;*/
 }
 
-#ifdef __cplusplus
 }  // extern "C"
 
 void show_splash(std::shared_ptr<kernel::GraphicsDriver> graphics_driver, std::shared_ptr<kernel::FileSystemDriver> fs_driver)
@@ -231,5 +252,3 @@ void start_shell(std::shared_ptr<kernel::FileSystemDriver> fs_driver)
         freeze();
     }
 }
-
-#endif

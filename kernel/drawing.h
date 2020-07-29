@@ -1,11 +1,8 @@
 #ifndef __DRAWING_H__
 #define __DRAWING_H__
 
-#include "VESA.h"
 #include "disk.h"
 #include "fs.h"
-#include "video.h"
-#include "kernel.h"
 
 #define RGB(r, g, b) ((r) | (g) << 8 | (b) << 16)
 #define RGBA(r, g, b, a) ((r) | (g) << 8 | (b) << 16 | (a) << 24)
@@ -18,6 +15,7 @@
 #include <memory>
 
 extern "C" {
+#endif // __cplusplus
 
 typedef struct
 {
@@ -148,7 +146,6 @@ inline static void get_bitmap_metrics(Bitmap *bmp, int *stride, int *pixelWidth)
 	*pixelWidth = bmp->bpp >> 3;
 	*stride = bmp->width**pixelWidth;
 }
-#endif
 
 #ifdef __cplusplus
 }  // extern "C"
@@ -157,6 +154,18 @@ int read_bitmap(std::shared_ptr<kernel::FileSystemDriver> fs_driver, Bitmap *b, 
 
 namespace kernel
 {
+class BufferedGraphicsContext;
+
+class GraphicsDriver
+    : public Driver
+{
+public:
+    GraphicsDriver(KString device_name)
+        : Driver(device_name) {}
+    virtual BufferedGraphicsContext *get_screen_context() = 0;
+    virtual ~GraphicsDriver() {}
+}; // class GraphicsContext
+
 class GraphicsContext
 {
 public:

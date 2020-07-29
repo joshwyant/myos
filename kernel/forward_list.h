@@ -1,11 +1,11 @@
 #ifndef __KERNEL_FORWARD_LIST_H__
 #define __KERNEL_FORWARD_LIST_H__
 
-#ifdef __cplusplus
+#include "error.h"
 
+#ifdef __cplusplus
 #include <memory>
 #include <utility>
-#include "error.h"
 
 namespace kernel
 {

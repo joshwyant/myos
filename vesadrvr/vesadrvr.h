@@ -1,8 +1,6 @@
 #ifndef __VESADRVR_H__
 #define __VESADRVR_H__
 
-#include "../kernel/klib.h"
-
 #ifdef __cplusplus
 extern "C" {
 #endif

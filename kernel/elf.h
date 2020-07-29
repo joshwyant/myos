@@ -4,6 +4,10 @@
 # ifndef __elf_h__
 # define __elf_h__
 
+#include "error.h"
+#include "string.h"
+#include "fs.h"
+
 /* Book I: Executable and Linking Format (ELF) */
 
 /* 32-Bit Data Types */
@@ -20,11 +24,7 @@
 #define EI_NIDENT	16
 
 #ifdef __cplusplus
-
-#include "error.h"
-
 extern "C" {
-void kprintf(const char* format, ...);
 #endif
 
 // ELF Header
@@ -336,6 +336,12 @@ extern Elf32_Addr	_GLOBAL_OFFSET_TABLE_[];
 
 namespace kernel
 {
+class ElfError : public Error
+{
+public:
+    ElfError(const char *msg) : Error(msg) {}
+};  // class ElfError
+
 class SymbolManager
 {
 public:
@@ -376,6 +382,10 @@ public:
         }
         return nullptr;
     }
+    const char *symbol_name(Elf32_Sym *sym)
+    {
+        return strtab + sym->st_name;
+    }
     // Calls the function with the given name. Pretty useless, but neat.
     void invoke(const char* function)
     {
@@ -383,7 +393,8 @@ public:
         if (s && (ELF32_ST_TYPE (s->st_info) == STT_FUNC))
             asm volatile("call *%0"::"g"(s->st_value));
         else
-            kprintf("Function '%s' not found\n", function);
+            // kprintf("Function '%s' not found\n", function);
+            throw NotFoundError();
     }
 private:
     static unsigned long elf_hash(const unsigned char *name)
@@ -408,13 +419,12 @@ private:
     char		*strtab;
     Elf32_Dyn		*dynamic;
 }; // SymbolManager
-
-class ElfError : public Error
-{
-public:
-    ElfError(const char *msg) : Error(msg) {}
-};  // class ElfError
 } // namespace kernel
+
+extern int load_driver(
+    std::shared_ptr<kernel::FileSystemDriver> fs_driver,
+    std::shared_ptr<kernel::SymbolManager> symbols,
+    const char* filename);
 #endif // __cplusplus
 
 #endif /* __elf_h__ */

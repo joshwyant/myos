@@ -1,11 +1,14 @@
 // Based on https://wiki.osdev.org/C%2B%2B
 //   and on https://wiki.osdev.org/Calling_Global_Constructors
 
+#include <memory>
 #include <stddef.h>
 #include <reent.h>
 #include <stdio.h>
-#include "kernel.h"
 #include "error.h"
+#include "memory.h"
+#include "string.h"
+#include "video.h"
 
 using namespace kernel;
 

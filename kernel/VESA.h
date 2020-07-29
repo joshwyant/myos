@@ -2,13 +2,12 @@
 #define __KERNEL_VESA_H__
 
 #include "../include/VESA.h"
-#include "video.h"
-#include "kernel.h"
+#include "drawing.h"
+#include "fs.h"
 #include "string.h"
 
 #ifdef __cplusplus
 #include <memory>
-#include "fs.h"
 
 namespace kernel
 {

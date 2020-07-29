@@ -1,4 +1,8 @@
-#include "kernel.h"
+
+#include "io.h"
+#include "memory.h"
+#include "process.h"
+#include "task.h"
 
 volatile unsigned int __attribute__ ((aligned(8))) gdt[] = {
     0x00000000,0x00000000, // 0x0000 Unused - null descriptor

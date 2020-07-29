@@ -1,4 +1,5 @@
-#include "kernel.h"
+#include "io.h"
+#include "process.h"
 
 // Based on https://wiki.osdev.org/Fpu
 

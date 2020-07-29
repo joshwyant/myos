@@ -1,4 +1,7 @@
 #include "kernel.h"
+#include "io.h"
+#include "keyboard.h"
+#include "video.h"
 
 using namespace kernel;
 
@@ -33,7 +36,8 @@ volatile int kbd_count = 0;
 // called by wrapper irq1()
 extern "C" void handle_keyboard()
 {
-    DriverManager::current()
+    Kernel::current()
+        ->drivers()
         ->keyboard_driver().get()
         ->keyboard_handler();
 }

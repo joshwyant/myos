@@ -1,13 +1,13 @@
 #ifndef __KERNEL_MAP_H__
 #define __KERNEL_MAP_H__
 
-#ifdef __cplusplus
-
-#include <memory>
-#include <utility>
 #include "forward_list.h"
 #include "hash.h"
 #include "vector.h"
+
+#ifdef __cplusplus
+#include <memory>
+#include <utility>
 
 namespace kernel
 {

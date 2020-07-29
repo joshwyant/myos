@@ -2,7 +2,6 @@
 #define __KERNEL_LIST_H__
 
 #ifdef __cplusplus
-
 #include <memory>
 
 namespace kernel

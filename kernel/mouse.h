@@ -1,13 +1,13 @@
 #ifndef __MOUSE_H__
 #define __MOUSE_H__
 
+#include <stddef.h>
 #include "fs.h"
-#include "kernel.h"
 #include "drawing.h"
 #include "driver.h"
+#include "string.h"
 
 #ifdef __cplusplus
-#include <stddef.h>
 #include <memory>
 
 extern "C"

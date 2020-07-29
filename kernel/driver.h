@@ -1,9 +1,10 @@
 #ifndef __KERNEL_DRIVER_H__
 #define __KERNEL_DRIVER_H__
 
+#include "string.h"
+
 #ifdef __cplusplus
 #include <utility>
-#include "string.h"
 
 namespace kernel
 {

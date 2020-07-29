@@ -1,12 +1,12 @@
 #ifndef __disk_h__
 #define __disk_h__
 
-#ifdef __cplusplus
-
-#include <utility>
 #include "driver.h"
 #include "io.h"
 #include "string.h"
+
+#ifdef __cplusplus
+#include <utility>
 
 namespace kernel
 {

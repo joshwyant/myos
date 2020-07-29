@@ -1,4 +1,6 @@
-#include "kernel.h"
+#include "clock.h"
+#include "io.h"
+#include "interrupt.h"
 
 void init_clock()
 {

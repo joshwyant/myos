@@ -1,14 +1,14 @@
 #ifndef __KERNEL_FS_H__
 #define __KERNEL_FS_H__
 
-#ifdef __cplusplus
-
-#include <memory>
 #include <sys/stat.h>
 #include <stddef.h>
-#include <utility>
 #include "driver.h"
 #include "string.h"
+
+#ifdef __cplusplus
+#include <memory>
+#include <utility>
 
 extern "C" {
 #endif

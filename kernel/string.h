@@ -1,12 +1,12 @@
 #ifndef __KERNEL_STRING_H__
 #define __KERNEL_STRING_H__
 
-#ifdef __cplusplus
-
 #include <stddef.h>
-#include <utility>
 #include "error.h"
 #include "memory.h"
+
+#ifdef __cplusplus
+#include <utility>
 
 extern "C" {
 #endif

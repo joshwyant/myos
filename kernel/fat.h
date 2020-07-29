@@ -1,15 +1,15 @@
 #ifndef __FATC_H__
 #define __FATC_H__
 
-#ifdef __cplusplus
-#include <memory>
 #include <stddef.h>
-#include <utility>
 #include "driver.h"
 #include "disk.h"
-#include "klib.h"
 #include "fs.h"
 #include "stack.h"
+
+#ifdef __cplusplus
+#include <memory>
+#include <utility>
 
 namespace kernel
 {

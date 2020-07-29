@@ -1,4 +1,8 @@
-#include "kernel.h"
+#include "interrupt.h"
+#include "io.h"
+#include "exceptions.h"
+#include "process.h"
+#include "video.h"
 
 // Register exceptions into the IDT
 void init_exceptions()
