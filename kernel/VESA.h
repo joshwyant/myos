@@ -16,7 +16,8 @@ class VESAGraphicsDriver
 {
 public:
     VESAGraphicsDriver(std::shared_ptr<FileSystemDriver> fs_driver, KString device_name = "vesa")
-        : fs_driver(fs_driver), GraphicsDriver(device_name)
+        : fs_driver(fs_driver),
+          GraphicsDriver(device_name)
     {
         init();
     }
@@ -34,6 +35,7 @@ protected:
     BufferedMemoryGraphicsContext *buffered_screen_context;
     MemoryGraphicsContext *raw_screen_context;
     std::shared_ptr<FileSystemDriver> fs_driver;
+    std::unique_ptr<MappedMemory<unsigned char> > _frame_buffer;
 private:
     void init();
 }; // class VESAGraphicsDriver

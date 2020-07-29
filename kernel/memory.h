@@ -170,7 +170,7 @@ public:
         }
     }
     MappedMemory(void *physical, unsigned flags, unsigned bytes = 4096)
-        : MappedMemory((T*)kfindrange(bytes), physical, flags) {}
+        : MappedMemory((T*)kfindrange(bytes), physical, flags, bytes) {}
     MappedMemory(MappedMemory&) = delete;
     MappedMemory(MappedMemory&& other) noexcept
         : MappedMemory()

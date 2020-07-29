@@ -225,10 +225,9 @@ kernel::TextModeConsoleDriver::TextModeConsoleDriver()
     : ConsoleDriver(reinterpret_cast<void*>(0xB8000))
 {
     // save CRT base IO port (map BDA first)
-    void* bda = kfindrange(0x465);
-    page_map(bda, 0, PF_WRITE);
-    crtbaseio = *(volatile unsigned short*)(void*)((char*)bda+0x0463);
-    page_unmap(bda);
+    {   MappedMemory<char> bda(reinterpret_cast<void*>(0), PF_WRITE);
+        crtbaseio = *(volatile unsigned short*)(void*)(bda.get()+0x0463);
+    }
     // get cursor position:
     //   get lo port from index register
     outb(crtbaseio, 0xF);

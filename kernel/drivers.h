@@ -19,6 +19,8 @@ namespace kernel
 class DriverManager
 {
 public:
+    DriverManager() = default;
+
     std::shared_ptr<ConsoleDriver>
         register_console_driver(std::shared_ptr<ConsoleDriver> driver) { return register_device(_console_driver = driver); }
 

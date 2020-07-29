@@ -5,12 +5,12 @@
 
 void kernel::VESAGraphicsDriver::init()
 {
+    unsigned char *framebuffer_orig;
 	// Map in and copy the info struct
-    vbe_mode_info* vesa_orig = (vbe_mode_info*)kfindrange(4096);
-    page_map((void*)vesa_orig, (void*)loaderInfo.vbe, PF_NONE);
-    unsigned char *framebuffer_orig = vesa_orig->framebuffer;
-	vesaMode = *vesa_orig;
-    page_unmap(vesa_orig);
+    {   MappedMemory<vbe_mode_info> vesa_orig((void*)loaderInfo.vbe, PF_NONE);
+        framebuffer_orig = vesa_orig.get()->framebuffer;
+        vesaMode = *vesa_orig.get();
+    } // vesa_orig
     page_free((void*)loaderInfo.vbe,1);
 	
 	// Map in the frame buffer
@@ -18,11 +18,13 @@ void kernel::VESAGraphicsDriver::init()
     xres = vesaMode.width;
     yres = vesaMode.height;
     pixelWidth = vesaMode.bpp/8;
-    unsigned char *frameBuffer = (unsigned char *)kfindrange(xres*yres*3);
-    for (int i = 0; i < xres*yres*pixelWidth+4095; i += 4096)
-        page_map(frameBuffer+i,framebuffer_orig+i, PF_WRITE);
+    
+    _frame_buffer = std::make_unique<MappedMemory<unsigned char> >(
+            framebuffer_orig,
+            PF_WRITE,
+            xres*yres*pixelWidth);
     
     // Create the graphics context
-    raw_screen_context = new MemoryGraphicsContext(fs_driver, frameBuffer, vesaMode.bpp, xres, yres);
+    raw_screen_context = new MemoryGraphicsContext(fs_driver, _frame_buffer.get()->get(), vesaMode.bpp, xres, yres);
     buffered_screen_context = new BufferedMemoryGraphicsContext(raw_screen_context);
 }

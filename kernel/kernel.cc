@@ -57,9 +57,9 @@ void _pre_init(loader_info *li)
 
 Kernel::Kernel()
     : _symbols(std::make_shared<SymbolManager>(_DYNAMIC, loaderInfo.loaded)),
-      _current_drivers(std::make_shared<DriverManager>()),
-      _root_drivers(_current_drivers)
+      _root_drivers(std::make_shared<DriverManager>())
 {
+    _current_drivers = _root_drivers;
 }
 
 extern "C" {
