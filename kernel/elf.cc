@@ -140,7 +140,7 @@ private:
 
 extern "C" {
 
-static void* driver_end = (void*)0xE0000000; // FIXME: FIX FOR MULTITHREADING
+static void* driver_end = reinterpret_cast<void*>(0xE0000000); // FIXME: FIX FOR MULTITHREADING
 
 void* vm8086_gpfault;
 

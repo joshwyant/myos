@@ -222,7 +222,7 @@ void kernel::GraphicalConsoleDriver::update_cursor_index()
 }
 
 kernel::TextModeConsoleDriver::TextModeConsoleDriver()
-    : ConsoleDriver((void*)0xB8000)
+    : ConsoleDriver(reinterpret_cast<void*>(0xB8000))
 {
     // save CRT base IO port (map BDA first)
     void* bda = kfindrange(0x465);

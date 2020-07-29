@@ -5,6 +5,10 @@
 #include "kernel.h"
 #include "process.h"
 
+using namespace kernel;
+
+extern "C" {
+
 // count of RAM
 unsigned int total_memory;
 
@@ -58,14 +62,14 @@ static inline int ktaginsize(unsigned tag)
 // Returns the tag for the memory address
 static inline unsigned ktag(void* ptr)
 {
-    return *((unsigned*)(ptr+(unsigned)(-4)));
+    return *((unsigned*)ptr-1);
 }
 
 // Sets the tags (tag must have the right length encoded)
-static inline unsigned ksettag(void* ptr, unsigned tag)
+static inline void ksettag(void* ptr, unsigned tag)
 {
-    *((unsigned*)(ptr+(unsigned)(-4))) = tag;
-    *((unsigned*)(ptr+ktaginsize(tag))) = tag;
+    *(((unsigned*)ptr-1)) = tag;
+    *((unsigned*)(void*)((char*)ptr+ktaginsize(tag))) = tag;
 }
 
 // Makes a tag
@@ -81,25 +85,25 @@ static inline unsigned kmaketag(int blocksize, int used, int begin, int end)
 // The tag of the previous block
 static inline unsigned ktagprev(void* ptr)
 {
-    return *((unsigned*)(ptr+(unsigned)(-8)));
+    return *((unsigned*)ptr-2);
 }
 
 // The tag of the next block
 static inline unsigned ktagnext(void* ptr)
 {
-    return *((unsigned*)(ptr+ktagsize(ktag(ptr))));
+    return *((unsigned*)(void*)((char*)ptr+ktagsize(ktag(ptr))));
 }
 
 // The pointer to the previous adjacent block
 static inline void* kadjprev(void* ptr)
 {
-    return ptr+(unsigned)(-ktagsize(ktagprev(ptr)));
+    return (char*)ptr-ktagsize(ktagprev(ptr));
 }
 
 // The pointer to the next adjacent block
 static inline void* kadjnext(void* ptr)
 {
-    return ptr+ktagsize(ktag(ptr));
+    return (char*)ptr+ktagsize(ktag(ptr));
 }
 
 // Returns the pointer previous to this free pointer 
@@ -152,35 +156,37 @@ static inline void kptrunlink(void* ptr)
 
 void page_map(void *logical, void *physical, unsigned flags)
 {
-    volatile unsigned* dir     = (volatile unsigned*)0xFFFFF000; // The page directory's address
-    volatile unsigned* tbl     = (volatile unsigned*)0xFFC00000+(((unsigned)logical>>12)&~0x3FF); // The page table's address
-    unsigned           dir_ind = ((unsigned)logical>>22);       // The index into the page directory
-    unsigned           tbl_ind = ((unsigned)logical>>12)&0x3FF; // The index into the page table
+    volatile unsigned* dir     = reinterpret_cast<volatile unsigned*>(0xFFFFF000); // The page directory's address
+    volatile unsigned* tbl     = reinterpret_cast<volatile unsigned*>(0xFFC00000)
+                                     +((reinterpret_cast<unsigned>(logical)>>12)&~0x3FF); // The page table's address
+    unsigned           dir_ind = (reinterpret_cast<unsigned>(logical)>>22);       // The index into the page directory
+    unsigned           tbl_ind = (reinterpret_cast<unsigned>(logical)>>12)&0x3FF; // The index into the page table
     // If a page table doesn't exist
-    while (lock(&page_map_locked)) process_yield();
-    if (!(dir[dir_ind]&1))
-    {
-        // Page table
-        void* ptr = page_alloc(1);
-        if (!ptr) bsod("Insufficient memory.");
-        dir[dir_ind] = (unsigned)ptr+(PF_PRESENT|PF_WRITE|(logical < (void*)0xC0000000 ? PF_USER : 0)); // add to directory
-        // wipe table (after we mapped it! stumped me for about 5 minutes...)
-        int i;
-        for (i = 0; i < 1024; i++) tbl[i] = 0;
-        invlpg((void*)(unsigned)tbl);
-    }
-    page_map_locked = 0;
-    tbl[tbl_ind] = ((unsigned)physical&~0xFFF)+(flags|PF_PRESENT);
+    {   ScopedLock lock(page_map_locked);
+        if (!(dir[dir_ind]&1))
+        {
+            // Page table
+            void* ptr = page_alloc(1);
+            if (!ptr) bsod("Insufficient memory.");
+            dir[dir_ind] = (unsigned)ptr+(PF_PRESENT|PF_WRITE|(logical < reinterpret_cast<void*>(0xC0000000) ? PF_USER : 0)); // add to directory
+            // wipe table (after we mapped it! stumped me for about 5 minutes...)
+            int i;
+            for (i = 0; i < 1024; i++) tbl[i] = 0;
+            invlpg((void*)const_cast<unsigned*>(tbl));
+        }
+    } // page_map_locked
+    tbl[tbl_ind] = (reinterpret_cast<unsigned>(physical)&~0xFFF)+(flags|PF_PRESENT);
     // Invalidate the page
-    invlpg((void*)(((unsigned)logical)&~0xFFF));
+    invlpg((void*)((reinterpret_cast<unsigned>(logical))&~0xFFF));
 }
 
 void page_unmap(void* logical)
 {
-    volatile unsigned* dir     = (volatile unsigned*)0xFFFFF000; // The page directory's address
-    volatile unsigned* tbl     = (volatile unsigned*)0xFFC00000+(((unsigned)logical>>12)&~0x3FF); // The page table's address
-    unsigned           dir_ind = ((unsigned)logical>>22);       // The index into the page directory
-    unsigned           tbl_ind = ((unsigned)logical>>12)&0x3FF; // The index into the page table
+    volatile unsigned* dir     = reinterpret_cast<volatile unsigned*>(0xFFFFF000); // The page directory's address
+    volatile unsigned* tbl     = reinterpret_cast<volatile unsigned*>(0xFFC00000)
+                                     +((reinterpret_cast<unsigned>(logical)>>12)&~0x3FF); // The page table's address
+    unsigned           dir_ind = (reinterpret_cast<unsigned>(logical)>>22);       // The index into the page directory
+    unsigned           tbl_ind = (reinterpret_cast<unsigned>(logical)>>12)&0x3FF; // The index into the page table
     if (!(dir[dir_ind]&1)) return; // Page table is not present, we needn't do any unmapping.
     tbl[tbl_ind] = 0; // Unmap it
     // Remove an empty page table if this is not a kernel page table (is below 0xC0000000).
@@ -188,7 +194,7 @@ void page_unmap(void* logical)
     // because we don't have to worry about a mapped page table becoming invalid because the kernel used
     // a new page table in a different process! This can only make up to 1 megabyte of unused memory,
     // and chances are, that memory will be used later.
-    if (logical < (void*)0xc0000000)
+    if (logical < reinterpret_cast<void*>(0xc0000000))
     {
         int found = 0, i;
         // If the table is empty, free the table.
@@ -199,12 +205,12 @@ void page_unmap(void* logical)
             // dir[dir_ind] = 0;
             // page_free((void*)tbl, 1);
             // invlpg((void*)(unsigned)tbl);
-            while (lock(&page_map_locked)) process_yield();
-            page_free((void*)(dir[dir_ind]&0xFFFFF000), 1);
-            dir[dir_ind] = 0;
-            page_map_locked = 0;
-            page_unmap((void*)tbl);
-            invlpg((void*)(unsigned)tbl);
+            {   ScopedLock lock(page_map_locked);
+                page_free(reinterpret_cast<void*>(dir[dir_ind]&0xFFFFF000), 1);
+                dir[dir_ind] = 0;
+            } // page_map_locked
+            page_unmap((void*)const_cast<unsigned*>(tbl));
+            invlpg((void*)const_cast<unsigned*>(tbl));
         }
     }
     // Invalidate the page
@@ -222,17 +228,17 @@ void* kfindrange(int size)
 	// in the highest 1/16 of the page table memory: 0xFFFC0000-0xFFFFF000.
 	
 	// Start enumerating the page tables for the designated range (0xF0000000+).
-    volatile void* volatile* p = (volatile void* volatile*)0xFFFC0000; // Pointer to a PTE
+    volatile void* volatile* p = reinterpret_cast<volatile void* volatile*>(0xFFFC0000); // Pointer to a PTE
     void* ptr; // pointer to range, what we will eventually return
     int bytes = 0; // bytes found
     static int locked = 0;
-    while (lock(&locked)) process_yield();
-    while ((void*)p < (void*)0xFFFFF000)
+    ScopedLock lock(locked);
+    while ((void*)p < reinterpret_cast<void*>(0xFFFFF000))
     {
         // Addr = (p-0xFFFC0000)*4096/4+0xF0000000
-        if (!bytes) ptr = (void*)((((unsigned)p-0xFFFC0000)<<12)/4+0xF0000000);
+        if (!bytes) ptr = reinterpret_cast<void*>(((reinterpret_cast<unsigned>(p)-0xFFFC0000)<<12)/4+0xF0000000);
         // Is there a page table for this range?
-        if (!(*((volatile unsigned*)0xFFFFF000+((unsigned)ptr>>22))&1))
+        if (!(*(reinterpret_cast<volatile unsigned*>(0xFFFFF000)+((unsigned)ptr>>22))&1))
         {
             // No; A whole 4MB range of memory is mappable.
             bytes += 0x400000;
@@ -241,7 +247,7 @@ void* kfindrange(int size)
         else
         {
             bytes += 4096; // Increment available bytes,
-            if (((unsigned)*p)&1)
+            if ((*(unsigned*)p)&1)
             {
 				// but only if we have contiguous free space.
                 bytes = 0;
@@ -255,25 +261,23 @@ void* kfindrange(int size)
             int i;
             //for (i = 0; i < size; i++)
             //    page_map(ptr+i*4096,0,PF_NONE); // Temporarily map the pages to 0 to keep kfindrange from reallocating them in another process
-            locked = 0; // unlock spinlock
             return ptr;
         }
     }
-    locked = 0;
-    return 0;
+    return nullptr;
 }
 
 // Gets the physical address represented by the given virtual address
 void* get_physaddr(void* logical)
 {
-    unsigned pgdir_index = (unsigned)logical>>22;
-    unsigned pgtbl_index = ((unsigned)logical>>12)&0x3FF;
-    unsigned offset = (unsigned)logical&0xFFF;
-    unsigned* pgdir = (unsigned*)0xFFFFF000;
-    if (!(pgdir[pgdir_index]&1)) return 0;
-    unsigned* pgtbl = (unsigned*)(0xFFC00000+0x1000*pgdir_index);
-    if (!(pgtbl[pgtbl_index]&1)) return 0;
-    return (void*)((pgtbl[pgtbl_index]&0xFFFFF000)|offset);
+    unsigned pgdir_index = reinterpret_cast<unsigned>(logical)>>22;
+    unsigned pgtbl_index = (reinterpret_cast<unsigned>(logical)>>12)&0x3FF;
+    unsigned offset = reinterpret_cast<unsigned>(logical)&0xFFF;
+    unsigned* pgdir = reinterpret_cast<unsigned*>(0xFFFFF000);
+    if (!(pgdir[pgdir_index]&1)) return nullptr;
+    unsigned* pgtbl = reinterpret_cast<unsigned*>(0xFFC00000+0x1000*pgdir_index);
+    if (!(pgtbl[pgtbl_index]&1)) return nullptr;
+    return reinterpret_cast<void*>((pgtbl[pgtbl_index]&0xFFFFF000)|offset);
 };
 
 void init_paging(loader_info *li)
@@ -322,7 +326,7 @@ void init_paging(loader_info *li)
     unsigned tpages = (kend-0xC0000000+0xFFF)>>12;
     volatile int i;
     for (i = kpages; i < tpages; i++)
-        page_map((void*)0xC0000000+(i<<12), li->freemem+((i-kpages)<<12), PF_LOCKED|PF_WRITE);
+        page_map(reinterpret_cast<void*>(0xC0000000+(i<<12)), (char*)li->freemem+((i-kpages)<<12), PF_LOCKED|PF_WRITE);
     // Initialize physical memory bitmap.
     // Number of pages in memory = mem/4k   = mem>>12
     // Number of uints in bitmap = pages/32 = mem>>17
@@ -344,7 +348,7 @@ void init_paging(loader_info *li)
                 if (px[0] >= total_memory) break;
                 // mark used pages
                 ptr = (void*)(px[0]&~0xFFF);
-                for (i = 0; ptr < (void*)px[2]; i++, ptr += 0x1000)
+                for (i = 0; ptr < (void*)px[2]; i++, ((char*&)ptr) += 0x1000)
                     mark_page(ptr,1);
                 break;
             }
@@ -356,37 +360,37 @@ void init_paging(loader_info *li)
     //   IVT, BDA, Free
     mark_page(0,1);
     //   Boot sector
-    mark_page((void*)0x7000,1);
+    mark_page(reinterpret_cast<void*>(0x7000),1);
     //   Video memory, vga rom, bios rom
-    mark_pages((void*)0xA0000,96,1);
+    mark_pages(reinterpret_cast<void*>(0xA0000),96,1);
     //   kernel image, page bitmap
     ptr = li->loaded;
-    for (i = 0; i < tpages; i++, ptr += 0x1000)
+    for (i = 0; i < tpages; i++, ((char*&)ptr) += 0x1000)
         mark_page(get_physaddr(ptr), 1);
     //   (Whoops, don't forget these! >>>)
     //   kernel page tables
-    ptr = (void*)0xFFC00000;
+    ptr = reinterpret_cast<void*>(0xFFC00000);
     // Optimization changes i < 1024 to ptr < 0x100000000, but due to 32 bits, it wraps to 0 and the condition is optimized out.
     // Change to volatile?
-    for (i = 0; i < 1024; i++, ptr += 0x1000)
+    for (i = 0; i < 1024; i++, ((char*&)ptr) += 0x1000)
     {
         void* ph = get_physaddr(ptr);
         if (ph) mark_page(ph, 1);
     }
     //   (or the stack! 8-23-2008)
-    mark_page(get_physaddr((void*)0xF0000000), 1);
+    mark_page(get_physaddr(reinterpret_cast<void*>(0xF0000000)), 1);
     // PAGING is now setup enough AT THIS POINT to ALLOCATE AND FREE PAGES, AND MAPPING (MAPPING MAY ALLOCATE OR FREE PAGE TABLES):
     // Unmap first megabyte
-    for (ptr = (void*)0x00000000; ptr < (void*)0x00100000; ptr+=0x1000)
+    for (ptr = reinterpret_cast<void*>(0x00000000); ptr < reinterpret_cast<void*>(0x00100000); ((char*&)ptr)+=0x1000)
         page_unmap(ptr);
     // Map a copy of the system's Page Directory Table
-    system_pdt = kfindrange(4096);
-    page_map((void*)system_pdt, get_physaddr((void*)0xFFFFF000), PF_LOCKED|PF_WRITE);
+    system_pdt = (volatile unsigned int*)kfindrange(4096);
+    page_map((void*)system_pdt, get_physaddr(reinterpret_cast<void*>(0xFFFFF000)), PF_LOCKED|PF_WRITE);
 }
 
 void init_heap()
 {
-    heap_start = heap_end = heap_brk = (void*)0xD0000000;
+    heap_start = heap_end = heap_brk = reinterpret_cast<void*>(0xD0000000);
     first_free = last_free = 0;
 }
 
@@ -398,11 +402,11 @@ int ksbrk(int n)
     for (i = 0; i < n; i++)
     {
         // Heap's range is from 0xD0000000 - 0xE0000000
-        if ((heap_brk + 4096) > (void*)0xE0000000) return i;
+        if (((char*)heap_brk + 4096) > reinterpret_cast<char*>(0xE0000000)) return i;
         void* pg = page_alloc(1);
         if (!pg) return i;
         page_map(heap_brk, pg, PF_WRITE);
-        heap_brk += 4096;
+        (char*&)heap_brk += 4096;
     }
     return i;
 }
@@ -429,7 +433,7 @@ static void* kfirstfreeblock(int size)
         if (size < ktaginsize(ktag(ptr))) return ptr;
         ptr = knextfree(ptr);
     }
-    return 0;
+    return nullptr;
 }
 
 // Duplicates a heap object
@@ -502,7 +506,7 @@ void* kmalloc(int size)
     // The size of each block is perfect in this case. There can be up to 16777216 16-byte blocks in 256MB.
     // 16777216 is 2^24, the same as the size value in the tag. There is room for flags in a byte.
     // 2 tags + 2 pointers = 16 bytes.
-    while (lock(&heap_busy)) process_yield();
+    ScopedLock lock(heap_busy);
     void* ptr = kbestfreeblock(size); // faster: kfirstfreeblock(int)
     int m = (size + 23) & 0xFFFFFFF0; // Minimum size needed for a block. ((size + 8) + 15) / 16 * 16;
     if (ptr)
@@ -514,12 +518,11 @@ void* kmalloc(int size)
         {
             unsigned tag = ktag(ptr); // tag is the current tag.
             int s = ktagsize(tag);    // s = the actual size of the tag.
-            ksettag(ptr+m, kmaketag(s-m, 0, 0,   ktagisend(tag))); // A new tag to be made. ptr+m = the address of the new tag
+            ksettag((char*)ptr+m, kmaketag(s-m, 0, 0,   ktagisend(tag))); // A new tag to be made. ptr+m = the address of the new tag
             ksettag(ptr,   kmaketag(m,   1, ktagisbegin(tag), 0)); // Set the tags for our resized block
             // link in the new block because it's free
-            kptrlink(ptr+m);
+            kptrlink((char*)ptr+m);
         }
-        heap_busy = 0;
         mark_debug_mem(ptr, size);
         return ptr;
     }
@@ -527,13 +530,12 @@ void* kmalloc(int size)
     {
         // There are no free blocks; Try and expand the heap and make a new block.
         void* t = heap_end;
-        while (t+m > heap_brk) if (!ksbrk(1)) { heap_busy = 0; return 0; }
-        heap_end = t+m;
-        ptr = t+4;
-        ksettag(ptr, kmaketag(m, 1, ptr == (void*)0xD0000004, 1));
-        if (ptr != (void*)0xD0000004)
+        while ((void*)((char*)t+m) > heap_brk) if (!ksbrk(1)) return nullptr;
+        heap_end = (void*)((char*)t+m);
+        ptr = (void*)((char*)t+4);
+        ksettag(ptr, kmaketag(m, 1, ptr == reinterpret_cast<void*>(0xD0000004), 1));
+        if (ptr != reinterpret_cast<void*>(0xD0000004))
             ksettag(kadjprev(ptr), ktag(kadjprev(ptr))&0xFBFFFFFF); // The previous block is no longer at the end of the memory.
-        heap_busy = 0;
         mark_debug_mem(ptr, size);
         return ptr;
     }
@@ -542,7 +544,7 @@ void* kmalloc(int size)
 void kfree(void* ptr)
 {
     if (!ptr) return;
-    while (lock(&heap_busy)) process_yield();
+    ScopedLock lock(heap_busy);
     // Unlink any adjacent free blocks and coalesce them.
     int s = ktagsize(ktag(ptr)); // The total size of the free block
     void* ptr2 = ptr; // The leftmost adjacent free block
@@ -565,7 +567,7 @@ void kfree(void* ptr)
     {
         if (!ktagisbegin(ktag(ptr2))) ksettag(kadjprev(ptr2), ktag(kadjprev(ptr2))|0x04000000); // Make the previous block the end of memory
         mark_debug_mem(ptr2, ktaginsize(ktag(ptr2)));
-        heap_end = ptr2 + (unsigned)(-4);
+        heap_end = (void*)((char*)ptr2 - 4);
     }
     else
     {
@@ -573,15 +575,14 @@ void kfree(void* ptr)
         mark_debug_mem(ptr2, ktaginsize(ktag(ptr2)));
         kptrlink(ptr2);
     }
-    heap_busy = 0;
 }
 
 // Allocates a number of pages in the given range
 // FOR USE IN PAGE_ALLOC FUNCTIONS
 static inline void* palloc(int size,void* start,void* end)
 {
-    while (lock(&palloc_lock)) process_yield();
-    void register *ptr = page_bitmap+((unsigned int)start>>15), *ptr2 = page_bitmap+((unsigned int)end>>15), *startptr;
+    ScopedLock lock(palloc_lock);
+    void register *ptr = (char*)page_bitmap+((unsigned int)start>>15), *ptr2 = (char*)page_bitmap+((unsigned int)end>>15), *startptr;
     int i, count = 0;
     unsigned char volatile bit;
     while (ptr < ptr2)
@@ -589,7 +590,7 @@ static inline void* palloc(int size,void* start,void* end)
         if (*(unsigned int*)ptr == 0xFFFFFFFF)
         {
             count = 0;
-            ptr += 4;
+            (char*&)ptr += 4;
             continue;
         }
         bit = 1;
@@ -601,17 +602,16 @@ static inline void* palloc(int size,void* start,void* end)
             {
                 if (count == 0) startptr = (void*)(((((unsigned int)ptr-(unsigned int)page_bitmap)<<3)+i)<<12);
                 count++;
-                if (count >= size) goto found;
+                if (count >= size)
+                {
+                    mark_pages(startptr, size, 1);
+                    return startptr;
+                }
             }
         }
-        ptr++;
+        ((char*&)ptr)++;
     }
-    palloc_lock = 0;
-    return (void*)0;
-found:
-    mark_pages(startptr, size, 1);
-    palloc_lock = 0;
-    return startptr;
+    return nullptr;
 }
 
 // Marks the given page range as used or free.
@@ -619,7 +619,7 @@ found:
 static void inline mark_pages(void* page, int count, int used)
 {
     register int i;
-    for (i = 0; i < count; i++) mark_page(page+i*4096, used);
+    for (i = 0; i < count; i++) mark_page((char*)page+i*4096, used);
 }
 
 // Marks the given page as used or free.
@@ -627,9 +627,9 @@ static void inline mark_pages(void* page, int count, int used)
 static void inline mark_page(void* page, int used)
 {
     if (used)
-        *(unsigned char*)(page_bitmap+((unsigned int)page>>15)) |= 1<<(((unsigned int)page>>12)%8);
+        *((unsigned char*)page_bitmap+((unsigned int)page>>15)) |= 1<<(((unsigned int)page>>12)%8);
     else
-        *(unsigned char*)(page_bitmap+((unsigned int)page>>15)) &= ~(unsigned char)(1<<(((unsigned int)page>>12)%8));
+        *((unsigned char*)page_bitmap+((unsigned int)page>>15)) &= ~(unsigned char)(1<<(((unsigned int)page>>12)%8));
 }
 
 // Frees a number of contiguous pages at the given PHYSICAL ADDRESS by marking them unused.
@@ -637,16 +637,15 @@ static void inline mark_page(void* page, int used)
 // For that, use page_unmap before marking the physical page as unused.
 void page_free(void* phys_addr, int count)
 {
-    while (lock(&palloc_lock)) process_yield();
+    ScopedLock lock(palloc_lock);
     mark_pages(phys_addr, count, 0);
-    palloc_lock = 0;
 }
 
 // Returns the physical address of a set of free contiguous pages.
 void* page_alloc(int size)
 {
     // search from 16MiB to end of memory.
-    void* ptr = palloc(size, (void*)0x1000000, (void*)total_memory);
+    void* ptr = palloc(size, reinterpret_cast<void*>(0x1000000), reinterpret_cast<void*>(total_memory));
     if (!ptr) return extended_alloc(size);
     return ptr;
 }
@@ -655,7 +654,7 @@ void* page_alloc(int size)
 void* extended_alloc(int size)
 {
     // search from 1MiB to 16MiB.
-    void* ptr = palloc(size, (void*)0x100000, (void*)0x1000000);
+    void* ptr = palloc(size, reinterpret_cast<void*>(0x100000), reinterpret_cast<void*>(0x1000000));
     if (!ptr) return base_alloc(size);
     return ptr;
 }
@@ -664,5 +663,7 @@ void* extended_alloc(int size)
 void* base_alloc(int size)
 {
     // search from 0MiB to 1MiB.
-    return palloc(size, (void*)0, (void*)0x100000);
+    return palloc(size, reinterpret_cast<void*>(0x00000000), reinterpret_cast<void*>(0x100000));
 }
+
+} // extern "C"

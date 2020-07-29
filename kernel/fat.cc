@@ -2,6 +2,7 @@
 #include "error.h"
 #include "fat.h"
 #include "fs.h"
+#include "memory.h"
 
 // File Attributes
 #define ATTR_READ_ONLY      0x01
@@ -30,13 +31,13 @@
 void kernel::FATDriver::fat_init()
 {
     // Copy BIOS parameter block from where the boot sector was loaded
-    char* bootsect = (char*)kfindrange(0x1000)+0xC00;
-    page_map(bootsect, (void*)0x7000, PF_WRITE);
-    bpb = *(BPBMain*)bootsect;
-    bpb16 = *(BPB16*)(void*)(bootsect+36);
-    bpb32 = *(BPB32*)(void*)(bootsect+36);
-    page_unmap(bootsect);
-    page_free((void*)0x7000, 1);
+    {   kernel::MappedMemory<char> bootpage(reinterpret_cast<void*>(0x7000), PF_WRITE);
+        char* bootsect = bootpage.get() + 0xC00;
+        bpb = *(BPBMain*)bootsect;
+        bpb16 = *(BPB16*)(void*)(bootsect+36);
+        bpb32 = *(BPB32*)(void*)(bootsect+36);
+    } // bootpage
+    page_free(reinterpret_cast<void*>(0x7000), 1);
     // make current directory the root directory
     kstrcpy(current_dir, "/");
     dir_info.cluster_low = 0; // cluster 0 directory is root

@@ -83,7 +83,7 @@ $TARGET-gcc $CFLAGS interrupt.c -o ./obj/interrupt.o
 $TARGET-gcc $CPPFLAGS kcpp.cc -o ./obj/kcpp.o
 $TARGET-gcc $CPPFLAGS kernel.cc -o ./obj/kernel.o
 $TARGET-gcc $CPPFLAGS keyboard.cc -o ./obj/keyboard.o
-$TARGET-gcc $CFLAGS memory.c -o ./obj/memory.o
+$TARGET-gcc $CPPFLAGS memory.cc -o ./obj/memory.o
 $TARGET-gcc $CPPFLAGS mouse.cc -o ./obj/mouse.o
 $TARGET-gcc $CFLAGS process.c -o ./obj/process.o
 $TARGET-gcc $CFLAGS string.c -o ./obj/string.o
