@@ -19,7 +19,7 @@ class TimerDriver
 public:
     TimerDriver(KString device_name = "timer")
         :  Driver(device_name) {}
-    virtual int timer_handler() = 0;
+    virtual bool timer_handler() = 0;
 }; // class TimerDriver
 
 class PITTimerDriver
@@ -28,7 +28,7 @@ class PITTimerDriver
 public:
     PITTimerDriver(KString device_name = "timer");
     void start() override;
-    int timer_handler() override;
+    bool timer_handler() override;
 private:
     int pit_reload;
     unsigned timer_seconds;

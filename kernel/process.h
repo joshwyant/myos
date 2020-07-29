@@ -1,6 +1,7 @@
 #ifndef __PROCESS_H__
 #define __PROCESS_H__
 
+#include <stdbool.h>
 #include "fs.h"
 
 #ifdef __cplusplus
@@ -77,7 +78,7 @@ extern volatile unsigned		*system_pdt;
 extern volatile unsigned		*process_pdt;
 extern ProcessQueue				processes;
 extern unsigned					process_inc;
-extern int						switch_voluntary; // Whether the current task switch was explicit
+extern bool						switch_voluntary; // Whether the current task switch was explicit
 
 #ifdef __cplusplus
 }  // extern "C"

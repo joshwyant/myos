@@ -8,7 +8,7 @@ volatile unsigned		*system_pdt;
 volatile unsigned		*process_pdt = (unsigned*)0xFFFFF000;
 ProcessQueue			processes;
 unsigned				process_inc;
-int						switch_voluntary = 0; // Whether the current task switch was explicit
+bool					switch_voluntary = false; // Whether the current task switch was explicit
 
 void init_processes()
 {
@@ -22,7 +22,7 @@ void init_processes()
 void process_yield()
 {
     // Tell the timer handler the switch was voluntary
-    switch_voluntary = 1;
+    switch_voluntary = true;
     // IRQ0, the timer handler; Switches tasks
     asm volatile("int $0x20");
 }

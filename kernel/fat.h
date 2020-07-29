@@ -21,11 +21,11 @@ class FATFile
 public:
     unsigned filesize;
     unsigned position;
-    int seek(unsigned pos) override;
+    bool seek(unsigned pos) override;
     unsigned read(char *buffer, unsigned bytes) override;
     char getch() override;
     char peekc() override;
-    int eof() override;
+    bool eof() override;
     void close() override { fat_close(); }
     ~FATFile() override
     {
@@ -39,8 +39,8 @@ private:
           closed(false),
           File() {}
     void fat_close();
-    int push_cluster();
-    int pop_cluster();
+    bool push_cluster();
+    bool pop_cluster();
     friend class FATDriver;
     std::weak_ptr<FATDriver> fat_driver;
     Stack<unsigned> cluster_stack;
@@ -66,34 +66,33 @@ public:
     FATDriver(FATDriver&) = delete;
     FATDriver(FATDriver&&) noexcept = delete;
     FATDriver& operator=(FATDriver) = delete;
-    int read_file(const char* filename, void* buffer);
+    bool read_file(const char* filename, void* buffer);
     unsigned int file_size(const char* filename);
-    int file_exists(const char* filename);
-    int directory_exists(const char* dirname);
-    int chdir(const char* dir);
+    bool file_exists(const char* filename);
+    bool directory_exists(const char* dirname);
+    bool chdir(const char* dir);
     const char* current_directory();
     std::unique_ptr<File> file_open(const char *filename) override;
 private:
     friend class FATFile;
     void fat_init();
-    int read_cluster(int, void**);
-    int write_cluster(int, void*);
-    int _read_file_info(const char*,int);
-    int trace_info(const char*, int);
-    int read_file_info(const char*);
-    int read_dir_info(const char*);
-    int read_dir(const char* dir);
-    int read_root_file(const char*, int is_dir);
-    int dot_to_83(const char*, char*);
-    int streq(const char*, const char*);
+    bool read_cluster(int, void**);
+    bool write_cluster(int, void*);
+    bool _read_file_info(const char*,int);
+    bool trace_info(const char*, int);
+    bool read_file_info(const char*);
+    bool read_dir_info(const char*);
+    bool read_root_file(const char*, int is_dir);
+    bool dot_to_83(const char*, char*);
+    bool streq(const char*, const char*);
     void read_sector(int sector, void** buffer);
     void write_sector(int, void*);
-    int find_file(const char*, int size, int attributes);
+    bool find_file(const char*, int size, int attributes);
     unsigned int next_cluster(int cluster);
     unsigned int alloc_cluster(unsigned int);
     int set_next_cluster(unsigned int, unsigned int);
     unsigned int alloc_next_cluster(unsigned int);
-    inline int eof(unsigned);
+    inline bool eof(unsigned);
 
     std::shared_ptr<DiskDriver> disk_driver;
     struct __attribute__ ((__packed__)) BPBMain

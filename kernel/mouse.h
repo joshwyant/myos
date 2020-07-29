@@ -120,7 +120,7 @@ private:
       outb(0x60, a_write);
     }
 
-    inline int mouse_wait(unsigned char a_type)
+    inline bool mouse_wait(unsigned char a_type)
     {
       io_wait();
       unsigned int _time_out=100000;
@@ -130,10 +130,10 @@ private:
         {
           if((inb(0x64) & 1)==1)
           {
-            return 1;
+            return true;
           }
         }
-        return 0;
+        return false;
       }
       else
       {
@@ -141,10 +141,10 @@ private:
         {
           if((inb(0x64) & 2)==0)
           {
-            return 1;
+            return true;
           }
         }
-        return 0;
+        return false;
       }
     }
 }; // class PS2MouseDriver

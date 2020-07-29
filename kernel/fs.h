@@ -36,11 +36,11 @@ class File
 {
 public:
     virtual ~File() {}
-    virtual int seek(unsigned pos) = 0;
+    virtual bool seek(unsigned pos) = 0;
     virtual unsigned read(char *buffer, unsigned bytes) = 0;
     virtual char getch() = 0;
     virtual char peekc() = 0;
-    virtual int eof() = 0;
+    virtual bool eof() = 0;
     virtual void close() = 0;
     template <typename O> void read(O& o)
     {
@@ -63,11 +63,11 @@ public:
     FileSystemDriver(KString device_name = "hda1")
         : Driver(device_name) {}
     virtual ~FileSystemDriver() {}
-    virtual int read_file(const char* filename, void* buffer) = 0;
+    virtual bool read_file(const char* filename, void* buffer) = 0;
     virtual unsigned int file_size(const char* filename) = 0;
-    virtual int file_exists(const char* filename) = 0;
-    virtual int directory_exists(const char* dirname) = 0;
-    virtual int chdir(const char* dir) = 0;
+    virtual bool file_exists(const char* filename) = 0;
+    virtual bool directory_exists(const char* dirname) = 0;
+    virtual bool chdir(const char* dir) = 0;
     virtual const char* current_directory() = 0;
     virtual std::unique_ptr<File> file_open(const char *filename) = 0;
 }; // class FileSystemDriver

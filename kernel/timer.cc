@@ -38,9 +38,9 @@ extern "C" int handle_timer()
             ->timer_handler();
 }
 
-int PITTimerDriver::timer_handler()
+bool PITTimerDriver::timer_handler()
 {
-    int forced = switch_voluntary;
+    bool forced = switch_voluntary;
     if (!forced)
     {
         // Calculate the amount of time passed
@@ -50,14 +50,14 @@ int PITTimerDriver::timer_handler()
     }
     else
     {
-        switch_voluntary = 0; // reset switch_voluntary for the next timer tick
+        switch_voluntary = false; // reset switch_voluntary for the next timer tick
     }
-    if (!processes.first) return 0;
+    if (!processes.first) return false;
     if (current_process) // If we are already in a process
     {
         if (!forced && current_process->timeslice--)
         {
-            return 0;
+            return false;
         }
         ProcessNode* n;
         do
@@ -69,5 +69,5 @@ int PITTimerDriver::timer_handler()
     }
     current_process = processes.first->process;
     current_process->timeslice = 3-current_process->priority;
-    return 1;
+    return true;
 }

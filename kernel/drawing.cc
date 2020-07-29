@@ -498,7 +498,7 @@ void kernel::BufferedMemoryGraphicsContext::swap_buffers()
 	// TODO
 }
 
-int read_bitmap(std::shared_ptr<kernel::FileSystemDriver> fs_driver, Bitmap *b, const char *filename)
+bool read_bitmap(std::shared_ptr<kernel::FileSystemDriver> fs_driver, Bitmap *b, const char *filename)
 {
 	try
 	{
@@ -506,7 +506,7 @@ int read_bitmap(std::shared_ptr<kernel::FileSystemDriver> fs_driver, Bitmap *b, 
 		auto bf = f->read<BITMAPFILEHEADER>();
 		if (bf.bfType != 0x4D42)
 		{
-			return 0;
+			return false;
 		}
 		auto bc = f->read<BITMAPCOREHEADER>();
 		b->bits = new char[bc.bcWidth*bc.bcHeight*(bc.bcBitCount/8)];
@@ -517,14 +517,14 @@ int read_bitmap(std::shared_ptr<kernel::FileSystemDriver> fs_driver, Bitmap *b, 
 
 		f->seek(bf.bfOffBits);
 		f->read((char*)b->bits, bc.bcWidth*bc.bcHeight*(bc.bcBitCount/8));
-		return 1;
+		return true;
 	}
 	catch(const kernel::NotFoundError& e)
 	{
-		return 0;
+		return false;
 	}
 	catch(const kernel::OutOfMemoryError& e)
 	{
-		return 0;
+		return false;
 	}
 }

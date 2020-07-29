@@ -45,8 +45,8 @@ extern "C" void handle_keyboard()
 void PS2KeyboardDriver::keyboard_handler()
 {
     char scancode = inb(0x60);
-    int escaped = kbd_escaped;
-    kbd_escaped = 0;
+    bool escaped = kbd_escaped;
+    kbd_escaped = false;
     if (escaped)
     {
     }
@@ -64,14 +64,14 @@ void PS2KeyboardDriver::keyboard_handler()
         break;
     case 0x2A:
     case 0x36:
-        kbd_shift = 1;
+        kbd_shift = true;
         break;
     case 0xAA:
     case 0xB6:
-        kbd_shift = 0;
+        kbd_shift = false;
         break;
     case 0xE0:
-        kbd_escaped = 1;
+        kbd_escaped = true;
         break;
     default:
         if (!(scancode&0x80))

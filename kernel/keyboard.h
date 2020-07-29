@@ -1,6 +1,7 @@
 #ifndef __KEYBOARD_H__
 #define __KEYBOARD_H__
 
+#include <stddef.h>
 #include "interrupt.h"
 #include "driver.h"
 
@@ -71,8 +72,8 @@ public:
     virtual ~PS2KeyboardDriver() = default;
 private:
     std::unique_ptr<Keymap> keymap;
-    volatile int kbd_escaped;
-    volatile int kbd_shift;
+    volatile bool kbd_escaped;
+    volatile bool kbd_shift;
     volatile char kbd_buffer[32];
     volatile int kbd_count;
 }; // class PS2KeyboardDriver

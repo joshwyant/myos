@@ -247,7 +247,7 @@ int process_start(std::shared_ptr<kernel::FileSystemDriver> fs_driver, const cha
     p->blocked = 0;
     p->fpu_saved = 0;
     process_enqueue(p);
-    return 1;
+    return p->pid;
 }
 
 int load_driver(std::shared_ptr<kernel::FileSystemDriver> fs_driver, std::shared_ptr<kernel::SymbolManager> symbols, const char* filename)
@@ -395,14 +395,14 @@ int load_driver(std::shared_ptr<kernel::FileSystemDriver> fs_driver, std::shared
         if (s->sh_type == SHT_REL)
         {
             // Avoid relocating debug symbols if we didn't load that section
-            int loaded = 0;
+            bool loaded = false;
             switch (shdrs[s->sh_info].sh_type)
             {
                 case SHT_PROGBITS:
                 case SHT_NOBITS:
                     if (shdrs[s->sh_info].sh_flags & SHF_ALLOC)
                     {
-                        loaded = 1;
+                        loaded = true;
                     }
                     break;
             }
@@ -434,12 +434,5 @@ int load_driver(std::shared_ptr<kernel::FileSystemDriver> fs_driver, std::shared
 
     int retval;
     asm volatile("call *%1":"=a"(retval):"g"(drivermain));
-    if (retval == 0)
-        ret = 1;
-    else
-    {
-        ksprintf(t, "Driver exited with status %l.", retval);
-        throw ElfError(t);
-    }
-    return ret;
+    return retval;
 }

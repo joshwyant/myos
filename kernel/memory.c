@@ -1,3 +1,4 @@
+#include <stddef.h>
 #include "exceptions.h"
 #include "io.h"
 #include "interrupt.h"
@@ -25,19 +26,19 @@ static int	page_map_locked = 0;
 static int	palloc_lock = 0;
 
 // Takes a tag and tells if it's free
-static inline int ktagisfree(unsigned tag)
+static inline bool ktagisfree(unsigned tag)
 {
     return (tag & 0x01000000) == 0;
 }
 
 // Uses the tag to tell if an address is at the beginning of the heap
-static inline int ktagisbegin(unsigned tag)
+static inline bool ktagisbegin(unsigned tag)
 {
     return (tag & 0x02000000) != 0;
 }
 
 // Tag is at the end of the heap
-static inline int ktagisend(unsigned tag)
+static inline bool ktagisend(unsigned tag)
 {
     return (tag & 0x04000000) != 0;
 }

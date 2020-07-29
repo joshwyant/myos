@@ -121,7 +121,7 @@ void kmain()
     // Load vesadrvr.o
     try
     {
-        if (!load_driver(fat_driver, kernel->symbols(), "/system/bin/vesadrvr.o"))
+        if (load_driver(fat_driver, kernel->symbols(), "/system/bin/vesadrvr.o") != 0)
         {
             throw ElfError("load_driver returned non-zero status.");
         }
@@ -241,10 +241,7 @@ void start_shell(std::shared_ptr<kernel::FileSystemDriver> fs_driver)
 {
     try
     {
-        if (!process_start(fs_driver, "/system/bin/shell"))
-        {
-            throw ElfError("process_start returned non-zero status.");
-        }
+        process_start(fs_driver, "/system/bin/shell");
     }
     catch (ElfError& e)
     {

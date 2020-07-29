@@ -1,5 +1,6 @@
 #include <errno.h>
 #include <reent.h>
+#include <stddef.h>
 #include <sys/stat.h>
 #include "interrupt.h"
 #include "io.h"
@@ -68,7 +69,7 @@ struct status_tuple user_fork();
 // subdirectory for this C library.
 int user_fstat(int file, struct stat *st);
 // Query whether output stream is a terminal.
-int user_isatty(int file);
+bool user_isatty(int file);
 // Send a signal.
 struct status_tuple user_kill(int pid, int sig);
 // Establish a new name for an existing file.
@@ -268,9 +269,9 @@ int user_fstat(int file, struct stat *st)
     return 0;
 }
 // Query whether output stream is a terminal.
-int user_isatty(int file)
+bool user_isatty(int file)
 {
-    return 1;
+    return true;
 }
 // Send a signal.
 struct status_tuple user_kill(int pid, int sig)

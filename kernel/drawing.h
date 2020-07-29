@@ -1,6 +1,7 @@
 #ifndef __DRAWING_H__
 #define __DRAWING_H__
 
+#include <stddef.h>
 #include "disk.h"
 #include "fs.h"
 
@@ -150,7 +151,7 @@ inline static void get_bitmap_metrics(Bitmap *bmp, int *stride, int *pixelWidth)
 #ifdef __cplusplus
 }  // extern "C"
 
-int read_bitmap(std::shared_ptr<kernel::FileSystemDriver> fs_driver, Bitmap *b, const char *filename);
+bool read_bitmap(std::shared_ptr<kernel::FileSystemDriver> fs_driver, Bitmap *b, const char *filename);
 
 namespace kernel
 {
