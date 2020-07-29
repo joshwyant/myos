@@ -3,6 +3,7 @@
 
 #include <stdbool.h>
 #include "fs.h"
+#include "io.h"
 
 #ifdef __cplusplus
 #include <memory>
@@ -84,6 +85,25 @@ extern bool						switch_voluntary; // Whether the current task switch was explic
 }  // extern "C"
 
 extern int process_start(std::shared_ptr<kernel::FileSystemDriver> fs_driver, const char* filename);
-#endif
 
+namespace kernel
+{
+// RAII wrapper around lock()
+class ScopedLock
+{
+public:
+    ScopedLock(int& val)
+        : ptr(&val)
+    {
+        while (lock(ptr)) process_yield();
+    }
+    ~ScopedLock()
+    {
+        *ptr = 0;
+    }
+private:
+    int *ptr;
+};
+} // namespace kernel
+#endif  // __cplusplus
 #endif  // __PROCESS_H__

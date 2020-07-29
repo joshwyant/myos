@@ -5,7 +5,7 @@
 void kernel::PIODiskDriver::read_sectors(char *buffer, int sectors, int lba)
 {
     // TODO: Lock disk buffer into memory >>here<<
-    while (lock(&disklock)) process_yield();
+    ScopedLock lock(disklock);
     int base = controller ? 0x170 : 0x1F0;
     outb(base+1,0);
     outb(base+2, sectors);
@@ -17,13 +17,12 @@ void kernel::PIODiskDriver::read_sectors(char *buffer, int sectors, int lba)
     while (!(inb(base+7)&8)) ;
     int i;
     for (i = 0; i < 256; i++) ((unsigned short*)buffer)[i] = inw(base);
-    disklock = 0;
 }
 
 void kernel::PIODiskDriver::write_sectors(const char *buffer, int sectors, int lba)
 {
     // TODO: Lock disk buffer into memory >>here<<
-    while (lock(&disklock)) process_yield();
+    ScopedLock lock(disklock);
     int base = controller ? 0x170 : 0x1F0;
     outb(base+1,0);
     outb(base+2, sectors);
@@ -35,5 +34,4 @@ void kernel::PIODiskDriver::write_sectors(const char *buffer, int sectors, int l
     while (!(inb(base+7)&8)) ;
     int i;
     for (i = 0; i < 256; i++) outw(base, ((unsigned short*)buffer)[i]);
-    disklock = 0;
 }

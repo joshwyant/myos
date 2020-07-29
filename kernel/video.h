@@ -145,7 +145,7 @@ private:
 
     void _print_char(char c, unsigned char color)
     {
-        while (lock(&screenlock)) process_yield(); // Another thread is using this function
+        ScopedLock lock(screenlock);
         int i;
         volatile unsigned short* line1 = 
             (volatile unsigned short*)videomem;
@@ -176,7 +176,6 @@ private:
                 *line1 = (unsigned short)' ' | (color << 8);
             redraw();
         }
-        screenlock = 0; // Unlock this function
     }
 }; // class ConsoleDriver
 

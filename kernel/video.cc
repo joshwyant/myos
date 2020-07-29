@@ -171,12 +171,12 @@ kernel::GraphicalConsoleDriver::~GraphicalConsoleDriver()
 
 void kernel::GraphicalConsoleDriver::show_cursor(int show)
 {
-    while (lock(&show_cursorlock)) process_yield();
-    if (show?cursor_shown?0:1:cursor_shown?1:0)
-    {
-        cursor_shown = show;
-    }
-    show_cursorlock = 0; // Unlock show_cursor
+    {   ScopedLock lock(show_cursorlock);
+        if (show?cursor_shown?0:1:cursor_shown?1:0)
+        {
+            cursor_shown = show;
+        }
+    } // show_cursorlock
     update_cursor_index();
 }
 void kernel::GraphicalConsoleDriver::redraw(int pos)
@@ -245,10 +245,9 @@ kernel::TextModeConsoleDriver::TextModeConsoleDriver()
 
 void kernel::ConsoleDriver::move_cursor(int pos)
 {
-    while (lock(&cursorlock)) process_yield();
+    ScopedLock lock(cursorlock);
     cursorpos = pos;
     update_cursor_index();
-    cursorlock = 0;
 }
 
 void kernel::ConsoleDriver::print_char(char c)
@@ -283,22 +282,22 @@ void kernel::ConsoleDriver::printlen(const char* str, int len)
 
 void kernel::TextModeConsoleDriver::show_cursor(int show)
 {
-    while (lock(&show_cursorlock)) process_yield();
-    if (show?cursor_shown?0:1:cursor_shown?1:0)
-    {
-        cursor_shown = show;
-        outb(crtbaseio,0xA);
-        char c = show ? inb(crtbaseio+1)&0xDF : inb(crtbaseio+1)|0x20;
-        //outb(crtbaseio,0xA); // Is this necessary?
-        outb(crtbaseio+1, c);
-    }
-    show_cursorlock = 0; // Unlock show_cursor
+    {   ScopedLock lock(show_cursorlock);
+        if (show?cursor_shown?0:1:cursor_shown?1:0)
+        {
+            cursor_shown = show;
+            outb(crtbaseio,0xA);
+            char c = show ? inb(crtbaseio+1)&0xDF : inb(crtbaseio+1)|0x20;
+            //outb(crtbaseio,0xA); // Is this necessary?
+            outb(crtbaseio+1, c);
+        }
+    } // show_cursorlock
     update_cursor_index();
 }
 
 void kernel::ConsoleDriver::cls()
 {
-    while (lock(&screenlock)) process_yield();
+    ScopedLock lock(screenlock);
     volatile short* svideomem = (volatile short*)(videomem);
     int i;
     unsigned short ch = (unsigned short)' ' | (fore_color << 8) | (back_color << 12);
@@ -306,12 +305,10 @@ void kernel::ConsoleDriver::cls()
     {
         *svideomem = ch;
     }
-    while (lock(&cursorlock)) process_yield(); // lock cursor io
+    ScopedLock lock1(cursorlock);
     cursorpos = 0;
     redraw();
     update_cursor_index();
-    cursorlock = 0;
-    screenlock = 0;
 }
 
 void kernel::ConsoleDriver::printhexb(char c)
@@ -320,9 +317,8 @@ void kernel::ConsoleDriver::printhexb(char c)
     if (str[0] > '9') str[0] += 7;
     if (str[1] > '9') str[1] += 7;
     print(str);
-    while (lock(&cursorlock)) process_yield();
+    ScopedLock lock(cursorlock);
     update_cursor_index();
-    cursorlock = 0;
 }
 
 void kernel::ConsoleDriver::printhexw(short w)
