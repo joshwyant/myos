@@ -128,7 +128,7 @@ void kernel::MemoryGraphicsContext::draw_text(const char *str, int x, int y, int
 	if (!pFont)
 	{
 		pFont = &font;
-		read_bitmap(fs_driver, pFont, "/system/bin/font");
+		read_bitmap(fs, pFont, "/system/bin/font");
 	}
 	
 	RECT draw_r = {x, y, x + xsize, y + ysize};
@@ -498,11 +498,11 @@ void kernel::BufferedMemoryGraphicsContext::swap_buffers()
 	// TODO
 }
 
-bool read_bitmap(std::shared_ptr<kernel::FileSystemDriver> fs_driver, Bitmap *b, const char *filename)
+bool read_bitmap(std::shared_ptr<kernel::FileSystem> fs, Bitmap *b, const char *filename)
 {
 	try
 	{
-		std::unique_ptr<kernel::File> f = fs_driver->file_open(filename);
+		std::unique_ptr<kernel::File> f = fs->open(filename);
 		auto bf = f->read<BITMAPFILEHEADER>();
 		if (bf.bfType != 0x4D42)
 		{

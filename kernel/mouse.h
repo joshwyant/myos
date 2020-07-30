@@ -49,10 +49,10 @@ class PS2MouseDriver
 public:
     PS2MouseDriver(
       std::shared_ptr<GraphicsDriver> graphics_driver,
-      std::shared_ptr<FileSystemDriver> fs_driver,
+      std::shared_ptr<FileSystem> fs,
       KString device_name = "mouse"
     ) : graphics_driver(graphics_driver),
-        fs_driver(fs_driver),
+        fs(fs),
         mouse_packet({0, 0, 0}),
         mouse_screen_x(0),
         mouse_screen_y(0),
@@ -77,7 +77,7 @@ public:
     }
 private:
     std::shared_ptr<GraphicsDriver> graphics_driver;
-    std::shared_ptr<FileSystemDriver> fs_driver;
+    std::shared_ptr<FileSystem> fs;
 
     int mouse_screen_x;
     int mouse_screen_y;

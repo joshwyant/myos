@@ -57,7 +57,8 @@ void _pre_init(loader_info *li)
 
 Kernel::Kernel()
     : _symbols(std::make_shared<SymbolManager>(_DYNAMIC, loaderInfo.loaded)),
-      _root_drivers(std::make_shared<DriverManager>())
+      _root_drivers(std::make_shared<DriverManager>()),
+      _file_system(std::make_shared<FileSystem>())
 {
     _current_drivers = _root_drivers;
 }
@@ -90,6 +91,9 @@ void kmain()
 
     auto fat_driver
         = kernel->drivers()->register_file_system_driver(std::make_shared<FATDriver>(disk_driver));
+
+    // Mount the root file system.
+    kernel->file_system()->mount("/", fat_driver);
     
     // System TSS
     init_tss();
@@ -101,27 +105,27 @@ void kmain()
     {
         // Temporary VESA mode
         auto graphics_driver 
-            = kernel->drivers()->register_graphics_driver(std::make_shared<kernel::VESAGraphicsDriver>(fat_driver));
+            = kernel->drivers()->register_graphics_driver(std::make_shared<kernel::VESAGraphicsDriver>(kernel->file_system()));
 
-        show_splash(graphics_driver, fat_driver);
+        show_splash(graphics_driver, kernel->file_system());
         
         auto mouse_driver 
-            = kernel->drivers()->register_mouse_driver(std::make_shared<PS2MouseDriver>(graphics_driver, fat_driver));
+            = kernel->drivers()->register_mouse_driver(std::make_shared<PS2MouseDriver>(graphics_driver, kernel->file_system()));
         mouse_driver->start();
 
         // auto console
-        //     = manager->register_console_driver(std::make_shared<GraphicalConsoleDriver>(fat_driver, 25, 80));
+        //     = manager->register_console_driver(std::make_shared<GraphicalConsoleDriver>(kernel->file_system(), 25, 80));
     }
 
     // Load the shell
-    start_shell(fat_driver);
+    start_shell(kernel->file_system());
 	
     //demo(keyboard_driver, symbols());
 
     // Load vesadrvr.o
     try
     {
-        if (load_driver(fat_driver, kernel->symbols(), "/system/bin/vesadrvr.o") != 0)
+        if (load_driver(kernel->file_system(), kernel->symbols(), "/system/bin/vesadrvr.o") != 0)
         {
             throw ElfError("load_driver returned non-zero status.");
         }
@@ -192,13 +196,13 @@ static void demo(std::shared_ptr<KeyboardDriver> kbd_driver, std::shared_ptr<Sym
 
 }  // extern "C"
 
-void show_splash(std::shared_ptr<kernel::GraphicsDriver> graphics_driver, std::shared_ptr<kernel::FileSystemDriver> fs_driver)
+void show_splash(std::shared_ptr<kernel::GraphicsDriver> graphics_driver, std::shared_ptr<kernel::FileSystem> fs)
 {
     auto ctx = graphics_driver->get_screen_context();
 	clear_color(RGB(0, 0, 0));
 	
     Bitmap b;
-    if (read_bitmap(fs_driver, &b, "/system/bin/splash"))
+    if (read_bitmap(fs, &b, "/system/bin/splash"))
     {
 		RECT src = {0, 0, b.width, b.height};
 		RECT dest = {0, 0, ctx->get_width(), ctx->get_height()};
@@ -237,11 +241,11 @@ void show_splash(std::shared_ptr<kernel::GraphicsDriver> graphics_driver, std::s
 	//draw_text(str, x, y, RGB(255, 0, 0), 255, xsize, ysize);
 }
 
-void start_shell(std::shared_ptr<kernel::FileSystemDriver> fs_driver)
+void start_shell(std::shared_ptr<kernel::FileSystem> fs)
 {
     try
     {
-        process_start(fs_driver, "/system/bin/shell");
+        process_start(fs, "/system/bin/shell");
     }
     catch (ElfError& e)
     {

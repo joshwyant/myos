@@ -155,12 +155,12 @@ void endl()
 
 }  // extern "C"
 
-kernel::GraphicalConsoleDriver::GraphicalConsoleDriver(std::shared_ptr<FileSystemDriver> fs_driver, int rows, int cols)
-    : fs_driver(fs_driver),
+kernel::GraphicalConsoleDriver::GraphicalConsoleDriver(std::shared_ptr<FileSystem> fs, int rows, int cols)
+    : fs(fs),
       ConsoleDriver(rows, cols)
 {
-    read_bitmap(fs_driver, &font, "/system/bin/font");
-    display = new MemoryGraphicsContext(fs_driver, nullptr, 24, cols * 8, rows * 16);
+    read_bitmap(fs, &font, "/system/bin/font");
+    display = new MemoryGraphicsContext(fs, nullptr, 24, cols * 8, rows * 16);
     update_cursor_index();
 }
 

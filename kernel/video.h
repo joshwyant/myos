@@ -198,7 +198,7 @@ protected:
 class GraphicalConsoleDriver : public ConsoleDriver
 {
 public:
-    GraphicalConsoleDriver(std::shared_ptr<FileSystemDriver> fs_driver, int rows, int cols);
+    GraphicalConsoleDriver(std::shared_ptr<FileSystem> fs, int rows, int cols);
     ~GraphicalConsoleDriver() override;
     void show_cursor(int) override;
     void redraw() override;
@@ -206,7 +206,7 @@ public:
 protected:
     void update_cursor_index() override;
     Bitmap font;
-    std::shared_ptr<FileSystemDriver> fs_driver;
+    std::shared_ptr<FileSystem> fs;
     MemoryGraphicsContext *display;
 }; // class TextModeConsoleDriver
 }  // namespace kernel

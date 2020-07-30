@@ -23,8 +23,8 @@ extern void init_loader_info();
 // initialization
 extern void show_splash(
     std::shared_ptr<kernel::GraphicsDriver> graphics_driver,
-    std::shared_ptr<kernel::FileSystemDriver> fs_driver);
-extern void start_shell(std::shared_ptr<kernel::FileSystemDriver> fs_driver);
+    std::shared_ptr<kernel::FileSystem> fs);
+extern void start_shell(std::shared_ptr<kernel::FileSystem> fs);
 
 namespace kernel
 {
@@ -40,6 +40,7 @@ public:
     virtual std::shared_ptr<SymbolManager> symbols() const = 0;
     virtual std::shared_ptr<DriverManager> drivers() const = 0;
     virtual std::shared_ptr<DriverManager> root_drivers() const = 0;
+    virtual std::shared_ptr<FileSystem> file_system() const = 0;
 private:
     static std::shared_ptr<KernelInterface> _kernel;
 }; // class KernelInterface
@@ -52,6 +53,7 @@ public:
     std::shared_ptr<SymbolManager> symbols() const override { return _symbols; }
     std::shared_ptr<DriverManager> drivers() const override { return _current_drivers; }
     std::shared_ptr<DriverManager> root_drivers() const override { return _root_drivers; }
+    std::shared_ptr<FileSystem> file_system() const override { return _file_system; }
     static auto init()
     {
         return Kernel::set_current(std::make_shared<Kernel>());  // Persist in memory
@@ -60,6 +62,7 @@ private:
     std::shared_ptr<SymbolManager> _symbols;
     std::shared_ptr<DriverManager> _root_drivers;
     std::shared_ptr<DriverManager> _current_drivers;
+    std::shared_ptr<FileSystem> _file_system;
 }; // class Kernel
 } // namespace kernel
 #endif // __cplusplus

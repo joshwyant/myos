@@ -84,7 +84,7 @@ extern bool						switch_voluntary; // Whether the current task switch was explic
 #ifdef __cplusplus
 }  // extern "C"
 
-extern int process_start(std::shared_ptr<kernel::FileSystemDriver> fs_driver, const char* filename);
+extern int process_start(std::shared_ptr<kernel::FileSystem> fs, const char* filename);
 
 namespace kernel
 {

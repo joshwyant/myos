@@ -422,7 +422,7 @@ private:
 } // namespace kernel
 
 extern int load_driver(
-    std::shared_ptr<kernel::FileSystemDriver> fs_driver,
+    std::shared_ptr<kernel::FileSystem> fs,
     std::shared_ptr<kernel::SymbolManager> symbols,
     const char* filename);
 #endif // __cplusplus

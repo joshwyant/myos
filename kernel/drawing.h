@@ -151,7 +151,7 @@ inline static void get_bitmap_metrics(Bitmap *bmp, int *stride, int *pixelWidth)
 #ifdef __cplusplus
 }  // extern "C"
 
-bool read_bitmap(std::shared_ptr<kernel::FileSystemDriver> fs_driver, Bitmap *b, const char *filename);
+bool read_bitmap(std::shared_ptr<kernel::FileSystem> fs, Bitmap *b, const char *filename);
 
 namespace kernel
 {
@@ -259,8 +259,8 @@ class MemoryGraphicsContext
 	: public GraphicsContext
 {
 public:
-	MemoryGraphicsContext(std::shared_ptr<kernel::FileSystemDriver> fs_driver, unsigned char *buffer, int bpp, int width, int height, int stride = 0)
-		: fs_driver(fs_driver),
+	MemoryGraphicsContext(std::shared_ptr<kernel::FileSystem> fs, unsigned char *buffer, int bpp, int width, int height, int stride = 0)
+		: fs(fs),
 		  stride(stride ? stride : width * (bpp >> 3)),
 		  own_buffer(buffer ? false : true),
 		  buffer(buffer ? buffer : new unsigned char[height * this->stride]),
@@ -295,14 +295,14 @@ public:
 	{
 		RECT clipped_rect = r;
 		clip_to_screen(&clipped_rect);
-		return MemoryGraphicsContext(fs_driver, buffer + (r.x1 * (bpp >> 3)), r.x2 - r.x1, r.y2 - r.y1, stride);
+		return MemoryGraphicsContext(fs, buffer + (r.x1 * (bpp >> 3)), r.x2 - r.x1, r.y2 - r.y1, stride);
 	}
 protected:
 	friend class BufferedMemoryGraphicsContext;
 	int width, height, stride, bpp;
 	unsigned char *buffer;
 	bool own_buffer;
-	std::shared_ptr<kernel::FileSystemDriver> fs_driver;
+	std::shared_ptr<kernel::FileSystem> fs;
 }; // class MemoryGraphicsContext
 
 class BufferedMemoryGraphicsContext
@@ -316,18 +316,18 @@ public:
 		this->raw_context = raw_context;
 		this->buffer_context 
 			= new MemoryGraphicsContext(
-				raw_context->fs_driver,
+				raw_context->fs,
 				nullptr,
 				raw_context->get_bpp(),
 				raw_context->get_width(),
 				raw_context->get_height(),
 				raw_context->get_stride());
 	}
-	BufferedMemoryGraphicsContext(std::shared_ptr<kernel::FileSystemDriver> fs_driver, int bpp, int width, int height, int stride = 0)
+	BufferedMemoryGraphicsContext(std::shared_ptr<kernel::FileSystem> fs, int bpp, int width, int height, int stride = 0)
 	{
 		own_raw_context = true;
-		this->raw_context = new MemoryGraphicsContext(fs_driver, nullptr, bpp, width, height, stride);
-		this->buffer_context = new MemoryGraphicsContext(fs_driver, nullptr, bpp, width, height, stride);
+		this->raw_context = new MemoryGraphicsContext(fs, nullptr, bpp, width, height, stride);
+		this->buffer_context = new MemoryGraphicsContext(fs, nullptr, bpp, width, height, stride);
 	}
 	virtual ~BufferedMemoryGraphicsContext()
 	{
@@ -409,7 +409,7 @@ protected:
 	MemoryGraphicsContext *raw_context;
 	MemoryGraphicsContext *buffer_context;
 	bool own_raw_context;
-	std::shared_ptr<kernel::FileSystemDriver> fs_driver;
+	std::shared_ptr<kernel::FileSystem> fs;
 }; // class BufferedMemoryGraphicsContext
 
 }	 	// namespace kernel

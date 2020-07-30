@@ -36,7 +36,7 @@ void PS2MouseDriver::init()
   mouse_screen_x = graphics_driver->get_screen_context()->get_width() / 2;
   mouse_screen_y = graphics_driver->get_screen_context()->get_height() / 2;
   
-  read_bitmap(fs_driver, &cursor, "/system/bin/cursor");
+  read_bitmap(fs, &cursor, "/system/bin/cursor");
 
   mouse_erase_buffer = new unsigned char[cursor.width * cursor.height * 3];
   

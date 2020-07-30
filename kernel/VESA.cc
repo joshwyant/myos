@@ -25,6 +25,6 @@ void kernel::VESAGraphicsDriver::init()
             xres*yres*pixelWidth);
     
     // Create the graphics context
-    raw_screen_context = new MemoryGraphicsContext(fs_driver, _frame_buffer.get()->get(), vesaMode.bpp, xres, yres);
+    raw_screen_context = new MemoryGraphicsContext(fs, _frame_buffer.get()->get(), vesaMode.bpp, xres, yres);
     buffered_screen_context = new BufferedMemoryGraphicsContext(raw_screen_context);
 }
