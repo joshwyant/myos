@@ -5,6 +5,7 @@
 #include <stddef.h>
 #include "driver.h"
 #include "map.h"
+#include "queue.h"
 #include "string.h"
 #include "vector.h"
 
@@ -14,6 +15,9 @@
 
 extern "C" {
 #endif
+
+// Forward declaration for PipeFile
+struct Process;
 
 #ifdef __cplusplus
 }  // extern "C"
@@ -27,6 +31,7 @@ class FileSystemDriver;
 class MemoryFile;
 class VirtualFileEntry;
 class ScratchVirtualFileEntry;
+class PipeFile;
 class VirtualDirectoryEntry;
 class FileSystem;
 
@@ -94,7 +99,7 @@ public:
           pos(0) {}
     MemoryFile()
         : MemoryFile(std::make_shared<KVector<char> >()) {}
-    ~MemoryFile() {}
+    ~MemoryFile() override {}
     bool seek(unsigned pos) override
     {
         if (pos > data->len()) return false;
@@ -133,6 +138,40 @@ public:
 private:
     std::shared_ptr<KVector<char> > data;
     unsigned pos;
+}; // class MemoryFile
+
+class PipeFile
+    : public File
+{
+public:
+    PipeFile(std::shared_ptr<Queue<char> > data)
+        : data(data),
+          closed(false),
+          waiting_process(nullptr) {}
+    PipeFile()
+        : PipeFile(std::make_shared<Queue<char> >()) {}
+    ~PipeFile() override { pipe_close(); }
+    bool seek(unsigned pos) override;
+    unsigned read(char *buffer, unsigned bytes) override;
+    char getch() override { check_eof(); return data->pop_front(); }
+    char peekc() override { check_eof(); return data->bottom(); }
+    bool eof() override { return closed || (data->len() == 0 && !closed); }
+    void close() override { pipe_close(); }
+    void write(const char *buffer, unsigned bytes) override;
+private:
+    void pipe_close(); // Must be non-virtual for destructor
+    void wait_for_data();
+    inline void unblock_waiting_process();
+    inline void check_eof()
+    {
+        if (eof()) [[unlikely]]
+        {
+            throw EndOfFileError();
+        }
+    }
+    std::shared_ptr<Queue<char> > data;
+    bool closed;
+    Process *waiting_process;
 }; // class MemoryFile
 
 class VirtualFileEntry

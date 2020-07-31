@@ -4,6 +4,7 @@
 #include <stddef.h>
 #include "error.h"
 #include "memory.h"
+#include "sync.h"
 #include "vector.h"
 
 #ifdef __cplusplus
@@ -62,6 +63,7 @@ public:
 	}
     T& push_back(T value)
     {
+        ScopedLock lock(data_lock);
 		if (elem_count >= elem_capacity) [[unlikely]]
 		{
             expand();
@@ -74,6 +76,7 @@ public:
     }
     T& push_front(T value)
     {
+        ScopedLock lock(data_lock);
 		if (elem_count >= elem_capacity) [[unlikely]]
 		{
             expand();
@@ -84,6 +87,7 @@ public:
 		return buffer[start] = std::move(value);
     }
     T pop_back() {
+        ScopedLock lock(data_lock);
         if (!elem_count) [[unlikely]] throw OutOfBoundsError();
         --elem_count;
         end = (end + elem_capacity - 1) % elem_capacity;
@@ -91,6 +95,7 @@ public:
         return std::move(buffer[end]);
     }
     T pop_front() {
+        ScopedLock lock(data_lock);
         if (!elem_count) [[unlikely]] throw OutOfBoundsError();
         auto val = std::move(buffer[start]);
         --elem_count;
@@ -104,6 +109,7 @@ public:
     }
     const T& operator[](int index) const
     {
+        ScopedLock lock(data_lock);
         if (index < 0 || index >= elem_count) [[unlikely]]
         {
             throw OutOfBoundsError();
@@ -120,31 +126,35 @@ public:
 	}
 	const T& top() const
 	{
+        ScopedLock lock(data_lock);
 		if (!elem_count)
 			throw OutOfBoundsError();
 		return this[elem_count - 1];
 	}
 	const T& bottom() const
 	{
+        ScopedLock lock(data_lock);
 		if (!elem_count)
 			throw OutOfBoundsError();
 		return buffer[start];
 	}
-    size_t len() { return elem_count; }
-    size_t capacity() { return elem_capacity; }
+    size_t len() { ScopedLock lock(data_lock); return elem_count; }
+    size_t capacity() { ScopedLock lock(data_lock); return elem_capacity; }
 protected:
     T *buffer;
     size_t start;
     size_t end;
     size_t elem_count;
     size_t elem_capacity;
+    mutable int data_lock;
 private:
     KDeque(size_t capacity, size_t count, size_t start, size_t end)
 		: elem_capacity(capacity),
           elem_count(count),
 		  buffer(capacity ? (T *)kmalloc(capacity * sizeof(T)) : nullptr),
           start(start),
-          end(end) {}
+          end(end),
+          data_lock(0) {}
     void expand()
     {
         if (elem_count < elem_capacity) [[unlikely]] return;

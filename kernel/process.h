@@ -35,7 +35,7 @@ typedef struct
     TBYTE           st7;
 } FPUFile;
 
-typedef struct
+typedef struct Process
 {
     unsigned int     esp;       // kernel esp
     unsigned short   ss, __ssh; // kernel ss
@@ -66,7 +66,7 @@ typedef struct
     ProcessNode      *last;
 } ProcessQueue;
 
-extern void	process_yield();
+// extern void	process_yield(); // Moved to sync.h
 extern void	process_node_unlink(ProcessNode* n);
 extern void	process_node_link(ProcessNode* n);
 extern Process*	process_create(const char* name);
@@ -88,22 +88,7 @@ extern int process_start(std::shared_ptr<kernel::FileSystem> fs, const char* fil
 
 namespace kernel
 {
-// RAII wrapper around lock()
-class ScopedLock
-{
-public:
-    ScopedLock(int& val)
-        : ptr(&val)
-    {
-        while (lock(ptr)) process_yield();
-    }
-    ~ScopedLock()
-    {
-        *ptr = 0;
-    }
-private:
-    int *ptr;
-};
+    
 } // namespace kernel
 #endif  // __cplusplus
 #endif  // __PROCESS_H__

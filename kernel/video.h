@@ -5,7 +5,7 @@
 #include "drawing.h"
 #include "driver.h"
 #include "memory.h"
-#include "process.h"
+#include "sync.h"
 
 #ifdef __cplusplus
 #include <memory>

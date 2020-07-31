@@ -1,9 +1,9 @@
 #include <stddef.h>
 #include "exceptions.h"
-#include "io.h"
 #include "interrupt.h"
 #include "kernel.h"
 #include "process.h"
+#include "sync.h"
 
 using namespace kernel;
 

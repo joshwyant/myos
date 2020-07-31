@@ -1,5 +1,7 @@
+#include "process.h"
 #include "fs.h"
 #include "string.h"
+#include "sync.h"
 
 using namespace kernel;
 
@@ -51,4 +53,52 @@ std::unique_ptr<File> FileSystem::open(KString file)
         return vdir->get_file(file_name)->open();
     }
     return driver->file_open(file.substring(mount_dir_end, file.len()).c_str());
+}
+
+bool PipeFile::seek(unsigned pos)
+{
+    throw NotImplementedError();
+}
+unsigned PipeFile::read(char *buffer, unsigned bytes)
+{
+    wait_for_data();
+    unsigned bytes_read = 0;
+    while (!eof() && bytes--)
+    {
+        *(buffer++) = data->pop_front();
+        bytes_read++;
+    }
+    return bytes_read;
+}
+inline void PipeFile::unblock_waiting_process()
+{
+    if (waiting_process) [[unlikely]]
+    {
+        waiting_process->blocked = false;
+        waiting_process = nullptr;
+    }
+}
+void PipeFile::write(const char *buffer, unsigned bytes)
+{
+    while (bytes--)
+    {
+        data->push_back(*(buffer++));
+        unblock_waiting_process();
+    }
+}
+void PipeFile::pipe_close() // Must be non-virtual for destructor
+{
+    closed = true;
+    unblock_waiting_process();
+}
+void PipeFile::wait_for_data()
+{
+    while (!closed && data->len() == 0)
+        // while should not be needed here; but in case the process
+        // gets rescheduled while there is still no data, block again.
+    {
+        current_process->blocked = true;
+        waiting_process = current_process;
+        process_yield();
+    }
 }

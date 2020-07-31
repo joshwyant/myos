@@ -141,27 +141,6 @@ static inline void freeze()
     cli();
     while (1) hlt();
 }
-// Spins while value int ptr is set and then sets 1 in the pointer.
-static inline void spinlock(int* ptr)
-{
-    int prev;
-    // This seems to be the perfect way to do it.
-    // The Intel manual says the LOCK prefix is alway assummed
-    // with the xchg instruction with mem op, so we can save a byte by not
-    // using the prefix.
-    // >> SAME AS XCHG
-    do asm volatile ("lock xchgl %0,%1":"=a"(prev):"m"(*ptr),"a"(1)); while (prev);
-}
-
-// Sets the value, and returns whether it was previously set.
-// Allows multiple threads to wait for a value to be unset
-static inline int lock(int* ptr)
-{
-    int prev;
-    // >> SAME AS XCHG
-    asm volatile ("lock xchgl %0,%1":"=a"(prev):"m"(*ptr),"a"(1));
-    return prev;
-}
 
 // Based on https://wiki.osdev.org/CPUID:
 #define CPUID_VENDOR_OLDAMD       "AMDisbetter!" /* early engineering samples of AMD K5 processor */
