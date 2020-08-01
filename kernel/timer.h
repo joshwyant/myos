@@ -17,7 +17,7 @@ class TimerDriver
     : public Driver
 {
 public:
-    TimerDriver(KString device_name = "timer")
+    TimerDriver(String device_name = "timer")
         :  Driver(device_name) {}
     virtual bool timer_handler() = 0;
 }; // class TimerDriver
@@ -26,7 +26,7 @@ class PITTimerDriver
     : public TimerDriver
 {
 public:
-    PITTimerDriver(KString device_name = "timer");
+    PITTimerDriver(String device_name = "timer");
     void start() override;
     bool timer_handler() override;
 private:

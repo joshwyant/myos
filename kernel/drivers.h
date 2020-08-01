@@ -55,13 +55,13 @@ public:
     std::shared_ptr<TimerDriver> timer_driver() { return _timer_driver; }
 
     template <typename TDriver = Driver>
-    std::shared_ptr<TDriver> get(const KString& key)
+    std::shared_ptr<TDriver> get(const String& key)
     {
         return const_cast<std::shared_ptr<TDriver>&>(static_cast<const DriverManager&>(*this).get(key));
     }
 
     template <typename TDriver = Driver>
-    const std::shared_ptr<TDriver> get(const KString& key) const
+    const std::shared_ptr<TDriver> get(const String& key) const
     {
         return _device_map[key];
     }
@@ -82,7 +82,7 @@ private:
     std::shared_ptr<MouseDriver> _mouse_driver;
     std::shared_ptr<KeyboardDriver> _keyboard_driver;
     std::shared_ptr<TimerDriver> _timer_driver;
-    UnorderedMap<KString, std::shared_ptr<Driver> > _device_map;
+    UnorderedMap<String, std::shared_ptr<Driver> > _device_map;
 };
 } // namespace kernel
 #endif // __cplusplus

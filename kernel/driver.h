@@ -11,7 +11,7 @@ namespace kernel
 class Driver
 {
 public:
-    Driver(KString device_name)
+    Driver(String device_name)
         : device_name(std::move(device_name)) {}
     Driver(const Driver&) = delete;
     Driver(Driver&& other) noexcept
@@ -29,13 +29,13 @@ public:
         using std::swap;
         swap(a.device_name, b.device_name);
     }
-    const KString& name() const { return device_name; }
+    const String& name() const { return device_name; }
     virtual void start() {}
     virtual ~Driver() {}
 protected:
     Driver() {}
 private:
-    KString device_name;
+    String device_name;
 }; // class Driver
 } // namespace kernel
 #endif // __cplusplus

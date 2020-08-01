@@ -161,7 +161,7 @@ class GraphicsDriver
     : public Driver
 {
 public:
-    GraphicsDriver(KString device_name)
+    GraphicsDriver(String device_name)
         : Driver(device_name) {}
     virtual BufferedGraphicsContext *get_screen_context() = 0;
     virtual ~GraphicsDriver() {}

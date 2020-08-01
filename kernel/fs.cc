@@ -5,7 +5,7 @@
 
 using namespace kernel;
 
-void FileSystem::mount(KString dir, std::shared_ptr<FileSystemDriver> driver)
+void FileSystem::mount(String dir, std::shared_ptr<FileSystemDriver> driver)
 {
     if (dir.len() <= 0 || dir[0] != '/') throw ArgumentError();
     if (dir.len() > 1 && dir[dir.len()-1] == '/')
@@ -15,10 +15,10 @@ void FileSystem::mount(KString dir, std::shared_ptr<FileSystemDriver> driver)
     _mount_points.insert(dir, driver);
 }
 
-std::unique_ptr<File> FileSystem::open(KString file)
+std::unique_ptr<File> FileSystem::open(String file)
 {
     std::shared_ptr<FileSystemDriver> driver;
-    KString driver_mount_point;
+    String driver_mount_point;
     auto vdir = _virtual_root.get();
     int dir_end = 0, mount_dir_end = 0;
     for (auto i = 0; i < file.len(); i++)
@@ -28,7 +28,7 @@ std::unique_ptr<File> FileSystem::open(KString file)
             // Copy the current directory to a string.
             auto dir_name = file.substring(dir_end, i);
             dir_end = i + 1; // inclusive of final slash
-            auto current_dir = i == 0 ? KString("/") : file.substring(0, i);
+            auto current_dir = i == 0 ? String("/") : file.substring(0, i);
             auto driver_pair = _mount_points.find(current_dir);
             if (driver_pair)
             {

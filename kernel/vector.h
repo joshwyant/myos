@@ -13,30 +13,30 @@ namespace kernel
 {
 
 template <typename T>
-class KVector
+class Vector
 {
 public:
-	explicit KVector(size_t capacity = 0)
-		: KVector(capacity, 0) {}
-	KVector(const KVector& other)
-		: KVector(other.capacity, other.elem_count)
+	explicit Vector(size_t capacity = 0)
+		: Vector(capacity, 0) {}
+	Vector(const Vector& other)
+		: Vector(other.capacity, other.elem_count)
 	{
 		for (int i = 0; i < elem_count; i++)
 		{
 			buffer[i] = other.buffer[i];
 		}
 	}
-	KVector(KVector&& other) noexcept
-		: KVector()
+	Vector(Vector&& other) noexcept
+		: Vector()
 	{
 		swap(*this, other);
 	}
-	KVector& operator=(KVector other)
+	Vector& operator=(Vector other)
 	{
 		swap(*this, other);
 		return *this;
 	}
-	virtual ~KVector()
+	virtual ~Vector()
 	{
 		if (buffer)
 		{
@@ -50,7 +50,7 @@ public:
 		elem_count = 0;
 		elem_capacity = 0;
 	}
-	friend void swap(KVector& a, KVector &b)
+	friend void swap(Vector& a, Vector &b)
 	{
 		using std::swap;
 		swap(a.buffer, b.buffer);
@@ -59,7 +59,7 @@ public:
 	}
 	T& operator[](int index)
 	{
-		return const_cast<T&>(static_cast<const KVector&>(*this)[index]);
+		return const_cast<T&>(static_cast<const Vector&>(*this)[index]);
 	}
 	const T& operator[](int index) const
 	{
@@ -91,11 +91,11 @@ public:
 	}
 	T& top()
 	{
-        return const_cast<T&>(static_cast<const KVector&>(*this).top());
+        return const_cast<T&>(static_cast<const Vector&>(*this).top());
 	}
 	T& bottom()
 	{
-        return const_cast<T&>(static_cast<const KVector&>(*this).bottom());
+        return const_cast<T&>(static_cast<const Vector&>(*this).bottom());
 	}
 	const T& top() const
 	{
@@ -109,8 +109,8 @@ public:
 			throw OutOfBoundsError();
 		return buffer[0];
 	}
-	T *begin() { return const_cast<T*>(static_cast<const KVector&>(*this).begin()); }
-	T *end() { return const_cast<T*>(static_cast<const KVector&>(*this).end()); }
+	T *begin() { return const_cast<T*>(static_cast<const Vector&>(*this).begin()); }
+	T *end() { return const_cast<T*>(static_cast<const Vector&>(*this).end()); }
 	const T *begin() const { return buffer; }
 	const T *end() const { return buffer + elem_count; }
 	void reserve(size_t amount)
@@ -118,7 +118,7 @@ public:
 		expand(amount);
 	}
 private:
-	KVector(size_t capacity, size_t count)
+	Vector(size_t capacity, size_t count)
 		: elem_capacity(capacity),
 		  buffer(capacity ? (T *)kcalloc(capacity * sizeof(T)) : nullptr),
 		  elem_count(count) {}
@@ -138,7 +138,7 @@ private:
 	T *buffer;
 	size_t elem_count;
 	size_t elem_capacity;
-};  	// class KVector
+};  	// class Vector
 
 }  		// namespace kernel
 

@@ -39,7 +39,7 @@ class KeyboardDriver
     : public Driver
 {
 public:
-    KeyboardDriver(KString device_name = "kbd")
+    KeyboardDriver(String device_name = "kbd")
         : Driver(device_name) {}
     virtual void keyboard_handler() = 0;
     virtual void start() = 0;
@@ -53,7 +53,7 @@ class PS2KeyboardDriver
     : public KeyboardDriver
 {
 public:
-    PS2KeyboardDriver(KString device_name = "kbd")
+    PS2KeyboardDriver(String device_name = "kbd")
         : keymap(std::make_unique<AmericanKeymap>()),
           kbd_escaped(0),
           kbd_shift(0),

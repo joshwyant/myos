@@ -12,7 +12,7 @@ namespace kernel
 
 template <
     typename T,
-    typename Container = KDeque<T> >
+    typename Container = Deque<T> >
 class Queue
     : private Container
 {

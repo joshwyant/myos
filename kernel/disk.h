@@ -14,7 +14,7 @@ class DiskDriver
     : public Driver
 {
 public:
-    DiskDriver(KString name = "hda") : Driver(name) {}
+    DiskDriver(String name = "hda") : Driver(name) {}
     virtual void read_sectors(char *buffer, int sector_count, int sector_num) = 0;
     virtual void write_sectors(const char *buffer, int sector_count, int sector_num) = 0;
     friend void swap(DiskDriver& a, DiskDriver& b)
@@ -28,7 +28,7 @@ public:
 class PIODiskDriver : public DiskDriver
 {
 public:
-    PIODiskDriver(KString device_name = "hda", int controller = 0, int drive = 0)
+    PIODiskDriver(String device_name = "hda", int controller = 0, int drive = 0)
         : base(controller ? 0x170 : 0x1F0),
           controller(controller),
           drive(drive),

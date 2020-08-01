@@ -80,22 +80,22 @@ namespace kernel
 {
 // Forward declarations
 template<typename CharT>
-class KBasicString;
+class BasicString;
 
-typedef KBasicString<char> KString;
-typedef KBasicString<wchar_t> KWString;
+typedef BasicString<char> String;
+typedef BasicString<wchar_t> WString;
 
 template <typename CharT>
-class KBasicStringView;
+class BasicStringView;
 
-typedef KBasicStringView<char> KStringView;
-typedef KBasicStringView<wchar_t> KWStringView;
+typedef BasicStringView<char> StringView;
+typedef BasicStringView<wchar_t> WStringView;
 
 template<typename CharT>
-class KBasicString
+class BasicString
 {
 public:
-    KBasicString()
+    BasicString()
     {
         storage.s.is_long = false;
         storage.s.buffer[0] = 0;
@@ -104,7 +104,7 @@ public:
         buffer = storage.s.buffer;
 #endif
     }
-    KBasicString(const KBasicString& other)
+    BasicString(const BasicString& other)
         : storage(other.storage)
     {
 #ifdef DEBUG
@@ -122,22 +122,22 @@ public:
 #endif
         }
     }
-    KBasicString(KBasicString&& other) noexcept
-        : KBasicString()
+    BasicString(BasicString&& other) noexcept
+        : BasicString()
 	{
 		swap(*this, other);
 	}
-    KBasicString& operator=(KBasicString other)
+    BasicString& operator=(BasicString other)
 	{
 		swap(*this, other);
 		return *this;
 	}
-    friend void swap(KBasicString& a, KBasicString& b)
+    friend void swap(BasicString& a, BasicString& b)
 	{
 		using std::swap;
 		swap(a.storage, b.storage);
 	}
-    KBasicString(const KBasicStringView<CharT> str)
+    BasicString(const BasicStringView<CharT> str)
     {
         size_t length = 0;
         CharT *buffer;
@@ -169,15 +169,15 @@ public:
     }
     // Includes null terminator
     static size_t short_capacity() { return sizeof(storage.s.buffer) / sizeof(CharT); }
-    static KBasicString preallocated(CharT *buffer, int length)
+    static BasicString preallocated(CharT *buffer, int length)
     {
         if (length < short_capacity())
         {
-            KBasicString short_str(buffer);
+            BasicString short_str(buffer);
             kfree(buffer);
             return short_str;
         }
-        KBasicString s;
+        BasicString s;
         s.storage.l.is_long = true;
         s.storage.l.length = length;
         s.storage.l.hash = 0;
@@ -187,8 +187,8 @@ public:
 #endif
         return s;
     }
-    KBasicString(const CharT *str) : KBasicString(KBasicStringView<CharT>(str)) {}
-    virtual ~KBasicString()
+    BasicString(const CharT *str) : BasicString(BasicStringView<CharT>(str)) {}
+    virtual ~BasicString()
     {
         if (storage.l.is_long && storage.l.buffer)
         {
@@ -204,7 +204,7 @@ public:
     }
     CharT *c_str()
     {
-        return const_cast<CharT*>(static_cast<const KBasicString&>(*this).c_str());
+        return const_cast<CharT*>(static_cast<const BasicString&>(*this).c_str());
     }
     const CharT *c_str() const
     {
@@ -216,7 +216,7 @@ public:
     }
     CharT& operator[](int i)
     {
-        return const_cast<CharT&>(static_cast<const KBasicString&>(*this)[i]);
+        return const_cast<CharT&>(static_cast<const BasicString&>(*this)[i]);
     }
     const CharT& operator[](int i) const
     {
@@ -226,7 +226,7 @@ public:
         }
         return storage.l.is_long ? storage.l.buffer[i] : storage.s.buffer[i];
     }
-    bool operator==(const KBasicString& other) const
+    bool operator==(const BasicString& other) const
     {
         if (this == &other) [[unlikely]] return true;
         if (hash() != other.hash()) [[unlikely]] return false;
@@ -256,12 +256,12 @@ public:
         }
         return h;
     }
-    KBasicString operator+(const KBasicString& other) const
+    BasicString operator+(const BasicString& other) const
     {
-        KBasicString str(*this);
+        BasicString str(*this);
         return str.concat(other);
     }
-    KBasicString& concat(const KBasicStringView<CharT>& other)
+    BasicString& concat(const BasicStringView<CharT>& other)
     {
         size_t short_capacity = sizeof(storage.s.buffer) / sizeof(CharT); // including null terminator
         size_t oldlen = len();
@@ -301,7 +301,7 @@ public:
 #endif
         return *this;
     }
-    KBasicString substring(int begin_pos, int end_pos)
+    BasicString substring(int begin_pos, int end_pos)
     {
         if (begin_pos < 0 || begin_pos > len()) throw OutOfBoundsError();
         if (end_pos < begin_pos || end_pos > len()) throw OutOfBoundsError();
@@ -315,9 +315,9 @@ public:
         buffer[i] = 0;
         return preallocated(buffer, length);
     }
-    KBasicString& concat(const CharT *other)
+    BasicString& concat(const CharT *other)
     {
-        return concat(KBasicStringView<CharT>(other));
+        return concat(BasicStringView<CharT>(other));
     }
 protected:
 #ifdef DEBUG
@@ -344,34 +344,34 @@ protected:
 };
 
 template <typename CharT>
-class KBasicStringView
+class BasicStringView
 {
 public:
-    KBasicStringView()
-        : KBasicStringView(0, "", nullptr) {}
-    KBasicStringView(const KBasicStringView& other)
-        : KBasicStringView(other.length, other.cstr, other.str) {}
-    KBasicStringView(KBasicStringView&& other) noexcept
-        : KBasicStringView()
+    BasicStringView()
+        : BasicStringView(0, "", nullptr) {}
+    BasicStringView(const BasicStringView& other)
+        : BasicStringView(other.length, other.cstr, other.str) {}
+    BasicStringView(BasicStringView&& other) noexcept
+        : BasicStringView()
 	{
 		swap(*this, other);
 	}
-    KBasicStringView(const KBasicString<CharT> &str)
-        : KBasicStringView(0, nullptr, &str) {}
-    KBasicStringView(const CharT *str)
-        : KBasicStringView(0, str, nullptr)
+    BasicStringView(const BasicString<CharT> &str)
+        : BasicStringView(0, nullptr, &str) {}
+    BasicStringView(const CharT *str)
+        : BasicStringView(0, str, nullptr)
     {
         while (*str++)
         {
             length++;
         }
     }
-    KBasicStringView& operator=(KBasicStringView other)
+    BasicStringView& operator=(BasicStringView other)
 	{
 		swap(*this, other);
 		return *this;
 	}
-    friend void swap(KBasicStringView& a, KBasicStringView &b)
+    friend void swap(BasicStringView& a, BasicStringView &b)
 	{
 		using std::swap;
 		swap(a.cstr, b.cstr);
@@ -396,12 +396,12 @@ public:
     }
 protected:
     const CharT *cstr;
-    const KBasicString<CharT> *str;
+    const BasicString<CharT> *str;
     size_t length;
 private:
-    KBasicStringView(size_t length, const CharT *cstr, const KBasicString<CharT> *str)
+    BasicStringView(size_t length, const CharT *cstr, const BasicString<CharT> *str)
         : length(length), cstr(cstr), str(str) {}
-};  // KBasicStringView
+};  // BasicStringView
 }  // namespace kernel
 #endif
 

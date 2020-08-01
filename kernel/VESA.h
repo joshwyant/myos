@@ -15,7 +15,7 @@ class VESAGraphicsDriver
     : public GraphicsDriver
 {
 public:
-    VESAGraphicsDriver(std::shared_ptr<FileSystem> fs, KString device_name = "vesa")
+    VESAGraphicsDriver(std::shared_ptr<FileSystem> fs, String device_name = "vesa")
         : fs(fs),
           GraphicsDriver(device_name)
     {

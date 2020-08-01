@@ -223,7 +223,7 @@ void show_splash(std::shared_ptr<kernel::GraphicsDriver> graphics_driver, std::s
 	//rect(&r, 1, 0, RGB(255, 255, 255), 0, 64);
 	//rect(&r, 0, 8, 0, RGB(0, 0, 128), 192);
 	
-	KVector<const char*> strs;
+	Vector<const char*> strs;
 	strs.push_back("Hello");
 	strs.push_back("World");
 	strs.push_back("How");

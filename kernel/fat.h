@@ -61,7 +61,7 @@ class FATDriver
 {
 public:
     class FileStream;
-    FATDriver(std::shared_ptr<DiskDriver> disk_driver, KString device_name = "hda1")
+    FATDriver(std::shared_ptr<DiskDriver> disk_driver, String device_name = "hda1")
         : disk_driver(std::move(disk_driver)),
           FileSystemDriver(device_name)
     {

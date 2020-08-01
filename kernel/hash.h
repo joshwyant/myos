@@ -16,14 +16,14 @@ int operator()(const T& value) { return 0; }
 }; // class Hash
 
 template<typename CharT>
-class Hash<KBasicString<CharT> >
+class Hash<BasicString<CharT> >
 {
 public:
-int operator()(const KBasicString<CharT>& value)
+int operator()(const BasicString<CharT>& value)
 {
     return value.hash();
 }
-}; // Hash<KBasicString<CharT> >
+}; // Hash<BasicString<CharT> >
 
 template<>
 class Hash<int>

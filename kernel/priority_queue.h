@@ -7,14 +7,14 @@
 
 namespace kernel
 {
-class KPriorityQueue
+class PriorityQueue
 {
 public:
-    KPriorityQueue() { /* TODO */ }
-    virtual ~KPriorityQueue() { /* TODO */ }
+    PriorityQueue() { /* TODO */ }
+    virtual ~PriorityQueue() { /* TODO */ }
     /* TODO */
 protected:
-};      // class KPriorityQueue
+};      // class PriorityQueue
 }       // namespace kernel
 #endif  // __cplusplus
 #endif  // __KERNEL_PRIORITY_QUEUE__

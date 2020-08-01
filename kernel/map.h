@@ -178,7 +178,7 @@ protected:
 private:
     size_t mCapacity;
     size_t mCount;
-    KVector<ForwardList<typename Map<TKey, TValue>::KeyValuePair> > mBuckets;
+    Vector<ForwardList<typename Map<TKey, TValue>::KeyValuePair> > mBuckets;
 }; // class UnorderedMap
 
 } // namespace kernel

@@ -11,7 +11,7 @@ namespace kernel
 
 template <
     typename T,
-    typename Container = KVector<T> >
+    typename Container = Vector<T> >
 class Stack
     : private Container
 {

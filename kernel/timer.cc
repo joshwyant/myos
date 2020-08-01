@@ -11,7 +11,7 @@ unsigned timer_seconds;
 unsigned timer_fractions;
 
 // Initialize the system timer - the Programmable Interval Timer
-PITTimerDriver::PITTimerDriver(KString device_name)
+PITTimerDriver::PITTimerDriver(String device_name)
     : pit_reload(17898),  // roughly every 15ms
       timer_seconds(0),
       timer_fractions(0),

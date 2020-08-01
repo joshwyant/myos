@@ -13,30 +13,30 @@
 namespace kernel
 {
 template <typename T>
-class KDeque
+class Deque
 {
 public:
-    explicit KDeque(size_t capacity = 0)
-		: KDeque(capacity, 0, 0, 0) {}
-    KDeque(const KDeque& other)
-		: KDeque(other.capacity, other.elem_count, other.start, other.end)
+    explicit Deque(size_t capacity = 0)
+		: Deque(capacity, 0, 0, 0) {}
+    Deque(const Deque& other)
+		: Deque(other.capacity, other.elem_count, other.start, other.end)
 	{
 		for (int i = 0; i < elem_count; i++)
 		{
 			this[i] = other[i];
 		}
 	}
-	KDeque(KDeque&& other) noexcept
-        : KDeque()
+	Deque(Deque&& other) noexcept
+        : Deque()
 	{
 		swap(*this, other);
 	}
-	KDeque& operator=(KDeque other)
+	Deque& operator=(Deque other)
 	{
 		swap(*this, other);
 		return *this;
 	}
-    virtual ~KDeque() {
+    virtual ~Deque() {
 		if (buffer)
 		{
 			for (auto i = 0; i < elem_count; i++)
@@ -52,7 +52,7 @@ public:
             = elem_capacity
             = 0;
     }
-	friend void swap(KDeque& a, KDeque &b)
+	friend void swap(Deque& a, Deque &b)
 	{
 		using std::swap;
 		swap(a.buffer, b.buffer);
@@ -105,7 +105,7 @@ public:
     }
     T& operator[](int index)
     {
-        return const_cast<T&>(static_cast<const KDeque&>(*this)[index]);
+        return const_cast<T&>(static_cast<const Deque&>(*this)[index]);
     }
     const T& operator[](int index) const
     {
@@ -118,11 +118,11 @@ public:
     }
 	T& top()
 	{
-        return const_cast<T&>(static_cast<const KDeque&>(*this).top());
+        return const_cast<T&>(static_cast<const Deque&>(*this).top());
 	}
 	T& bottom()
 	{
-        return const_cast<T&>(static_cast<const KDeque&>(*this).bottom());
+        return const_cast<T&>(static_cast<const Deque&>(*this).bottom());
 	}
 	const T& top() const
 	{
@@ -148,7 +148,7 @@ protected:
     size_t elem_capacity;
     mutable int data_lock;
 private:
-    KDeque(size_t capacity, size_t count, size_t start, size_t end)
+    Deque(size_t capacity, size_t count, size_t start, size_t end)
 		: elem_capacity(capacity),
           elem_count(count),
 		  buffer(capacity ? (T *)kmalloc(capacity * sizeof(T)) : nullptr),
@@ -183,7 +183,7 @@ private:
         }
         elem_capacity = new_capacity;
     }
-};  // class KDeque
+};  // class Deque
 }  // namespace kernel
 
 #endif  // __cplusplus

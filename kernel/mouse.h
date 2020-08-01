@@ -34,7 +34,7 @@ class MouseDriver
   : public Driver
 {
 public:
-    MouseDriver(KString device_name = "mouse")
+    MouseDriver(String device_name = "mouse")
         : Driver(device_name) {}
     virtual int screen_x() const = 0;
     virtual int screen_y() const = 0;
@@ -50,7 +50,7 @@ public:
     PS2MouseDriver(
       std::shared_ptr<GraphicsDriver> graphics_driver,
       std::shared_ptr<FileSystem> fs,
-      KString device_name = "mouse"
+      String device_name = "mouse"
     ) : graphics_driver(graphics_driver),
         fs(fs),
         mouse_packet({0, 0, 0}),
