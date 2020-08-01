@@ -6,6 +6,7 @@
 #include "driver.h"
 #include "map.h"
 #include "queue.h"
+#include "stack.h"
 #include "string.h"
 #include "vector.h"
 
@@ -52,6 +53,8 @@ public:
 class File
 {
 public:
+    File()
+        : _id(-1) {}
     virtual ~File() {}
     virtual bool seek(unsigned pos) = 0;
     virtual unsigned read(char *buffer, unsigned bytes) = 0;
@@ -72,6 +75,10 @@ public:
         read(o);
         return std::move(o);
     }
+    void set_id(int id) { _id = id; }
+    int get_id() { return _id; }
+private:
+    int _id;
 }; // class File
 
 class FileSystemDriver
@@ -217,13 +224,24 @@ class FileSystem
 {
 public:
     FileSystem()
-        : _virtual_root(std::make_unique<VirtualDirectoryEntry>()) {}
+        : _virtual_root(std::make_unique<VirtualDirectoryEntry>()),
+          _next_file_id(3),
+          _add_descriptor_lock(0),
+          _free_descriptor_lock(0) {}
     void mount(String, std::shared_ptr<FileSystemDriver>);
     std::unique_ptr<File> open(String);
     std::unique_ptr<VirtualDirectoryEntry>& virtual_root() { return _virtual_root; }
+    int open_descriptor(String);
+    void close_descriptor(int id);
+    std::unique_ptr<File>& get_by_descriptor(int id) { return _file_table[id]; }
 private:
     UnorderedMap<String, std::shared_ptr<FileSystemDriver> > _mount_points;
     std::unique_ptr<VirtualDirectoryEntry> _virtual_root;
+    Vector<std::unique_ptr<File> > _file_table;
+    Stack<int> _available_file_ids;
+    int _next_file_id;
+    int _add_descriptor_lock;
+    int _free_descriptor_lock;
 };
 }  // namespace kernel
 #endif  // __cplusplus

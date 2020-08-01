@@ -55,6 +55,38 @@ std::unique_ptr<File> FileSystem::open(String file)
     return driver->file_open(file.substring(mount_dir_end, file.len()).c_str());
 }
 
+int FileSystem::open_descriptor(String file)
+{
+    auto file_ptr = open(file);
+    int file_id;
+    ScopedLock lock(_add_descriptor_lock);
+    if (_available_file_ids.len())
+    {
+        file_id = _available_file_ids.pop_back();
+        file_ptr->set_id(file_id);
+        _file_table[file_id] = std::move(file_ptr);
+        return file_id;
+    }
+    else
+    {
+        file_id = _next_file_id++;
+        file_ptr->set_id(file_id);
+        _file_table.push_back(std::move(file_ptr));
+        return file_id;
+    }
+}
+
+void FileSystem::close_descriptor(int id)
+{
+    ScopedLock lock(_free_descriptor_lock);
+    if (_file_table[id].get() != nullptr)
+    {
+        _file_table[id]->close();
+        _file_table[id].reset();
+        _available_file_ids.push_back(id);
+    }
+}
+
 bool PipeFile::seek(unsigned pos)
 {
     throw NotImplementedError();

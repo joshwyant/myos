@@ -149,8 +149,7 @@ void* vm8086_gpfault;
 int process_start(std::shared_ptr<kernel::FileSystem> fs, const char* filename)
 {
     void *pgdir_p;
-    {   std::unique_ptr<kernel::File> elf;
-        elf = fs->open(filename);
+    {   auto elf = fs->open(filename);
         Elf32_Ehdr ehdr;
         try
         {
@@ -253,10 +252,9 @@ int process_start(std::shared_ptr<kernel::FileSystem> fs, const char* filename)
 int load_driver(std::shared_ptr<kernel::FileSystem> fs, std::shared_ptr<kernel::SymbolManager> symbols, const char* filename)
 {
     int ret = 0;
-    std::unique_ptr<kernel::File> elf;
+    auto elf = fs->open(filename);;
     Elf32_Ehdr ehdr;
     int i;
-    elf = fs->open(filename);
     try
     {
         elf->read(ehdr);
