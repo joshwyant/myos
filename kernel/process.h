@@ -37,19 +37,20 @@ typedef struct
 
 typedef struct Process
 {
-    unsigned int     esp;       // kernel esp
-    unsigned short   ss, __ssh; // kernel ss
-    unsigned int     cr3;       // process cr3
-    unsigned int     vm8086;    // vm8086 process
-    void*            gpfault;   // vm8086 gpfault handler
-    unsigned int     pid;       // process id
-    unsigned int     timeslice; // Amount of time to run
-    unsigned int     priority;  // Process priority
-    unsigned char    name[64];  // Name of process
-    void*	     node;	// Process_Node struct for scheduler
+    unsigned int    esp;        // kernel esp
+    unsigned short  ss, __ssh;  // kernel ss
+    unsigned int    cr3;        // process cr3
+    unsigned int    vm8086;     // vm8086 process
+    void*           gpfault;    // vm8086 gpfault handler
+    unsigned int    pid;        // process id
+    unsigned int    timeslice;  // Amount of time to run
+    unsigned int    priority;   // Process priority
+    unsigned char   name[64];   // Name of process
+    void*	        node;	    // Process_Node struct for scheduler
+    int             stdio[3];   // Standard file descriptors
     int             blocked;
     int             fpu_saved;
-    FPUFile          fpu_file;
+    FPUFile         fpu_file;
 } Process;
 
 // Processes

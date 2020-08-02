@@ -1,6 +1,7 @@
 #include <errno.h>
 #include <reent.h>
 #include <stddef.h>
+#include <stdio.h>
 #include <sys/stat.h>
 #include "interrupt.h"
 #include "io.h"
@@ -59,7 +60,7 @@ void user__exit(int exit_code);
 // Close a file.
 int user_close(int file);
 // Transfer control to a new process.
-int user_execve(char *name, char **argv, char **env);
+int user_execve(const char *name, char **argv, char **env);
 // Create a new process.
 struct status_tuple user_fork();
 // Status of an open file.
@@ -138,7 +139,10 @@ void syscall(unsigned edi, unsigned esi, unsigned ebp, unsigned esp, unsigned eb
             break;
         // Start a new process (ebx = *name, esi = **argv, edi = **env)
         case SYSCALL_START:
-            eax = process_start(Kernel::current()->file_system(), (char*)ebx);
+            eax = user_execve(
+                    reinterpret_cast<char*>(ebx),
+                    reinterpret_cast<char**>(esi),
+                    reinterpret_cast<char**>(edi));
             break;
         // Get Process ID
         case SYSCALL_PID:
@@ -249,29 +253,43 @@ void user__exit(int exit_code)
 // Close a file.
 int user_close(int file)
 {
+    Kernel::current()
+        ->file_system()
+        ->close_descriptor(file);
+    // TODO: Correct return code
     return 0;
 }
 // Transfer control to a new process.
-int user_execve(char *name, char **argv, char **env);
+int user_execve(const char *name, char **argv, char **env)
+{
+    // TODO: argv and env
+    return process_start(Kernel::current()->file_system(), name);
+}
 // Create a new process.
 struct status_tuple user_fork()
 {
     return { 1, EAGAIN };
 }
 // Status of an open file.
-// For consistency with other minimal implementations in these examples,
-// all files are regarded as character special devices.
 // The `sys/stat.h' header file is distributed in the `include'
 // subdirectory for this C library.
 int user_fstat(int file, struct stat *st)
 {
-    st->st_mode = S_IFCHR;
+    auto& file_ptr = Kernel::current()
+        ->file_system()
+        ->get_by_descriptor(file);
+
+    st->st_mode = file_ptr->mode();
+    st->st_size = file_ptr->len();
     return 0;
 }
 // Query whether output stream is a terminal.
 bool user_isatty(int file)
 {
-    return true;
+    return Kernel::current()
+            ->file_system()
+            ->get_by_descriptor(file)
+            ->isatty();
 }
 // Send a signal.
 struct status_tuple user_kill(int pid, int sig)
@@ -286,17 +304,35 @@ struct status_tuple user_link(char *old, char *_new)
 // Set position in a file.
 int user_lseek(int file, int ptr, int dir)
 {
-    return 0;
+    auto& file_ptr = Kernel::current()
+        ->file_system()
+        ->get_by_descriptor(file);
+    switch (dir)
+    {
+    case SEEK_CUR:
+        ptr += file_ptr->pos();
+        break;
+    case SEEK_END:
+        ptr += file_ptr->len();
+        break;
+    }
+    return file_ptr->seek(ptr);
 }
 // Open a file.
 int user_open(const char *name, int flags, mode_t mode)
 {
-    return -1;
+    // TODO: flags, mode
+    return Kernel::current()
+            ->file_system()
+            ->open_descriptor(name);
 }
 // Read from a file.
 int user_read(int file, char *ptr, int len)
 {
-    return 0;
+    return Kernel::current()
+            ->file_system()
+            ->get_by_descriptor(file)
+            ->read(ptr, len);
 }
 // Increase program data space.
 caddr_t user_sbrk(char *heap_end, int incr)
@@ -306,7 +342,14 @@ caddr_t user_sbrk(char *heap_end, int incr)
 // Status of a file (by name).
 int user_stat(const char *file, struct stat *st)
 {
-    st->st_mode = S_IFCHR;
+    auto file_ptr = Kernel::current()
+        ->file_system()
+        ->open(file); // will open and close;
+        // TODO: try finding existing filename
+
+    st->st_mode = file_ptr->mode();
+    st->st_size = file_ptr->len();
+    // TODO
     return 0;
 }
 // Timing information for current process.
@@ -324,15 +367,14 @@ struct status_tuple user_wait(int *status)
 {
     return { -1, ECHILD };
 }
-// Write a character to a file.
+// Write to a file.
 int user_write(int file, char *ptr, int len)
 {
-    if (file == 0)
-    {
-        printlen((const char*)ptr, len);
-        return len;
-    }
-    return 0;
+    Kernel::current()
+            ->file_system()
+            ->get_by_descriptor(file)
+            ->write(ptr, len);
+    return len; // TODO: should be returned by 'write'
 }
 void (*user_signal(int sig, void (*func)(int)))(int)
 {

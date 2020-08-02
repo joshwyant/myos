@@ -245,6 +245,9 @@ int process_start(std::shared_ptr<kernel::FileSystem> fs, const char* filename)
     p->vm8086 = 0;
     p->blocked = 0;
     p->fpu_saved = 0;
+    p->stdio[0] = fs->register_descriptor(std::make_unique<PipeFile>()); // stdin
+    p->stdio[1] = fs->register_descriptor(std::make_unique<PipeFile>()); // stdout
+    p->stdio[2] = fs->register_descriptor(std::make_unique<PipeFile>()); // stderr
     process_enqueue(p);
     return p->pid;
 }

@@ -57,7 +57,11 @@ std::unique_ptr<File> FileSystem::open(String file)
 
 int FileSystem::open_descriptor(String file)
 {
-    auto file_ptr = open(file);
+    return register_descriptor(open(file));
+}
+
+int FileSystem::register_descriptor(std::unique_ptr<File> file_ptr)
+{
     int file_id;
     ScopedLock lock(_add_descriptor_lock);
     if (_available_file_ids.len())
@@ -87,7 +91,27 @@ void FileSystem::close_descriptor(int id)
     }
 }
 
+std::unique_ptr<File>& FileSystem::get_by_descriptor(int id)
+{
+    if (id <= 2)
+    {
+        // Get stdio file descriptors from process
+        id = current_process->stdio[id];
+    }
+    return _file_table[id];
+}
+
 bool PipeFile::seek(unsigned pos)
+{
+    throw NotImplementedError();
+}
+
+int PipeFile::pos()
+{
+    throw NotImplementedError();
+}
+
+int PipeFile::len()
 {
     throw NotImplementedError();
 }

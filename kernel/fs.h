@@ -61,8 +61,12 @@ public:
     virtual char getch() = 0;
     virtual char peekc() = 0;
     virtual bool eof() = 0;
+    virtual int pos() = 0;
+    virtual int len() = 0;
     virtual void close() = 0;
     virtual void write(const char *buffer, unsigned bytes) = 0;
+    virtual bool isatty() { return false; }
+    virtual mode_t mode() { return S_IFCHR; /* TODO */ }
     template <typename O> void read(O& o)
     {
         O obj;
@@ -103,48 +107,50 @@ class MemoryFile
 public:
     MemoryFile(std::shared_ptr<Vector<char> > data)
         : data(data),
-          pos(0) {}
+          _pos(0) {}
     MemoryFile()
         : MemoryFile(std::make_shared<Vector<char> >()) {}
     ~MemoryFile() override {}
     bool seek(unsigned pos) override
     {
         if (pos > data->len()) return false;
-        this->pos = pos;
+        _pos = pos;
         return true;
     }
     unsigned read(char *buffer, unsigned bytes) override
     {
         unsigned bytes_read = 0;
-        while (pos < data->len() && bytes--)
+        while (_pos < data->len() && bytes--)
         {
-            *(buffer++) = (*data)[pos++];
+            *(buffer++) = (*data)[_pos++];
             bytes_read++;
         }
         return bytes_read;
     }
-    char getch() override { return (*data)[pos++]; }
-    char peekc() override { return (*data)[pos]; }
-    bool eof() override { return pos >= data->len(); }
+    char getch() override { return (*data)[_pos++]; }
+    char peekc() override { return (*data)[_pos]; }
+    bool eof() override { return _pos >= data->len(); }
+    int pos() override { return _pos; }
+    int len() override { return data->len(); }
     void close() override {}
     void write(const char *buffer, unsigned bytes) override
     {
         while (bytes--)
         {
-            if (pos < data->len())
+            if (_pos < data->len())
             {
-                (*data)[pos++] = *(buffer++);
+                (*data)[_pos++] = *(buffer++);
             }
             else
             {
                 data->push_back(*(buffer++));
-                pos++;
+                _pos++;
             }
         }
     }
 private:
     std::shared_ptr<Vector<char> > data;
-    unsigned pos;
+    unsigned _pos;
 }; // class MemoryFile
 
 class PipeFile
@@ -159,6 +165,8 @@ public:
         : PipeFile(std::make_shared<Queue<char> >()) {}
     ~PipeFile() override { pipe_close(); }
     bool seek(unsigned pos) override;
+    int pos() override;
+    int len() override;
     unsigned read(char *buffer, unsigned bytes) override;
     char getch() override { check_eof(); return data->pop_front(); }
     char peekc() override { check_eof(); return data->bottom(); }
@@ -231,9 +239,10 @@ public:
     void mount(String, std::shared_ptr<FileSystemDriver>);
     std::unique_ptr<File> open(String);
     std::unique_ptr<VirtualDirectoryEntry>& virtual_root() { return _virtual_root; }
+    int register_descriptor(std::unique_ptr<File>);
     int open_descriptor(String);
     void close_descriptor(int id);
-    std::unique_ptr<File>& get_by_descriptor(int id) { return _file_table[id]; }
+    std::unique_ptr<File>& get_by_descriptor(int id);
 private:
     UnorderedMap<String, std::shared_ptr<FileSystemDriver> > _mount_points;
     std::unique_ptr<VirtualDirectoryEntry> _virtual_root;

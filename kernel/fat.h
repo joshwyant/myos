@@ -23,6 +23,8 @@ public:
     unsigned filesize;
     unsigned position;
     bool seek(unsigned pos) override;
+    int pos() override { return position; }
+    int len() override { return filesize; }
     unsigned read(char *buffer, unsigned bytes) override;
     void write(const char *buffer, unsigned bytes) override
     {
