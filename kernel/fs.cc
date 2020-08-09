@@ -83,11 +83,12 @@ int FileSystem::register_descriptor(std::unique_ptr<File> file_ptr)
 void FileSystem::close_descriptor(int id)
 {
     ScopedLock lock(_free_descriptor_lock);
-    if (_file_table[id].get() != nullptr)
+    _available_file_ids.push_back(id);
+    auto table_idx = id - 2;
+    if (_file_table[table_idx].get() != nullptr)
     {
-        _file_table[id]->close();
-        _file_table[id].reset();
-        _available_file_ids.push_back(id);
+        _file_table[table_idx]->close();
+        _file_table[table_idx].reset();
     }
 }
 
@@ -98,7 +99,8 @@ std::unique_ptr<File>& FileSystem::get_by_descriptor(int id)
         // Get stdio file descriptors from process
         id = current_process->stdio[id];
     }
-    return _file_table[id];
+    auto table_idx = id - 2;
+    return _file_table[table_idx];
 }
 
 bool PipeFile::seek(unsigned pos)
